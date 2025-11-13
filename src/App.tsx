@@ -14,6 +14,7 @@ import Aulas from "./pages/Aulas";
 import Aluguel from "./pages/Aluguel";
 import Ecommerce from "./pages/Ecommerce";
 import Relatorios from "./pages/Relatorios";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { localStorageService } from "./lib/localStorage";
 
@@ -38,7 +39,10 @@ const App = () => {
               <Route path="/agendar-aula" element={<AgendarAula />} />
             </Route>
 
-            {/* ROTAS ADMIN */}
+            {/* LOGIN ADMIN */}
+            <Route path="/admin/login" element={<Login />} />
+
+            {/* ROTAS ADMIN (Protegidas) */}
             <Route path="/admin" element={<AdminLayout><Outlet /></AdminLayout>}>
               <Route index element={<Dashboard />} />
               <Route path="clientes" element={<Clientes />} />
