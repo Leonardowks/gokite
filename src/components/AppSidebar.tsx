@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/", icon: Home },
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Aulas", url: "/aulas", icon: Calendar },
-  { title: "Aluguel", url: "/aluguel", icon: Package },
-  { title: "E-commerce", url: "/ecommerce", icon: ShoppingCart },
-  { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
+  { title: "Dashboard", url: "/admin", icon: Home },
+  { title: "Clientes", url: "/admin/clientes", icon: Users },
+  { title: "Aulas", url: "/admin/aulas", icon: Calendar },
+  { title: "Aluguel", url: "/admin/aluguel", icon: Package },
+  { title: "E-commerce", url: "/admin/ecommerce", icon: ShoppingCart },
+  { title: "Relatórios", url: "/admin/relatorios", icon: BarChart3 },
 ];
 
 export function AppSidebar() {

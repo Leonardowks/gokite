@@ -55,62 +55,101 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-4xl font-bold text-foreground mb-2">Dashboard</h1>
-        <p className="text-muted-foreground">Visão geral da sua operação Gokite</p>
+        <p className="text-muted-foreground">Visão geral da sua operação</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <DashboardCard
-          title="Total de Clientes"
-          value={stats.totalClientes}
-          icon={Users}
-          description="Clientes cadastrados"
+      {/* Métricas */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <MetricCard
+          title="Aulas Hoje"
+          value={stats.aulasHoje}
+          icon={CalendarIcon}
         />
-        <DashboardCard
-          title="Aulas Agendadas"
-          value={stats.aulasAgendadas}
-          icon={Calendar}
-          description="Aulas pendentes"
+        <MetricCard
+          title="Receita Hoje"
+          value={`R$ ${stats.receitaHoje.toLocaleString('pt-BR')}`}
+          icon={DollarSign}
         />
-        <DashboardCard
-          title="Equipamentos Alugados"
-          value={stats.equipamentosAlugados}
-          icon={Package}
-          description="Atualmente em uso"
-        />
-        <DashboardCard
-          title="Vendas do Mês"
-          value={`R$ ${stats.vendasMes.toFixed(2)}`}
-          icon={ShoppingCart}
-          description="E-commerce"
+        <MetricCard
+          title="Aulas Pendentes"
+          value={stats.aulasPendentes}
+          icon={TrendingUp}
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximas Aulas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Visualize e gerencie as próximas aulas na página de Aulas
+      {/* Próximas Aulas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            Próximas Aulas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {proximasAulas.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Nenhuma aula agendada
             </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Equipamentos a Devolver</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Acompanhe devoluções pendentes na página de Aluguel
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data/Hora</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Local</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {proximasAulas.map((aula) => (
+                  <TableRow key={aula.id}>
+                    <TableCell>
+                      <div className="font-medium">
+                        {format(new Date(aula.data), 'dd/MM')}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {aula.horario}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{aula.cliente_nome}</TableCell>
+                    <TableCell className="capitalize">{aula.tipo_aula.replace('_', ' ')}</TableCell>
+                    <TableCell className="capitalize">{aula.localizacao}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={aula.status} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {aula.status === 'pendente' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => confirmarAula(aula.id)}
+                          >
+                            ✓ Confirmar
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => cancelarAula(aula.id)}
+                          disabled={aula.status === 'cancelada'}
+                        >
+                          ✗ Cancelar
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
