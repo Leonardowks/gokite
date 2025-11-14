@@ -1,4 +1,4 @@
-import { Home, Users, Calendar, Package, ShoppingCart, BarChart3, Menu } from "lucide-react";
+import { Home, Users, Calendar, Package, ShoppingCart, BarChart3, Menu, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -21,6 +21,7 @@ const menuItems = [
   { title: "Aluguel", url: "/admin/aluguel", icon: Package },
   { title: "E-commerce", url: "/admin/ecommerce", icon: ShoppingCart },
   { title: "Relatórios", url: "/admin/relatorios", icon: BarChart3 },
+  { title: "Configurações", url: "/admin/configuracoes", icon: Settings },
 ];
 
 export function AppSidebar() {

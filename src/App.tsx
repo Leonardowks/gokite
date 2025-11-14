@@ -14,6 +14,7 @@ import Aulas from "./pages/Aulas";
 import Aluguel from "./pages/Aluguel";
 import Ecommerce from "./pages/Ecommerce";
 import Relatorios from "./pages/Relatorios";
+import Configuracoes from "./pages/Configuracoes";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { localStorageService } from "./lib/localStorage";
@@ -50,6 +51,7 @@ const App = () => {
               <Route path="aluguel" element={<Aluguel />} />
               <Route path="ecommerce" element={<Ecommerce />} />
               <Route path="relatorios" element={<Relatorios />} />
+              <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
 
             {/* CATCH-ALL */}

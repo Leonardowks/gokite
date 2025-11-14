@@ -80,6 +80,19 @@ export const localStorageService = {
     return false;
   },
 
+  // Atualizar agendamento completo
+  atualizarAgendamento: (id: string, dadosAtualizados: Agendamento): boolean => {
+    const agendamentos = localStorageService.listarAgendamentos();
+    const index = agendamentos.findIndex(a => a.id === id);
+    if (index !== -1) {
+      agendamentos[index] = { ...agendamentos[index], ...dadosAtualizados };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(agendamentos));
+      console.log('[GoKite-LocalStorage] Agendamento atualizado:', id);
+      return true;
+    }
+    return false;
+  },
+
   // Inicializar dados mock
   inicializarMock: () => {
     if (localStorage.getItem(STORAGE_KEY)) {
