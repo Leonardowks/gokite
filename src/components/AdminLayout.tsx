@@ -1,11 +1,11 @@
 import { ReactNode, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut } from "lucide-react";
+import { LogOut, ExternalLink } from "lucide-react";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -44,7 +44,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <span className="hidden sm:inline text-sm text-muted-foreground">Painel Administrativo</span>
               </div>
               <div className="flex items-center gap-2">
+                <Button 
+                  asChild
+                  variant="ghost" 
+                  size="sm"
+                  className="gap-2"
+                >
+                  <Link to="/">
+                    <ExternalLink className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ver Site</span>
+                  </Link>
+                </Button>
+                
                 <span className="hidden sm:inline text-xs text-muted-foreground">{user?.email}</span>
+                
                 <Button 
                   variant="ghost" 
                   size="sm" 

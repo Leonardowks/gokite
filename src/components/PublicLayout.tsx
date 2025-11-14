@@ -1,7 +1,9 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Phone, Instagram, Facebook, Mail } from "lucide-react";
+import { Phone, Instagram, Facebook, Mail, Shield, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 interface PublicLayoutProps {
@@ -40,38 +42,93 @@ export function PublicLayout({ children }: PublicLayoutProps) {
 
             {/* Navigation */}
             <nav className="hidden md:flex items-center gap-6">
-              <Link to="/" className="text-foreground hover:text-primary transition-colors font-medium">
+              <Link to="/" className="text-sm font-medium hover:text-primary transition-colors">
                 Início
               </Link>
-              <Link to="/agendar-aula" className="text-foreground hover:text-primary transition-colors font-medium">
+              <Link to="/agendar-aula" className="text-sm font-medium hover:text-primary transition-colors">
                 Agendar Aula
               </Link>
-              <a 
-                href="https://wa.me/5548999887766" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-foreground hover:text-primary transition-colors font-medium"
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+                className="gap-2"
               >
+                <Phone className="h-4 w-4" />
                 WhatsApp
-              </a>
-              <Link to="/admin" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                Área Admin
-              </Link>
+              </Button>
+              <Button 
+                asChild 
+                variant="outline" 
+                size="sm"
+                className="gap-2"
+              >
+                <Link to="/admin/login">
+                  <Shield className="h-4 w-4" />
+                  Área Admin
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link to="/agendar-aula">Agendar Agora</Link>
+              </Button>
             </nav>
 
-            {/* CTA Button */}
-            <Button asChild className="hidden md:flex">
-              <Link to="/agendar-aula">
-                Agendar Agora
-              </Link>
-            </Button>
-
-            {/* Mobile Menu Button */}
-            <Button asChild variant="outline" size="sm" className="md:hidden">
-              <Link to="/agendar-aula">
-                Agendar
-              </Link>
-            </Button>
+            {/* Mobile Menu */}
+            <div className="flex items-center gap-2 md:hidden">
+              <Button 
+                size="sm" 
+                variant="ghost"
+                onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+              >
+                <Phone className="h-4 w-4" />
+              </Button>
+              
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-[280px]">
+                  <nav className="flex flex-col gap-4 mt-8">
+                    <Link 
+                      to="/" 
+                      className="text-lg font-medium hover:text-primary transition-colors"
+                    >
+                      Início
+                    </Link>
+                    <Link 
+                      to="/agendar-aula" 
+                      className="text-lg font-medium hover:text-primary transition-colors"
+                    >
+                      Agendar Aula
+                    </Link>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 justify-start"
+                      onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+                    >
+                      <Phone className="h-4 w-4" />
+                      WhatsApp
+                    </Button>
+                    <Separator />
+                    <Button
+                      asChild
+                      variant="ghost"
+                      className="w-full gap-2 justify-start"
+                    >
+                      <Link to="/admin/login">
+                        <Shield className="h-4 w-4" />
+                        Área Admin
+                      </Link>
+                    </Button>
+                    <Button asChild className="w-full">
+                      <Link to="/agendar-aula">Agendar Aula</Link>
+                    </Button>
+                  </nav>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
       </header>
@@ -128,14 +185,29 @@ export function PublicLayout({ children }: PublicLayoutProps) {
             {/* Contato */}
             <div className="space-y-4">
               <h3 className="font-semibold text-foreground">Contato</h3>
+              
+              <Button
+                variant="default"
+                size="lg"
+                className="w-full gap-2 bg-green-600 hover:bg-green-700"
+                onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+              >
+                <Phone className="h-5 w-5" />
+                Fale no WhatsApp
+              </Button>
+              
               <ul className="space-y-3">
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-4 w-4" />
-                  <span>(48) 99988-7766</span>
+                  <a href="tel:+5548999887766" className="hover:text-foreground transition-colors">
+                    (48) 99988-7766
+                  </a>
                 </li>
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="h-4 w-4" />
-                  <span>contato@gokite.com</span>
+                  <a href="mailto:contato@gokite.com" className="hover:text-foreground transition-colors">
+                    contato@gokite.com
+                  </a>
                 </li>
               </ul>
             </div>

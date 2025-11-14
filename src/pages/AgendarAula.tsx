@@ -64,8 +64,25 @@ export default function AgendarAula() {
       setShowSuccessDialog(true);
 
       toast({
-        title: "✅ Aula Agendada!",
-        description: `Pedido ${agendamento.id} criado com sucesso.`,
+        title: "✅ Aula Agendada com Sucesso!",
+        description: (
+          <div className="space-y-2 mt-2">
+            <p>Pedido #{agendamento.id}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full gap-2 mt-2"
+              onClick={() => window.open(
+                `https://wa.me/5548999887766?text=Olá! Acabei de agendar a aula ${agendamento.id}.`,
+                '_blank'
+              )}
+            >
+              <Phone className="h-3 w-3" />
+              Confirmar no WhatsApp
+            </Button>
+          </div>
+        ),
+        duration: 6000,
       });
 
       setTimeout(() => {
@@ -410,6 +427,22 @@ export default function AgendarAula() {
                     R$ {precoTotal.toLocaleString('pt-BR')}
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-border">
+                <p className="text-sm text-muted-foreground mb-3 text-center">
+                  Ficou com dúvidas sobre o agendamento?
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-2"
+                  onClick={() => window.open('https://wa.me/5548999887766?text=Olá! Tenho dúvidas sobre o agendamento de aula.', '_blank')}
+                >
+                  <Phone className="h-4 w-4" />
+                  Falar no WhatsApp
+                </Button>
               </div>
 
               <Button
