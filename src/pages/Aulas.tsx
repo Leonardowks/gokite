@@ -1,22 +1,42 @@
-import { useEffect, useState } from "react";
-import { Plus, Calendar as CalendarIcon, Clock, MapPin, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { localStorageService, type Agendamento } from "@/lib/localStorage";
 import { StatusBadge } from "@/components/StatusBadge";
-import { traduzirTipoAula, traduzirLocalizacao } from "@/lib/utils";
+import { AulaDialog } from "@/components/AulaDialog";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Search, Calendar, Plus, Trash2, Edit } from "lucide-react";
+
+const traduzirTipoAula = (tipo: string) => {
+  const tipos: Record<string, string> = {
+    'iniciante': 'Iniciante',
+    'intermediario': 'Intermediário',
+    'avancado': 'Avançado',
+    'wing_foil': 'Wing Foil'
+  };
+  return tipos[tipo] || tipo;
+};
+
+const traduzirLocalizacao = (local: string) => {
+  const locais: Record<string, string> = {
+    'florianopolis': 'Florianópolis',
+    'taiba': 'Taíba'
+  };
+  return locais[local] || local;
+};
 
 export default function Aulas() {
   const [aulas, setAulas] = useState<Agendamento[]>([]);
   const [busca, setBusca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
-  const [filtroLocal, setFiltroLocal] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [filtroLocal, setFiltroLocal] = useState<string>("todos");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedAula, setSelectedAula] = useState<Agendamento | undefined>();
   const { toast } = useToast();
 
   useEffect(() => { loadAulas(); }, []);
@@ -46,17 +66,35 @@ export default function Aulas() {
     }
   };
 
+  const handleEdit = (aula: Agendamento) => {
+    setSelectedAula(aula);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedAula(undefined);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-start">
         <div>
           <h1 className="text-4xl font-bold text-foreground mb-2">Aulas</h1>
-          <p className="text-muted-foreground">Gerencie e agende aulas de kitesurf</p>
+          <p className="text-muted-foreground">Gerencie todos os agendamentos</p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Agendar Aula
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setDialogOpen(true)} variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nova Aula
+          </Button>
+          <Button asChild className="gap-2">
+            <Link to="/agendar-aula">
+              <Calendar className="h-4 w-4" />
+              Agendamento Público
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -90,24 +128,25 @@ export default function Aulas() {
             </Select>
           </div>
         </CardHeader>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-6">
+        <CardContent>
           {aulasFiltradas.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              {busca || filtroStatus !== 'todos' || filtroLocal !== 'todos' ? "Nenhuma aula encontrada." : "Nenhuma aula agendada."}
+              {busca || filtroStatus !== 'todos' || filtroLocal !== 'todos' 
+                ? "Nenhuma aula encontrada com os filtros aplicados." 
+                : "Nenhuma aula agendada ainda."}
             </p>
           ) : (
             <>
-              <div className="hidden lg:block">
+              {/* Tabela Desktop */}
+              <div className="hidden lg:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Data/Hora</TableHead>
+                      <TableHead>Data</TableHead>
                       <TableHead>Cliente</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Local</TableHead>
+                      <TableHead>Horário</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Valor</TableHead>
                       <TableHead>Ações</TableHead>
@@ -116,32 +155,34 @@ export default function Aulas() {
                   <TableBody>
                     {aulasFiltradas.map((aula) => (
                       <TableRow key={aula.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <div className="font-medium">{format(new Date(aula.data), 'dd/MM/yyyy', { locale: ptBR })}</div>
-                              <div className="text-sm text-muted-foreground flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {aula.horario}
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
+                        <TableCell>{format(new Date(aula.data), 'dd/MM/yyyy')}</TableCell>
                         <TableCell className="font-medium">{aula.cliente_nome}</TableCell>
                         <TableCell>{traduzirTipoAula(aula.tipo_aula)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            {traduzirLocalizacao(aula.localizacao)}
-                          </div>
-                        </TableCell>
+                        <TableCell>{traduzirLocalizacao(aula.localizacao)}</TableCell>
+                        <TableCell>{aula.horario}</TableCell>
                         <TableCell><StatusBadge status={aula.status} /></TableCell>
-                        <TableCell className="font-semibold">R$ {aula.valor.toFixed(2)}</TableCell>
+                        <TableCell>R$ {aula.valor}</TableCell>
                         <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => deletarAula(aula.id)} className="text-destructive hover:text-destructive">
-                            Deletar
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleEdit(aula)}
+                              className="gap-2"
+                            >
+                              <Edit className="h-4 w-4" />
+                              Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deletarAula(aula.id)}
+                              className="gap-2 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Deletar
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -149,38 +190,31 @@ export default function Aulas() {
                 </Table>
               </div>
 
-              <div className="block lg:hidden space-y-4">
+              {/* Cards Mobile */}
+              <div className="lg:hidden space-y-4">
                 {aulasFiltradas.map((aula) => (
                   <Card key={aula.id}>
-                    <CardContent className="pt-6">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-lg">{aula.cliente_nome}</p>
-                            <p className="text-sm text-muted-foreground">{traduzirTipoAula(aula.tipo_aula)}</p>
-                          </div>
-                          <StatusBadge status={aula.status} />
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-semibold">{aula.cliente_nome}</p>
+                          <p className="text-sm text-muted-foreground">{traduzirTipoAula(aula.tipo_aula)}</p>
                         </div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center gap-2">
-                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                            {format(new Date(aula.data), 'dd/MM/yyyy', { locale: ptBR })}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
-                            {aula.horario}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            {traduzirLocalizacao(aula.localizacao)}
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center pt-2 border-t">
-                          <span className="font-semibold text-lg">R$ {aula.valor.toFixed(2)}</span>
-                          <Button size="sm" variant="ghost" onClick={() => deletarAula(aula.id)} className="text-destructive">
-                            Deletar
-                          </Button>
-                        </div>
+                        <StatusBadge status={aula.status} />
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <p><strong>Data:</strong> {format(new Date(aula.data), 'dd/MM/yyyy')} às {aula.horario}</p>
+                        <p><strong>Local:</strong> {traduzirLocalizacao(aula.localizacao)}</p>
+                        <p><strong>Valor:</strong> R$ {aula.valor}</p>
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(aula)} className="flex-1">
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => deletarAula(aula.id)} className="text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -190,6 +224,16 @@ export default function Aulas() {
           )}
         </CardContent>
       </Card>
+
+      <AulaDialog
+        open={dialogOpen}
+        onOpenChange={handleCloseDialog}
+        onSave={() => {
+          loadAulas();
+          handleCloseDialog();
+        }}
+        aula={selectedAula}
+      />
     </div>
   );
 }
