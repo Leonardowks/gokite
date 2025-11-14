@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Calendar, Users, Award, Shield, Clock, MapPin } from "lucide-react";
+import { Calendar, Users, Award, Shield, Clock, MapPin, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -299,6 +299,21 @@ export default function LandingPage() {
           </CardContent>
         </Card>
       </section>
+
+      {/* Botão WhatsApp Flutuante - Mobile Only */}
+      <a
+        href="https://wa.me/5548999887766"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 md:hidden"
+      >
+        <Button
+          size="lg"
+          className="h-14 w-14 rounded-full shadow-2xl bg-green-600 hover:bg-green-700 animate-pulse hover:animate-none"
+        >
+          <Phone className="h-6 w-6" />
+        </Button>
+      </a>
     </div>
   );
 }
