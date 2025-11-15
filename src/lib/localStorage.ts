@@ -21,7 +21,49 @@ export interface ClienteAgregado {
   ultima_aula: string;
 }
 
+export interface Equipamento {
+  id: string;
+  nome: string;
+  tipo: 'prancha' | 'asa' | 'trapezio' | 'colete' | 'wetsuit';
+  status: 'disponivel' | 'alugado' | 'manutencao';
+  localizacao: 'florianopolis' | 'taiba';
+  preco_dia: number;
+  ultimo_aluguel?: string;
+  foto_url?: string;
+  tamanho?: string;
+  created_at: string;
+}
+
+export interface Aluguel {
+  id: string;
+  equipamento_id: string;
+  cliente_nome: string;
+  cliente_email: string;
+  cliente_whatsapp: string;
+  data_inicio: string;
+  data_fim: string;
+  valor_total: number;
+  status: 'ativo' | 'concluido' | 'atrasado';
+  created_at: string;
+}
+
+export interface Lead {
+  id: string;
+  nome: string;
+  email: string;
+  whatsapp: string;
+  visitas: number;
+  ultima_visita: string;
+  interesse: string;
+  score: 'urgente' | 'quente' | 'morno';
+  status: 'novo' | 'contatado' | 'convertido';
+  created_at: string;
+}
+
 const STORAGE_KEY = 'gokite_aulas';
+const EQUIPAMENTOS_KEY = 'gokite_equipamentos';
+const ALUGUEIS_KEY = 'gokite_alugueis';
+const LEADS_KEY = 'gokite_leads';
 
 export const localStorageService = {
   // Salvar agendamento
@@ -223,5 +265,164 @@ export const localStorageService = {
       receitaHoje,
       aulasPendentes: aulasPendentes.length,
     };
+  },
+
+  // ========== EQUIPAMENTOS ==========
+  listarEquipamentos: (): Equipamento[] => {
+    try {
+      const data = localStorage.getItem(EQUIPAMENTOS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('[GoKite-LocalStorage] Erro ao listar equipamentos:', error);
+      return [];
+    }
+  },
+
+  salvarEquipamento: (data: Omit<Equipamento, 'id' | 'created_at'>): Equipamento => {
+    const equipamentos = localStorageService.listarEquipamentos();
+    const novoEquipamento: Equipamento = {
+      ...data,
+      id: `EQ${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    equipamentos.push(novoEquipamento);
+    localStorage.setItem(EQUIPAMENTOS_KEY, JSON.stringify(equipamentos));
+    return novoEquipamento;
+  },
+
+  atualizarEquipamento: (id: string, dados: Partial<Equipamento>): boolean => {
+    const equipamentos = localStorageService.listarEquipamentos();
+    const index = equipamentos.findIndex(e => e.id === id);
+    if (index !== -1) {
+      equipamentos[index] = { ...equipamentos[index], ...dados };
+      localStorage.setItem(EQUIPAMENTOS_KEY, JSON.stringify(equipamentos));
+      return true;
+    }
+    return false;
+  },
+
+  // ========== ALUGUÉIS ==========
+  listarAlugueis: (): Aluguel[] => {
+    try {
+      const data = localStorage.getItem(ALUGUEIS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('[GoKite-LocalStorage] Erro ao listar aluguéis:', error);
+      return [];
+    }
+  },
+
+  salvarAluguel: (data: Omit<Aluguel, 'id' | 'created_at'>): Aluguel => {
+    const alugueis = localStorageService.listarAlugueis();
+    const novoAluguel: Aluguel = {
+      ...data,
+      id: `AL${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    alugueis.push(novoAluguel);
+    localStorage.setItem(ALUGUEIS_KEY, JSON.stringify(alugueis));
+    
+    // Atualizar status do equipamento
+    localStorageService.atualizarEquipamento(data.equipamento_id, { 
+      status: 'alugado',
+      ultimo_aluguel: new Date().toISOString()
+    });
+    
+    return novoAluguel;
+  },
+
+  finalizarAluguel: (id: string): boolean => {
+    const alugueis = localStorageService.listarAlugueis();
+    const index = alugueis.findIndex(a => a.id === id);
+    if (index !== -1) {
+      const aluguel = alugueis[index];
+      alugueis[index].status = 'concluido';
+      localStorage.setItem(ALUGUEIS_KEY, JSON.stringify(alugueis));
+      
+      // Liberar equipamento
+      localStorageService.atualizarEquipamento(aluguel.equipamento_id, { status: 'disponivel' });
+      return true;
+    }
+    return false;
+  },
+
+  // ========== LEADS ==========
+  listarLeads: (): Lead[] => {
+    try {
+      const data = localStorage.getItem(LEADS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error('[GoKite-LocalStorage] Erro ao listar leads:', error);
+      return [];
+    }
+  },
+
+  salvarLead: (data: Omit<Lead, 'id' | 'created_at'>): Lead => {
+    const leads = localStorageService.listarLeads();
+    const novoLead: Lead = {
+      ...data,
+      id: `L${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    leads.push(novoLead);
+    localStorage.setItem(LEADS_KEY, JSON.stringify(leads));
+    return novoLead;
+  },
+
+  atualizarLead: (id: string, dados: Partial<Lead>): boolean => {
+    const leads = localStorageService.listarLeads();
+    const index = leads.findIndex(l => l.id === id);
+    if (index !== -1) {
+      leads[index] = { ...leads[index], ...dados };
+      localStorage.setItem(LEADS_KEY, JSON.stringify(leads));
+      return true;
+    }
+    return false;
+  },
+
+  // ========== INICIALIZAR MOCK COMPLETO ==========
+  inicializarMockCompleto: () => {
+    localStorageService.inicializarMock();
+    
+    // Equipamentos Mock
+    if (!localStorage.getItem(EQUIPAMENTOS_KEY)) {
+      const mockEquipamentos: Equipamento[] = [
+        { id: 'EQ001', nome: 'Prancha North 135cm', tipo: 'prancha', status: 'disponivel', localizacao: 'florianopolis', preco_dia: 150, tamanho: '135cm', created_at: new Date().toISOString() },
+        { id: 'EQ002', nome: 'Prancha Cabrinha 140cm', tipo: 'prancha', status: 'alugado', localizacao: 'florianopolis', preco_dia: 180, tamanho: '140cm', ultimo_aluguel: new Date().toISOString(), created_at: new Date().toISOString() },
+        { id: 'EQ003', nome: 'Asa Duotone 9m', tipo: 'asa', status: 'disponivel', localizacao: 'florianopolis', preco_dia: 200, tamanho: '9m', created_at: new Date().toISOString() },
+        { id: 'EQ004', nome: 'Asa North 12m', tipo: 'asa', status: 'alugado', localizacao: 'taiba', preco_dia: 220, tamanho: '12m', ultimo_aluguel: new Date(Date.now() - 172800000).toISOString(), created_at: new Date().toISOString() },
+        { id: 'EQ005', nome: 'Trapézio Mystic L', tipo: 'trapezio', status: 'disponivel', localizacao: 'florianopolis', preco_dia: 50, tamanho: 'L', created_at: new Date().toISOString() },
+        { id: 'EQ006', nome: 'Trapézio Ion M', tipo: 'trapezio', status: 'manutencao', localizacao: 'florianopolis', preco_dia: 50, tamanho: 'M', created_at: new Date().toISOString() },
+        { id: 'EQ007', nome: 'Prancha F-One 145cm', tipo: 'prancha', status: 'disponivel', localizacao: 'taiba', preco_dia: 170, tamanho: '145cm', created_at: new Date().toISOString() },
+        { id: 'EQ008', nome: 'Asa Ozone 10m', tipo: 'asa', status: 'disponivel', localizacao: 'taiba', preco_dia: 210, tamanho: '10m', created_at: new Date().toISOString() },
+      ];
+      localStorage.setItem(EQUIPAMENTOS_KEY, JSON.stringify(mockEquipamentos));
+      console.log('[GoKite-LocalStorage] Equipamentos mock inicializados');
+    }
+
+    // Aluguéis Mock
+    if (!localStorage.getItem(ALUGUEIS_KEY)) {
+      const hoje = new Date();
+      const mockAlugueis: Aluguel[] = [
+        { id: 'AL001', equipamento_id: 'EQ002', cliente_nome: 'Carlos Mendes', cliente_email: 'carlos@email.com', cliente_whatsapp: '48998877665', data_inicio: new Date(hoje.getTime() - 86400000).toISOString(), data_fim: new Date(hoje.getTime() + 86400000).toISOString(), valor_total: 360, status: 'ativo', created_at: new Date(hoje.getTime() - 86400000).toISOString() },
+        { id: 'AL002', equipamento_id: 'EQ004', cliente_nome: 'Ana Costa', cliente_email: 'ana@email.com', cliente_whatsapp: '85999112233', data_inicio: new Date(hoje.getTime() - 172800000).toISOString(), data_fim: hoje.toISOString(), valor_total: 440, status: 'ativo', created_at: new Date(hoje.getTime() - 172800000).toISOString() },
+      ];
+      localStorage.setItem(ALUGUEIS_KEY, JSON.stringify(mockAlugueis));
+      console.log('[GoKite-LocalStorage] Aluguéis mock inicializados');
+    }
+
+    // Leads Mock
+    if (!localStorage.getItem(LEADS_KEY)) {
+      const hoje = new Date();
+      const mockLeads: Lead[] = [
+        { id: 'L001', nome: 'Roberto Silva', email: 'roberto@email.com', whatsapp: '48991234567', visitas: 5, ultima_visita: new Date(hoje.getTime() - 3600000).toISOString(), interesse: 'Aula Wing Foil', score: 'urgente', status: 'novo', created_at: new Date(hoje.getTime() - 172800000).toISOString() },
+        { id: 'L002', nome: 'Fernanda Oliveira', email: 'fernanda@email.com', whatsapp: '85987654321', visitas: 3, ultima_visita: new Date(hoje.getTime() - 86400000).toISOString(), interesse: 'Prancha 140cm', score: 'urgente', status: 'novo', created_at: new Date(hoje.getTime() - 259200000).toISOString() },
+        { id: 'L003', nome: 'Lucas Santos', email: 'lucas@email.com', whatsapp: '48999887766', visitas: 2, ultima_visita: new Date(hoje.getTime() - 172800000).toISOString(), interesse: 'Aula Iniciante', score: 'quente', status: 'novo', created_at: new Date(hoje.getTime() - 345600000).toISOString() },
+        { id: 'L004', nome: 'Juliana Costa', email: 'juliana@email.com', whatsapp: '85988776655', visitas: 2, ultima_visita: new Date(hoje.getTime() - 259200000).toISOString(), interesse: 'Aluguel Trapézio', score: 'quente', status: 'novo', created_at: new Date(hoje.getTime() - 432000000).toISOString() },
+        { id: 'L005', nome: 'Marcos Lima', email: 'marcos@email.com', whatsapp: '48987654321', visitas: 1, ultima_visita: new Date(hoje.getTime() - 604800000).toISOString(), interesse: 'Wing Foil', score: 'morno', status: 'novo', created_at: new Date(hoje.getTime() - 604800000).toISOString() },
+      ];
+      localStorage.setItem(LEADS_KEY, JSON.stringify(mockLeads));
+      console.log('[GoKite-LocalStorage] Leads mock inicializados');
+    }
   },
 };

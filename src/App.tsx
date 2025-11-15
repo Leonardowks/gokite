@@ -15,6 +15,8 @@ import Aluguel from "./pages/Aluguel";
 import Ecommerce from "./pages/Ecommerce";
 import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
+import Vendas from "./pages/admin/Vendas";
+import Estoque from "./pages/admin/Estoque";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { localStorageService } from "./lib/localStorage";
@@ -24,7 +26,7 @@ const queryClient = new QueryClient();
 const App = () => {
   // Inicializar dados mock na primeira carga
   useEffect(() => {
-    localStorageService.inicializarMock();
+    localStorageService.inicializarMockCompleto();
   }, []);
 
   return (
@@ -48,6 +50,8 @@ const App = () => {
               <Route index element={<Dashboard />} />
               <Route path="clientes" element={<Clientes />} />
               <Route path="aulas" element={<Aulas />} />
+              <Route path="vendas" element={<Vendas />} />
+              <Route path="estoque" element={<Estoque />} />
               <Route path="aluguel" element={<Aluguel />} />
               <Route path="ecommerce" element={<Ecommerce />} />
               <Route path="relatorios" element={<Relatorios />} />
