@@ -50,7 +50,7 @@ export default function LandingPage() {
             <Button size="lg" onClick={() => navigate('/agendar-aula')} className="text-lg px-8 py-6 transition-transform hover:scale-105">
               Agendar Agora
             </Button>
-            <Button size="lg" variant="outline" onClick={() => window.open('https://wa.me/5548999887766', '_blank')} className="text-lg px-8 py-6 bg-white/10 backdrop-blur-sm text-white border-white hover:bg-white hover:text-primary transition-all">
+            <Button size="lg" variant="outline" onClick={() => window.open('https://wa.me/554891541618', '_blank')} className="text-lg px-8 py-6 bg-white/10 backdrop-blur-sm text-white border-white hover:bg-white hover:text-primary transition-all">
               Falar no WhatsApp
             </Button>
           </div>
@@ -246,7 +246,7 @@ export default function LandingPage() {
       </section>
 
       {/* Botão WhatsApp Flutuante - Mobile Only */}
-      <a href="https://wa.me/5548999887766" target="_blank" rel="noopener noreferrer" className="fixed bottom-6 right-6 z-50 md:hidden">
+      <a href="https://wa.me/554891541618" target="_blank" rel="noopener noreferrer" className="fixed bottom-6 right-6 z-50 md:hidden">
         <Button size="lg" className="h-14 w-14 rounded-full shadow-2xl bg-green-600 hover:bg-green-700 animate-pulse hover:animate-none">
           <Phone className="h-6 w-6" />
         </Button>

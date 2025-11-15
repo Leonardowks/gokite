@@ -51,7 +51,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <Button 
                 size="sm" 
                 variant="ghost"
-                onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+                onClick={() => window.open('https://wa.me/554891541618', '_blank')}
                 className="gap-2"
               >
                 <Phone className="h-4 w-4" />
@@ -78,7 +78,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <Button 
                 size="sm" 
                 variant="ghost"
-                onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+                onClick={() => window.open('https://wa.me/554891541618', '_blank')}
               >
                 <Phone className="h-4 w-4" />
               </Button>
@@ -103,10 +103,10 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                     >
                       Agendar Aula
                     </Link>
-                    <Button
+                    <Button 
                       variant="outline"
                       className="w-full gap-2 justify-start"
-                      onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+                      onClick={() => window.open('https://wa.me/554891541618', '_blank')}
                     >
                       <Phone className="h-4 w-4" />
                       WhatsApp
@@ -171,7 +171,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 </li>
                 <li>
                   <a 
-                    href="https://wa.me/5548999887766" 
+                    href="https://wa.me/554891541618" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -190,7 +190,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 variant="default"
                 size="lg"
                 className="w-full gap-2 bg-green-600 hover:bg-green-700"
-                onClick={() => window.open('https://wa.me/5548999887766', '_blank')}
+                onClick={() => window.open('https://wa.me/554891541618', '_blank')}
               >
                 <Phone className="h-5 w-5" />
                 Fale no WhatsApp
@@ -199,8 +199,8 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <ul className="space-y-3">
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-4 w-4" />
-                  <a href="tel:+5548999887766" className="hover:text-foreground transition-colors">
-                    (48) 99988-7766
+                  <a href="tel:+554891541618" className="hover:text-foreground transition-colors">
+                    (48) 99154-1618
                   </a>
                 </li>
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">

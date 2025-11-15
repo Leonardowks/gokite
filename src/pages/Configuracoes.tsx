@@ -13,7 +13,7 @@ export default function Configuracoes() {
   const [config, setConfig] = useState({
     empresaNome: "Gokite School",
     empresaEmail: "contato@gokite.com",
-    empresaWhatsApp: "5548999887766",
+    empresaWhatsApp: "554891541618",
     empresaEndereco: "Florianópolis, SC",
     valorAulaIniciante: 400,
     valorAulaIntermediario: 500,
@@ -37,7 +37,7 @@ export default function Configuracoes() {
     const defaultConfig = {
       empresaNome: "Gokite School",
       empresaEmail: "contato@gokite.com",
-      empresaWhatsApp: "5548999887766",
+      empresaWhatsApp: "554891541618",
       empresaEndereco: "Florianópolis, SC",
       valorAulaIniciante: 400,
       valorAulaIntermediario: 500,

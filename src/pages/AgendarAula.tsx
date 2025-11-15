@@ -73,7 +73,7 @@ export default function AgendarAula() {
               variant="outline"
               className="w-full gap-2 mt-2"
               onClick={() => window.open(
-                `https://wa.me/5548999887766?text=Olá! Acabei de agendar a aula ${agendamento.id}.`,
+                `https://wa.me/554891541618?text=Olá! Acabei de agendar a aula ${agendamento.id}.`,
                 '_blank'
               )}
             >
@@ -332,7 +332,7 @@ export default function AgendarAula() {
                             <div className="relative">
                               <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                               <Input 
-                                placeholder="48999887766" 
+                                placeholder="48991541618" 
                                 className="pl-10" 
                                 {...field}
                                 maxLength={11}
@@ -438,7 +438,7 @@ export default function AgendarAula() {
                   variant="outline"
                   size="sm"
                   className="w-full gap-2"
-                  onClick={() => window.open('https://wa.me/5548999887766?text=Olá! Tenho dúvidas sobre o agendamento de aula.', '_blank')}
+                  onClick={() => window.open('https://wa.me/554891541618?text=Olá! Tenho dúvidas sobre o agendamento de aula.', '_blank')}
                 >
                   <Phone className="h-4 w-4" />
                   Falar no WhatsApp
