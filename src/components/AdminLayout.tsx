@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { LogOut, ExternalLink } from "lucide-react";
+import { NotificationCenter } from "@/components/NotificationCenter";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -44,6 +45,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <span className="hidden sm:inline text-sm text-muted-foreground">Painel Administrativo</span>
               </div>
               <div className="flex items-center gap-2">
+                <NotificationCenter />
+                
                 <Button 
                   asChild
                   variant="ghost" 

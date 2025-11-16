@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DollarSign, Calendar as CalendarIcon, TrendingUp, Users, CheckCircle, XCircle, Clock } from "lucide-react";
+import { DollarSign, Calendar as CalendarIcon, TrendingUp, Users, CheckCircle, XCircle, Clock, MessageCircle, Package, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +9,10 @@ import { MetricCard } from "@/components/MetricCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { DailyRoutineWidget } from "@/components/DailyRoutineWidget";
+import { QuickActionsPanel } from "@/components/QuickActionsPanel";
+import { OnboardingTour } from "@/components/OnboardingTour";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -23,6 +27,7 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [pieData, setPieData] = useState<any[]>([]);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => { loadStats(); }, []);
 
@@ -104,19 +109,56 @@ export default function Dashboard() {
 
   const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
+  const routineTasks = [
+    ...(stats.aulasPendentes > 0 ? [{
+      id: 'aulas-pendentes',
+      title: `Confirmar ${stats.aulasPendentes} aula(s) pendente(s)`,
+      description: 'Aulas aguardando sua confirmação',
+      priority: 'urgent' as const,
+      link: '/admin/aulas',
+      count: stats.aulasPendentes,
+      icon: Clock
+    }] : [])
+  ];
+
+  const quickActions = [
+    ...(stats.aulasPendentes > 0 ? [{
+      id: 'confirmar-proxima',
+      title: 'Confirmar Próxima Aula',
+      subtitle: 'Clique para confirmar',
+      icon: CheckCircle,
+      onClick: () => {
+        const pendente = proximasAulas.find(a => a.status === 'pendente');
+        if (pendente) confirmarAula(pendente.id);
+      },
+      badge: stats.aulasPendentes
+    }] : [])
+  ];
+
   return (
     <div className="space-y-6 animate-fade-in">
+      <OnboardingTour />
+      
       <div>
         <h1 className="text-4xl font-bold text-foreground mb-2">Dashboard</h1>
         <p className="text-muted-foreground">Visão geral da sua operação</p>
       </div>
 
-      {/* Métricas Principais */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DailyRoutineWidget tasks={routineTasks} />
+        </div>
+        <div>
+          <QuickActionsPanel actions={quickActions} />
+        </div>
+      </div>
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard 
           title="Aulas Hoje" 
           value={stats.aulasHoje} 
           icon={CalendarIcon}
+          className="metric-card-hoje"
         />
         <MetricCard 
           title="Receita Hoje" 
@@ -127,6 +169,7 @@ export default function Dashboard() {
           title="Pendentes" 
           value={stats.aulasPendentes} 
           icon={Clock}
+          className="metric-card-pendentes"
         />
         <MetricCard 
           title="Total Clientes" 
