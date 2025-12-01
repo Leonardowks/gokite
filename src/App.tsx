@@ -17,6 +17,7 @@ import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import Vendas from "./pages/admin/Vendas";
 import Estoque from "./pages/admin/Estoque";
+import Financeiro from "./pages/admin/Financeiro";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { localStorageService } from "./lib/localStorage";
@@ -54,6 +55,7 @@ const App = () => {
               <Route path="estoque" element={<Estoque />} />
               <Route path="aluguel" element={<Aluguel />} />
               <Route path="ecommerce" element={<Ecommerce />} />
+              <Route path="financeiro" element={<Financeiro />} />
               <Route path="relatorios" element={<Relatorios />} />
               <Route path="configuracoes" element={<Configuracoes />} />
             </Route>
