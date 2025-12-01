@@ -1,4 +1,4 @@
-import { Home, Users, Calendar, Package, ShoppingCart, BarChart3, Menu, Settings, TrendingUp } from "lucide-react";
+import { Home, Users, Calendar, Package, ShoppingCart, BarChart3, Menu, Settings, TrendingUp, DollarSign } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -21,6 +21,7 @@ const menuItems = [
   { title: "Vendas", url: "/admin/vendas", icon: TrendingUp },
   { title: "Estoque", url: "/admin/estoque", icon: Package },
   { title: "Aluguel", url: "/admin/aluguel", icon: Package },
+  { title: "Financeiro", url: "/admin/financeiro", icon: DollarSign },
   { title: "E-commerce", url: "/admin/ecommerce", icon: ShoppingCart },
   { title: "Relatórios", url: "/admin/relatorios", icon: BarChart3 },
   { title: "Configurações", url: "/admin/configuracoes", icon: Settings },
