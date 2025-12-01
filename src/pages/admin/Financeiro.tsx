@@ -363,10 +363,10 @@ export default function Financeiro() {
 
   const getInsightIcon = (tipo: Insight['tipo']) => {
     switch (tipo) {
-      case 'sucesso': return <CheckCircle2 className="h-5 w-5 text-success" />;
-      case 'alerta': return <AlertTriangle className="h-5 w-5 text-destructive" />;
-      case 'dica': return <Lightbulb className="h-5 w-5 text-warning" />;
-      case 'meta': return <Target className="h-5 w-5 text-primary" />;
+      case 'sucesso': return <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />;
+      case 'alerta': return <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />;
+      case 'dica': return <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />;
+      case 'meta': return <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />;
     }
   };
 
@@ -380,90 +380,87 @@ export default function Financeiro() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col gap-2 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Gestão Financeira</h1>
-          <p className="text-muted-foreground">Acompanhe suas receitas, metas e insights do negócio</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestão Financeira</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Acompanhe suas receitas, metas e insights</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-sm py-1 px-3">
-            <Calendar className="h-4 w-4 mr-1" />
-            {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-          </Badge>
-        </div>
+        <Badge variant="outline" className="text-xs sm:text-sm py-1 px-2 sm:px-3 w-fit">
+          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+          {format(new Date(), "MMM 'de' yyyy", { locale: ptBR })}
+        </Badge>
       </div>
 
-      {/* KPIs Principais */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* KPIs Principais - 2 colunas mobile */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Receita do Mês</CardTitle>
-            <DollarSign className="h-5 w-5 text-primary" />
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">Receita Mês</CardTitle>
+            <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground truncate">
               {formatCurrency(stats.receitaMes)}
             </div>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
               {stats.crescimentoMes >= 0 ? (
-                <Badge variant="secondary" className="bg-success/20 text-success border-0">
-                  <ArrowUpRight className="h-3 w-3 mr-1" />
-                  +{stats.crescimentoMes.toFixed(1)}%
+                <Badge variant="secondary" className="bg-success/20 text-success border-0 text-[10px] sm:text-xs px-1 sm:px-2">
+                  <ArrowUpRight className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5" />
+                  +{stats.crescimentoMes.toFixed(0)}%
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="bg-destructive/20 text-destructive border-0">
-                  <ArrowDownRight className="h-3 w-3 mr-1" />
-                  {stats.crescimentoMes.toFixed(1)}%
+                <Badge variant="secondary" className="bg-destructive/20 text-destructive border-0 text-[10px] sm:text-xs px-1 sm:px-2">
+                  <ArrowDownRight className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5" />
+                  {stats.crescimentoMes.toFixed(0)}%
                 </Badge>
               )}
-              <span className="text-xs text-muted-foreground">vs. mês anterior</span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Hoje</CardTitle>
-            <Wallet className="h-5 w-5 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">Hoje</CardTitle>
+            <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground truncate">
               {formatCurrency(stats.receitaHoje)}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              {stats.transacoesHoje} transação(ões)
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              {stats.transacoesHoje} transação
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ticket Médio</CardTitle>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">Ticket Médio</CardTitle>
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-foreground">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground truncate">
               {formatCurrency(stats.ticketMedio)}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
               Por transação
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">A Receber</CardTitle>
-            <Clock className="h-5 w-5 text-warning" />
+          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">A Receber</CardTitle>
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-warning">
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-warning truncate">
               {formatCurrency(stats.aReceber)}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Aulas pendentes
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+              Pendentes
             </p>
           </CardContent>
         </Card>
@@ -471,31 +468,31 @@ export default function Financeiro() {
 
       {/* Meta Mensal */}
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-primary" />
-                Meta Mensal
+        <CardHeader className="p-3 sm:p-6">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
+                <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
+                <span className="truncate">Meta Mensal</span>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm truncate">
                 {formatCurrency(stats.receitaMes)} de {formatCurrency(stats.metaMensal)}
               </CardDescription>
             </div>
             <Badge 
               variant={stats.progressoMeta >= 100 ? "default" : stats.progressoMeta >= 70 ? "secondary" : "outline"}
-              className={stats.progressoMeta >= 100 ? "bg-success" : ""}
+              className={`${stats.progressoMeta >= 100 ? "bg-success" : ""} text-xs sm:text-sm shrink-0`}
             >
               {stats.progressoMeta.toFixed(0)}%
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          <Progress value={stats.progressoMeta} className="h-3" />
-          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
+        <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+          <Progress value={stats.progressoMeta} className="h-2 sm:h-3" />
+          <div className="flex justify-between mt-2 text-[10px] sm:text-sm text-muted-foreground">
             <span>R$ 0</span>
             <span className="font-medium text-foreground">
-              Faltam {formatCurrency(Math.max(0, stats.metaMensal - stats.receitaMes))}
+              Falta {formatCurrency(Math.max(0, stats.metaMensal - stats.receitaMes))}
             </span>
             <span>{formatCurrency(stats.metaMensal)}</span>
           </div>
@@ -504,17 +501,17 @@ export default function Financeiro() {
 
       {/* Insights Inteligentes */}
       {insights.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {insights.map((insight, index) => (
             <Card key={index} className={`border ${getInsightBg(insight.tipo)}`}>
-              <CardContent className="pt-4">
-                <div className="flex items-start gap-3">
+              <CardContent className="p-3 sm:pt-4 sm:p-4">
+                <div className="flex items-start gap-2 sm:gap-3">
                   {getInsightIcon(insight.tipo)}
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-foreground">{insight.titulo}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">{insight.descricao}</p>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold text-foreground text-sm sm:text-base truncate">{insight.titulo}</h4>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{insight.descricao}</p>
                     {insight.acao && (
-                      <Badge variant="outline" className="mt-2 cursor-pointer hover:bg-muted">
+                      <Badge variant="outline" className="mt-2 cursor-pointer hover:bg-muted text-[10px] sm:text-xs">
                         {insight.acao}
                       </Badge>
                     )}
@@ -527,22 +524,22 @@ export default function Financeiro() {
       )}
 
       {/* Gráficos */}
-      <Tabs defaultValue="evolucao" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="evolucao">Evolução</TabsTrigger>
-          <TabsTrigger value="composicao">Composição</TabsTrigger>
-          <TabsTrigger value="comparativo">Comparativo</TabsTrigger>
+      <Tabs defaultValue="evolucao" className="space-y-3 sm:space-y-4">
+        <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
+          <TabsTrigger value="evolucao" className="text-xs sm:text-sm">Evolução</TabsTrigger>
+          <TabsTrigger value="composicao" className="text-xs sm:text-sm">Composição</TabsTrigger>
+          <TabsTrigger value="comparativo" className="text-xs sm:text-sm">Comparativo</TabsTrigger>
         </TabsList>
 
         <TabsContent value="evolucao" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Receita Diária (Últimos 14 dias)</CardTitle>
-              <CardDescription>Acompanhe a evolução das suas receitas por dia</CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-sm sm:text-base">Receita Diária</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Últimos 14 dias</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <AreaChart data={dailyData}>
+            <CardContent className="p-2 sm:p-6 pt-0">
+              <ChartContainer config={chartConfig} className="h-[200px] sm:h-[300px] w-full">
+                <AreaChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -552,15 +549,17 @@ export default function Financeiro() {
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis 
                     dataKey="dataFormatada" 
-                    className="text-xs fill-muted-foreground"
+                    className="text-[10px] sm:text-xs fill-muted-foreground"
                     tickLine={false}
                     axisLine={false}
+                    interval="preserveStartEnd"
                   />
                   <YAxis 
-                    className="text-xs fill-muted-foreground"
+                    className="text-[10px] sm:text-xs fill-muted-foreground"
                     tickFormatter={(value) => `R$${value}`}
                     tickLine={false}
                     axisLine={false}
+                    width={45}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent 
@@ -581,21 +580,21 @@ export default function Financeiro() {
         </TabsContent>
 
         <TabsContent value="composicao" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Receita por Categoria</CardTitle>
-                <CardDescription>Distribuição entre aulas e aluguéis</CardDescription>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-sm sm:text-base">Receita por Categoria</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Aulas vs Aluguéis</CardDescription>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={chartConfig} className="h-[250px] w-full">
+              <CardContent className="p-2 sm:p-6 pt-0">
+                <ChartContainer config={chartConfig} className="h-[180px] sm:h-[250px] w-full">
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
+                      innerRadius={40}
+                      outerRadius={70}
                       paddingAngle={5}
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -615,43 +614,43 @@ export default function Financeiro() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Detalhamento</CardTitle>
-                <CardDescription>Valores por categoria</CardDescription>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-sm sm:text-base">Detalhamento</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Valores por categoria</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full bg-primary" />
-                    <span className="font-medium">Aulas</span>
+              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
+                <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-primary/10">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-primary" />
+                    <span className="font-medium text-sm sm:text-base">Aulas</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">{formatCurrency(stats.receitaAulas)}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="font-bold text-sm sm:text-base">{formatCurrency(stats.receitaAulas)}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground">
                       {stats.receitaTotal > 0 
                         ? ((stats.receitaAulas / stats.receitaTotal) * 100).toFixed(0)
-                        : 0}% do total
+                        : 0}%
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-accent/10">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 rounded-full bg-accent" />
-                    <span className="font-medium">Aluguel</span>
+                <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-accent/10">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-accent" />
+                    <span className="font-medium text-sm sm:text-base">Aluguel</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold">{formatCurrency(stats.receitaAluguel)}</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="font-bold text-sm sm:text-base">{formatCurrency(stats.receitaAluguel)}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground">
                       {stats.receitaTotal > 0 
                         ? ((stats.receitaAluguel / stats.receitaTotal) * 100).toFixed(0)
-                        : 0}% do total
+                        : 0}%
                     </div>
                   </div>
                 </div>
-                <div className="border-t pt-4">
+                <div className="border-t pt-3 sm:pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold">Total Geral</span>
-                    <span className="text-xl font-bold text-primary">{formatCurrency(stats.receitaTotal)}</span>
+                    <span className="font-semibold text-sm sm:text-base">Total Geral</span>
+                    <span className="text-lg sm:text-xl font-bold text-primary">{formatCurrency(stats.receitaTotal)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -661,25 +660,27 @@ export default function Financeiro() {
 
         <TabsContent value="comparativo" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Receita por Tipo (Últimos 14 dias)</CardTitle>
-              <CardDescription>Compare aulas vs. aluguéis ao longo do tempo</CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-sm sm:text-base">Receita por Tipo</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Últimos 14 dias</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                <BarChart data={dailyData}>
+            <CardContent className="p-2 sm:p-6 pt-0">
+              <ChartContainer config={chartConfig} className="h-[200px] sm:h-[300px] w-full">
+                <BarChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis 
                     dataKey="dataFormatada" 
-                    className="text-xs fill-muted-foreground"
+                    className="text-[10px] sm:text-xs fill-muted-foreground"
                     tickLine={false}
                     axisLine={false}
+                    interval="preserveStartEnd"
                   />
                   <YAxis 
-                    className="text-xs fill-muted-foreground"
+                    className="text-[10px] sm:text-xs fill-muted-foreground"
                     tickFormatter={(value) => `R$${value}`}
                     tickLine={false}
                     axisLine={false}
+                    width={45}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent 
@@ -696,41 +697,44 @@ export default function Financeiro() {
       </Tabs>
 
       {/* Resumo Rápido */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <PiggyBank className="h-4 w-4" />
-              Semana Atual
+          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground flex items-center gap-1 sm:gap-2">
+              <PiggyBank className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Semana Atual</span>
+              <span className="sm:hidden">Semana</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.receitaSemana)}</div>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-sm sm:text-xl lg:text-2xl font-bold truncate">{formatCurrency(stats.receitaSemana)}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Média Diária
+          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground flex items-center gap-1 sm:gap-2">
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Média Diária</span>
+              <span className="sm:hidden">Média</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.receitaMes / new Date().getDate())}
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-sm sm:text-xl lg:text-2xl font-bold truncate">
+              {formatCurrency(stats.receitaMes / Math.max(1, new Date().getDate()))}
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Projeção Mensal
+          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
+            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground flex items-center gap-1 sm:gap-2">
+              <Target className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Projeção Mensal</span>
+              <span className="sm:hidden">Projeção</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency((stats.receitaMes / new Date().getDate()) * 30)}
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-sm sm:text-xl lg:text-2xl font-bold truncate">
+              {formatCurrency((stats.receitaMes / Math.max(1, new Date().getDate())) * 30)}
             </div>
           </CardContent>
         </Card>

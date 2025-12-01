@@ -115,42 +115,42 @@ export function NotificationCenter() {
         <Button 
           variant="ghost" 
           size="sm" 
-          className="relative notification-center"
+          className="relative notification-center h-8 w-8 sm:h-9 sm:w-9 p-0"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
           {unreadCount > 0 && (
             <Badge 
               variant="destructive" 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs animate-pulse"
+              className="absolute -top-1 -right-1 h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center p-0 text-[10px] sm:text-xs animate-pulse"
             >
               {unreadCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="font-semibold text-sm">Notificações</h3>
+      <PopoverContent className="w-[calc(100vw-32px)] sm:w-80 p-0" align="end" sideOffset={8}>
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b">
+          <h3 className="font-semibold text-xs sm:text-sm">Notificações</h3>
           {unreadCount > 0 && (
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={markAllAsRead}
-              className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+              className="h-auto p-1 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground"
             >
-              Marcar todas como lidas
+              Marcar lidas
             </Button>
           )}
         </div>
         
-        <ScrollArea className="h-[400px]">
+        <ScrollArea className="h-[300px] sm:h-[400px]">
           {notifications.length === 0 ? (
-            <div className="p-8 text-center">
-              <Bell className="h-12 w-12 mx-auto text-muted-foreground/50 mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Nenhuma notificação no momento
+            <div className="p-6 sm:p-8 text-center">
+              <Bell className="h-10 w-10 sm:h-12 sm:w-12 mx-auto text-muted-foreground/50 mb-2" />
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Nenhuma notificação
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                 Você está em dia! 🎉
               </p>
             </div>
@@ -161,22 +161,22 @@ export function NotificationCenter() {
                 return (
                   <div
                     key={notif.id}
-                    className={`p-4 border-l-4 ${config.color} ${!notif.read ? 'bg-accent/5' : ''} hover:bg-accent/10 transition-colors cursor-pointer`}
+                    className={`p-3 sm:p-4 border-l-4 ${config.color} ${!notif.read ? 'bg-accent/5' : ''} hover:bg-accent/10 transition-colors cursor-pointer`}
                     onClick={() => markAsRead(notif.id)}
                   >
-                    <div className="flex items-start gap-3">
-                      <span className="text-lg">{config.icon}</span>
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      <span className="text-sm sm:text-lg">{config.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-sm">{notif.title}</h4>
+                        <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                          <h4 className="font-medium text-xs sm:text-sm truncate">{notif.title}</h4>
                           {!notif.read && (
-                            <div className="h-2 w-2 rounded-full bg-primary" />
+                            <div className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-primary shrink-0" />
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mb-2">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-2 line-clamp-2">
                           {notif.message}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">
                           {format(notif.timestamp, "HH:mm", { locale: ptBR })}
                         </p>
                       </div>
