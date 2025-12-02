@@ -35,17 +35,12 @@ export function AppSidebar() {
   return (
     <Sidebar className={open ? "w-64" : "w-20"} collapsible="icon">
       <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-        {open && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">G</span>
-            </div>
-            <span className="font-bold text-lg text-sidebar-foreground">Gokite CRM</span>
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
+            <span className="text-primary-foreground font-bold text-xl">G</span>
           </div>
-        )}
-        <SidebarTrigger className="ml-auto">
-          <Menu className="h-5 w-5" />
-        </SidebarTrigger>
+          {open && <span className="font-bold text-lg text-sidebar-foreground">Gokite CRM</span>}
+        </div>
       </div>
 
       <SidebarContent>
@@ -59,11 +54,11 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-sidebar-accent"
+                      className="flex items-center gap-3 px-3 py-3 rounded-lg transition-colors hover:bg-sidebar-accent min-h-[44px]"
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                     >
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
-                      {open && <span>{item.title}</span>}
+                      <item.icon className="h-6 w-6 flex-shrink-0" />
+                      {open && <span className="text-base">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

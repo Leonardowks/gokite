@@ -66,18 +66,11 @@ export default function Vendas() {
   const leadsMornos = leadsFiltrados.filter(l => l.score === 'morno').length;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">💰 Gestão de Vendas</h1>
-          <p className="text-muted-foreground mt-1">Leads filtrados por prioridade - não perca oportunidades</p>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Filter className="h-4 w-4" />
-            Filtros
-          </Button>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">💰 Gestão de Vendas</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Leads filtrados por prioridade - não perca oportunidades</p>
         </div>
       </div>
 

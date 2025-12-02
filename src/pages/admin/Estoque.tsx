@@ -86,14 +86,14 @@ export default function Estoque() {
   const ocupacaoTaiba = Math.round((equipamentos.filter(e => e.localizacao === 'taiba' && e.status === 'alugado').length / equipamentos.filter(e => e.localizacao === 'taiba').length) * 100) || 0;
 
   return (
-    <div className="p-4 md:p-8 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">📦 Gestão de Estoque</h1>
-          <p className="text-muted-foreground mt-1">Controle de equipamentos e aluguéis em tempo real</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">📦 Gestão de Estoque</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Controle de equipamentos e aluguéis em tempo real</p>
         </div>
         
-        <Button className="gap-2">
+        <Button className="gap-2 min-h-[44px] w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Novo Equipamento
         </Button>
@@ -259,12 +259,72 @@ export default function Estoque() {
       {/* Aluguéis Ativos */}
       {alugueisAtivos.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Aluguéis Ativos</CardTitle>
-            <CardDescription>Equipamentos atualmente alugados - acompanhe devoluções</CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Aluguéis Ativos</CardTitle>
+            <CardDescription className="text-sm">Equipamentos atualmente alugados - acompanhe devoluções</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
+          <CardContent className="p-4 sm:p-6 pt-0">
+            {/* Cards Mobile */}
+            <div className="md:hidden space-y-3">
+              {alugueisAtivos.map((aluguel) => {
+                const equipamento = equipamentos.find(e => e.id === aluguel.equipamento_id);
+                const dias = diasParaVencer(aluguel.data_fim);
+                const atrasado = dias < 0;
+                
+                return (
+                  <Card key={aluguel.id} className={atrasado ? 'border-destructive/50' : ''}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <p className="font-semibold text-base">{equipamento?.nome || aluguel.equipamento_id}</p>
+                          <p className="text-sm text-muted-foreground">{aluguel.cliente_nome}</p>
+                        </div>
+                        {atrasado ? (
+                          <Badge variant="destructive" className="gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            {Math.abs(dias)}d atrasado
+                          </Badge>
+                        ) : dias === 0 ? (
+                          <Badge variant="destructive">Hoje</Badge>
+                        ) : dias === 1 ? (
+                          <Badge variant="secondary">Amanhã</Badge>
+                        ) : (
+                          <Badge variant="outline">{dias}d</Badge>
+                        )}
+                      </div>
+                      <div className="space-y-1 text-sm mb-3 pb-3 border-b">
+                        <p><strong>Período:</strong> {new Date(aluguel.data_inicio).toLocaleDateString('pt-BR')} até {new Date(aluguel.data_fim).toLocaleDateString('pt-BR')}</p>
+                        <p><strong>Valor:</strong> R$ {aluguel.valor_total}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {atrasado && (
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            className="flex-1 min-h-[44px]"
+                            onClick={() => cobrarAtrasado(aluguel)}
+                          >
+                            Cobrar
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="flex-1 min-h-[44px]"
+                          onClick={() => finalizarAluguel(aluguel)}
+                        >
+                          Finalizar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Tabela Desktop */}
+            <div className="hidden md:block">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Equipamento</TableHead>
@@ -331,6 +391,7 @@ export default function Estoque() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -77,18 +77,18 @@ export default function Aulas() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-start">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Aulas</h1>
-          <p className="text-muted-foreground">Gerencie todos os agendamentos</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Aulas</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Gerencie todos os agendamentos</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setDialogOpen(true)} variant="outline" className="gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button onClick={() => setDialogOpen(true)} variant="outline" className="gap-2 min-h-[44px]">
             <Plus className="h-4 w-4" />
             Nova Aula
           </Button>
-          <Button asChild className="gap-2">
+          <Button asChild className="gap-2 min-h-[44px]">
             <Link to="/agendar-aula">
               <Calendar className="h-4 w-4" />
               Agendamento Público
@@ -98,12 +98,12 @@ export default function Aulas() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-4 mt-4">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Filtros</CardTitle>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar cliente..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-10" />
+              <Input placeholder="Buscar cliente..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-10 min-h-[44px]" />
             </div>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
               <SelectTrigger className="w-full sm:w-[180px]">
