@@ -1,11 +1,11 @@
 import { ReactNode, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, ExternalLink } from "lucide-react";
+import { LogOut, ExternalLink, Menu } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 
 interface AdminLayoutProps {
@@ -39,6 +39,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
+                <SidebarTrigger className="lg:hidden min-h-[44px] min-w-[44px]">
+                  <Menu className="h-5 w-5" />
+                </SidebarTrigger>
                 <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                   Admin
                 </Badge>

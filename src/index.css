@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile-first CSS Variables */
+:root {
+  --touch-target-min: 44px;
+  --spacing-mobile: 1rem;
+  --spacing-desktop: 1.5rem;
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */

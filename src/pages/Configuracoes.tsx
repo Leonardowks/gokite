@@ -55,10 +55,10 @@ export default function Configuracoes() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie as configurações da sua escola</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Configurações</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">Gerencie as configurações da sua escola</p>
       </div>
 
       {/* Informações da Empresa */}
@@ -234,11 +234,11 @@ export default function Configuracoes() {
       </Card>
 
       {/* Botões de Ação */}
-      <div className="flex gap-4">
-        <Button onClick={handleSave} className="flex-1">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <Button onClick={handleSave} className="flex-1 min-h-[44px]">
           Salvar Alterações
         </Button>
-        <Button onClick={handleReset} variant="outline">
+        <Button onClick={handleReset} variant="outline" className="min-h-[44px] sm:w-auto">
           Restaurar Padrões
         </Button>
       </div>

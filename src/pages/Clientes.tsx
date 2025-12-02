@@ -44,32 +44,86 @@ export default function Clientes() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-start">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Clientes</h1>
-          <p className="text-muted-foreground">Gerencie seus clientes e histórico</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">Clientes</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">Gerencie seus clientes e histórico</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2">
+        <Button onClick={() => setDialogOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto">
           <UserPlus className="h-4 w-4" />
           Novo Cliente
         </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Lista de Clientes</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Lista de Clientes</CardTitle>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nome, email ou telefone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+            <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 min-h-[44px]" />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0">
           {filteredClientes.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">{searchTerm ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}</p>
+            <p className="text-center text-sm sm:text-base text-muted-foreground py-6 sm:py-8">{searchTerm ? "Nenhum cliente encontrado." : "Nenhum cliente cadastrado ainda."}</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
+            <>
+              {/* Cards Mobile */}
+              <div className="md:hidden space-y-3">
+                {filteredClientes.map((cliente) => (
+                  <Card key={cliente.email}>
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <p className="font-semibold text-base">{cliente.nome}</p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate">{cliente.email}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                            <Phone className="h-3 w-3" />
+                            <span>{cliente.whatsapp}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mb-3 pb-3 border-b">
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Aulas:</span>
+                          <span className="font-semibold ml-1">{cliente.total_aulas}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {cliente.ultima_aula ? format(new Date(cliente.ultima_aula), 'dd/MM/yyyy') : 'Sem aulas'}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1 min-h-[44px]"
+                          onClick={() => window.open(`https://wa.me/${cliente.whatsapp}`, '_blank')}
+                        >
+                          <Phone className="h-4 w-4 mr-2" />
+                          Ligar
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1 min-h-[44px]"
+                          onClick={() => handleEdit(cliente)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Tabela Desktop */}
+              <div className="hidden md:block overflow-x-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nome</TableHead>
@@ -114,7 +168,8 @@ export default function Clientes() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
