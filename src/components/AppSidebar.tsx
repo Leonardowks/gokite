@@ -1,6 +1,7 @@
-import { Home, Users, Calendar, Package, ShoppingCart, BarChart3, Menu, Settings, TrendingUp, DollarSign } from "lucide-react";
+import { Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Sparkles } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import gokiteLogo from "@/assets/gokite-logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -10,7 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -33,40 +33,70 @@ export function AppSidebar() {
   const currentPath = location.pathname;
 
   return (
-    <Sidebar className={open ? "w-64" : "w-20"} collapsible="icon">
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-xl">G</span>
-          </div>
-          {open && <span className="font-bold text-lg text-sidebar-foreground">Gokite CRM</span>}
+    <Sidebar className={`${open ? "w-64" : "w-20"} sidebar-premium`} collapsible="icon">
+      {/* Logo Section */}
+      <div className="flex items-center justify-center p-4 sm:p-5 border-b border-sidebar-border/50">
+        <div className="flex items-center gap-3">
+          <img 
+            src={gokiteLogo} 
+            alt="GoKite" 
+            className={`${open ? "h-9 sm:h-10" : "h-8"} w-auto transition-all duration-200`}
+          />
         </div>
       </div>
 
-      <SidebarContent>
+      <SidebarContent className="scrollbar-thin px-2 sm:px-3 py-4">
         <SidebarGroup>
-          {open && <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>}
+          {open && (
+            <SidebarGroupLabel className="text-sidebar-foreground/50 text-xs font-semibold uppercase tracking-wider px-3 mb-2">
+              Menu Principal
+            </SidebarGroupLabel>
+          )}
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="flex items-center gap-3 px-3 py-3 rounded-lg transition-colors hover:bg-sidebar-accent min-h-[44px]"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
-                    >
-                      <item.icon className="h-6 w-6 flex-shrink-0" />
-                      {open && <span className="text-base">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="space-y-1">
+              {menuItems.map((item) => {
+                const isActive = currentPath === item.url || (item.url !== '/admin' && currentPath.startsWith(item.url));
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink
+                        to={item.url}
+                        end={item.url === '/admin'}
+                        className={`
+                          flex items-center gap-3 px-3 py-2.5 sm:py-3 rounded-lg transition-all duration-200 min-h-[44px] group
+                          ${isActive 
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md' 
+                            : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50'
+                          }
+                        `}
+                        activeClassName=""
+                      >
+                        <item.icon className={`h-5 w-5 sm:h-[22px] sm:w-[22px] flex-shrink-0 transition-transform duration-200 ${!isActive && 'group-hover:scale-110'}`} />
+                        {open && (
+                          <span className="text-sm sm:text-[15px] font-medium">{item.title}</span>
+                        )}
+                        {isActive && open && (
+                          <Sparkles className="h-3.5 w-3.5 ml-auto opacity-60" />
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      {/* Footer with branding */}
+      {open && (
+        <div className="p-4 border-t border-sidebar-border/50 mt-auto">
+          <div className="flex items-center gap-2 text-sidebar-foreground/40 text-xs">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse-soft" />
+            <span>Sistema ativo</span>
+          </div>
+        </div>
+      )}
     </Sidebar>
   );
 }

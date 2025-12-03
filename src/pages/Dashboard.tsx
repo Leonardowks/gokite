@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { DollarSign, Calendar as CalendarIcon, TrendingUp, Users, CheckCircle, XCircle, Clock, MessageCircle, Package, AlertTriangle } from "lucide-react";
+import { DollarSign, Calendar as CalendarIcon, TrendingUp, Users, CheckCircle, XCircle, Clock, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,7 +8,7 @@ import { localStorageService, type Agendamento } from "@/lib/localStorage";
 import { MetricCard } from "@/components/MetricCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { format } from "date-fns";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { DailyRoutineWidget } from "@/components/DailyRoutineWidget";
 import { QuickActionsPanel } from "@/components/QuickActionsPanel";
 import { OnboardingTour } from "@/components/OnboardingTour";
@@ -38,7 +38,6 @@ export default function Dashboard() {
       const allAulas = localStorageService.listarAgendamentos();
       const clientes = localStorageService.listarClientes();
       
-      // Estatísticas adicionais
       const confirmadas = allAulas.filter(a => a.status === 'confirmada').length;
       const canceladas = allAulas.filter(a => a.status === 'cancelada').length;
       
@@ -49,13 +48,11 @@ export default function Dashboard() {
         aulasCanceladas: canceladas
       });
 
-      // Próximas aulas
       const agendamentos = allAulas
         .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
         .slice(0, 5);
       setProximasAulas(agendamentos);
 
-      // Dados para gráfico de barras - Receita por tipo de aula
       const receitaPorTipo = allAulas
         .filter(a => a.status === 'confirmada')
         .reduce((acc, aula) => {
@@ -73,7 +70,6 @@ export default function Dashboard() {
       }));
       setChartData(barData);
 
-      // Dados para gráfico de pizza - Status das aulas
       const statusCount = allAulas.reduce((acc, aula) => {
         if (!acc[aula.status]) acc[aula.status] = 0;
         acc[aula.status]++;
@@ -136,15 +132,20 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+    <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-fade-in">
       <OnboardingTour />
       
+      {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-1 sm:mb-2">Dashboard</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">Visão geral da sua operação</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground tracking-tight">
+          Dashboard
+        </h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          Visão geral da sua operação
+        </p>
       </div>
 
-      {/* Mobile: Stack, Desktop: Grid */}
+      {/* Widgets */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:gap-6">
         <div className="lg:col-span-2">
           <DailyRoutineWidget tasks={routineTasks} />
@@ -154,8 +155,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPIs - 2 colunas mobile, 4 desktop */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
         <MetricCard 
           title="Aulas Hoje" 
           value={stats.aulasHoje} 
@@ -180,75 +181,83 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Estatísticas Secundárias - Scroll horizontal em mobile */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-        <Card className="hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Confirmadas</CardTitle>
-            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-2xl sm:text-3xl font-bold text-foreground">{stats.aulasConfirmadas}</div>
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
+        <Card className="group hover-lift">
+          <CardContent className="p-4 sm:p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <CheckCircle className="h-6 w-6 text-success" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Confirmadas</p>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.aulasConfirmadas}</p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Canceladas</CardTitle>
-            <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-2xl sm:text-3xl font-bold text-foreground">{stats.aulasCanceladas}</div>
+        <Card className="group hover-lift">
+          <CardContent className="p-4 sm:p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <XCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Canceladas</p>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.aulasCanceladas}</p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="hover-lift">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Taxa de Conversão</CardTitle>
-            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-          </CardHeader>
-          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-2xl sm:text-3xl font-bold text-foreground">
-              {stats.aulasConfirmadas + stats.aulasPendentes > 0 
-                ? Math.round((stats.aulasConfirmadas / (stats.aulasConfirmadas + stats.aulasPendentes)) * 100)
-                : 0}%
+        <Card className="group hover-lift">
+          <CardContent className="p-4 sm:p-5 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <TrendingUp className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-muted-foreground">Taxa de Conversão</p>
+              <p className="text-2xl sm:text-3xl font-bold text-foreground">
+                {stats.aulasConfirmadas + stats.aulasPendentes > 0 
+                  ? Math.round((stats.aulasConfirmadas / (stats.aulasConfirmadas + stats.aulasPendentes)) * 100)
+                  : 0}%
+              </p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Gráficos - Stack em mobile */}
-      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+      {/* Charts */}
+      <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
         <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">Receita por Tipo de Aula</CardTitle>
+          <CardHeader className="p-4 sm:p-5 pb-0">
+            <CardTitle className="text-base sm:text-lg font-display">Receita por Tipo de Aula</CardTitle>
           </CardHeader>
-          <CardContent className="p-2 sm:p-6 pt-0">
-            <ResponsiveContainer width="100%" height={220} className="sm:!h-[300px]">
-              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
-                <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 10 }} />
+          <CardContent className="p-3 sm:p-5">
+            <ResponsiveContainer width="100%" height={220} className="sm:!h-[280px]">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))', 
+                    backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px'
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    boxShadow: 'var(--shadow-lg)'
                   }}
+                  formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Receita']}
                 />
-                <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">Status das Aulas</CardTitle>
+          <CardHeader className="p-4 sm:p-5 pb-0">
+            <CardTitle className="text-base sm:text-lg font-display">Status das Aulas</CardTitle>
           </CardHeader>
-          <CardContent className="p-2 sm:p-6 pt-0">
-            <ResponsiveContainer width="100%" height={220} className="sm:!h-[300px]">
+          <CardContent className="p-3 sm:p-5">
+            <ResponsiveContainer width="100%" height={220} className="sm:!h-[280px]">
               <PieChart>
                 <Pie
                   data={pieData}
@@ -256,7 +265,9 @@ export default function Dashboard() {
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={70}
+                  outerRadius={80}
+                  innerRadius={40}
+                  paddingAngle={4}
                   fill="hsl(var(--primary))"
                   dataKey="value"
                 >
@@ -266,10 +277,11 @@ export default function Dashboard() {
                 </Pie>
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'hsl(var(--background))', 
+                    backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px'
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    boxShadow: 'var(--shadow-lg)'
                   }}
                 />
               </PieChart>
@@ -278,23 +290,32 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Próximas Aulas - Cards em mobile, tabela em desktop */}
+      {/* Upcoming Classes */}
       <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+        <CardHeader className="p-4 sm:p-5 flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2.5 text-base sm:text-lg font-display">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <CalendarIcon className="h-4.5 w-4.5 text-primary" />
+            </div>
             Próximas Aulas
           </CardTitle>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-primary" onClick={() => navigate('/admin/aulas')}>
+            Ver todas
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6 pt-0">
+        <CardContent className="p-4 sm:p-5 pt-0">
           {proximasAulas.length === 0 ? (
-            <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">Nenhuma aula agendada</p>
+            <div className="text-center py-10 sm:py-12">
+              <CalendarIcon className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">Nenhuma aula agendada</p>
+            </div>
           ) : (
             <>
-              {/* Mobile: Cards */}
+              {/* Mobile Cards */}
               <div className="space-y-3 sm:hidden">
                 {proximasAulas.map((aula) => (
-                  <div key={aula.id} className="p-3 border rounded-lg bg-card space-y-2">
+                  <div key={aula.id} className="p-3.5 border border-border/50 rounded-xl bg-muted/30 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <div className="font-medium text-sm">{aula.cliente_nome}</div>
                       <StatusBadge status={aula.status} />
@@ -305,14 +326,14 @@ export default function Dashboard() {
                     </div>
                     <div className="flex gap-2 pt-1">
                       {aula.status === 'pendente' && (
-                        <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => confirmarAula(aula.id)}>
+                        <Button size="sm" className="flex-1 h-9 text-xs" onClick={() => confirmarAula(aula.id)}>
                           Confirmar
                         </Button>
                       )}
                       <Button 
                         size="sm" 
-                        variant="ghost"
-                        className="flex-1 h-8 text-xs"
+                        variant="outline"
+                        className="flex-1 h-9 text-xs"
                         onClick={() => cancelarAula(aula.id)} 
                         disabled={aula.status === 'cancelada'}
                       >
@@ -323,40 +344,40 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Desktop: Table */}
-              <div className="hidden sm:block overflow-x-auto -mx-2">
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto -mx-2 rounded-lg">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Data/Hora</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Local</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Ações</TableHead>
+                    <TableRow className="hover:bg-transparent border-border/50">
+                      <TableHead className="text-muted-foreground font-medium">Data/Hora</TableHead>
+                      <TableHead className="text-muted-foreground font-medium">Cliente</TableHead>
+                      <TableHead className="text-muted-foreground font-medium">Tipo</TableHead>
+                      <TableHead className="text-muted-foreground font-medium">Local</TableHead>
+                      <TableHead className="text-muted-foreground font-medium">Status</TableHead>
+                      <TableHead className="text-muted-foreground font-medium text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {proximasAulas.map((aula) => (
-                      <TableRow key={aula.id}>
+                      <TableRow key={aula.id} className="border-border/50 hover:bg-muted/30">
                         <TableCell>
                           <div className="font-medium">{format(new Date(aula.data), 'dd/MM')}</div>
                           <div className="text-sm text-muted-foreground">{aula.horario}</div>
                         </TableCell>
                         <TableCell className="font-medium">{aula.cliente_nome}</TableCell>
-                        <TableCell className="capitalize">{aula.tipo_aula.replace('_', ' ')}</TableCell>
-                        <TableCell className="capitalize">{aula.localizacao}</TableCell>
+                        <TableCell className="capitalize text-muted-foreground">{aula.tipo_aula.replace('_', ' ')}</TableCell>
+                        <TableCell className="capitalize text-muted-foreground">{aula.localizacao}</TableCell>
                         <TableCell><StatusBadge status={aula.status} /></TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
+                        <TableCell className="text-right">
+                          <div className="flex gap-2 justify-end">
                             {aula.status === 'pendente' && (
-                              <Button size="sm" variant="outline" onClick={() => confirmarAula(aula.id)}>
+                              <Button size="sm" onClick={() => confirmarAula(aula.id)}>
                                 Confirmar
                               </Button>
                             )}
                             <Button 
                               size="sm" 
-                              variant="ghost" 
+                              variant="outline" 
                               onClick={() => cancelarAula(aula.id)} 
                               disabled={aula.status === 'cancelada'}
                             >
