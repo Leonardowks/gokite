@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { LogOut, ExternalLink, Menu, User } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import gokiteLogo from "@/assets/gokite-logo.png";
 
 interface AdminLayoutProps {
@@ -37,11 +38,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <AppSidebar />
         <main className="flex-1 overflow-y-auto">
           {/* Premium Header */}
-          <header className="sticky top-0 z-40 glass border-b border-border/50">
+          <header className="sticky top-0 z-40 glass-premium border-b border-border/30">
             <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-3">
               {/* Left: Menu trigger + Logo on mobile */}
               <div className="flex items-center gap-3">
-                <SidebarTrigger className="lg:hidden min-h-[44px] min-w-[44px] rounded-lg hover:bg-muted transition-colors">
+                <SidebarTrigger className="lg:hidden min-h-[44px] min-w-[44px] rounded-xl bg-muted/50 hover:bg-muted transition-all duration-200">
                   <Menu className="h-5 w-5" />
                 </SidebarTrigger>
                 
@@ -49,19 +50,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <img 
                   src={gokiteLogo} 
                   alt="GoKite" 
-                  className="h-7 w-auto lg:hidden"
+                  className="h-8 w-auto lg:hidden"
                 />
               </div>
 
               {/* Right: Actions */}
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <ThemeToggle />
+                
                 <NotificationCenter />
                 
                 <Button 
                   asChild
                   variant="ghost" 
                   size="sm"
-                  className="hidden sm:flex gap-2 text-muted-foreground hover:text-foreground"
+                  className="hidden sm:flex gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl"
                 >
                   <Link to="/">
                     <ExternalLink className="h-4 w-4" />
@@ -70,18 +73,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </Button>
 
                 {/* User Menu */}
-                <div className="hidden sm:flex items-center gap-2 pl-2 ml-2 border-l border-border">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-4 w-4 text-primary" />
+                <div className="hidden sm:flex items-center gap-3 pl-3 ml-2 border-l border-border/50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center border border-primary/20">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="hidden lg:block">
+                      <p className="text-sm font-medium text-foreground truncate max-w-[120px]">Admin</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[120px]">{user?.email}</p>
+                    </div>
                   </div>
-                  <span className="text-sm text-muted-foreground max-w-[120px] truncate">{user?.email}</span>
                 </div>
                 
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={handleLogout}
-                  className="gap-2 text-muted-foreground hover:text-foreground min-h-[44px] min-w-[44px] sm:min-w-fit"
+                  className="gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 min-h-[44px] min-w-[44px] sm:min-w-fit rounded-xl"
                 >
                   <LogOut className="h-4 w-4" />
                   <span className="hidden sm:inline">Sair</span>

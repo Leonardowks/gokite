@@ -12,12 +12,18 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
-  Wallet
+  Wallet,
+  Sparkles,
+  Trophy,
+  Zap
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PremiumCard, PremiumCardContent, PremiumCardHeader, PremiumCardTitle, PremiumCardDescription } from "@/components/ui/premium-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { PremiumBadge } from "@/components/ui/premium-badge";
 import { 
   ChartContainer, 
   ChartTooltip, 
@@ -76,19 +82,17 @@ interface DailyRevenue {
 const chartConfig = {
   aulas: {
     label: "Aulas",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--chart-1))",
   },
   aluguel: {
     label: "Aluguel",
-    color: "hsl(var(--accent))",
+    color: "hsl(var(--chart-2))",
   },
   total: {
     label: "Total",
-    color: "hsl(var(--primary))",
+    color: "hsl(var(--chart-1))",
   },
 } satisfies ChartConfig;
-
-const CORES_PIE = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--muted))"];
 
 export default function Financeiro() {
   const [stats, setStats] = useState<FinanceiroStats>({
@@ -109,153 +113,161 @@ export default function Financeiro() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [alugueis, setAlugueis] = useState<Aluguel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadFinancialData();
   }, []);
 
   const loadFinancialData = () => {
-    const agendamentosData = localStorageService.listarAgendamentos();
-    const alugueisData = localStorageService.listarAlugueis();
+    setIsLoading(true);
     
-    setAgendamentos(agendamentosData);
-    setAlugueis(alugueisData);
-
-    const hoje = new Date();
-    const inicioSemana = subDays(hoje, 7);
-    const inicioMes = startOfMonth(hoje);
-    const fimMes = endOfMonth(hoje);
-    const mesPassadoInicio = startOfMonth(subDays(inicioMes, 1));
-    const mesPassadoFim = endOfMonth(subDays(inicioMes, 1));
-
-    // Receita de aulas confirmadas
-    const aulasConfirmadas = agendamentosData.filter(a => a.status === 'confirmada');
-    const receitaAulas = aulasConfirmadas.reduce((sum, a) => sum + a.valor, 0);
-
-    // Receita de aluguéis ativos e concluídos
-    const alugueisValidos = alugueisData.filter(a => a.status === 'ativo' || a.status === 'concluido');
-    const receitaAluguel = alugueisValidos.reduce((sum, a) => sum + a.valor_total, 0);
-
-    // Receita total
-    const receitaTotal = receitaAulas + receitaAluguel;
-
-    // Receita hoje
-    const hojeStr = format(hoje, 'yyyy-MM-dd');
-    const aulasHoje = aulasConfirmadas.filter(a => a.data.startsWith(hojeStr));
-    const receitaAulasHoje = aulasHoje.reduce((sum, a) => sum + a.valor, 0);
-    const alugueisHoje = alugueisValidos.filter(a => a.created_at.startsWith(hojeStr));
-    const receitaAluguelHoje = alugueisHoje.reduce((sum, a) => sum + a.valor_total, 0);
-    const receitaHoje = receitaAulasHoje + receitaAluguelHoje;
-
-    // Receita semana
-    const aulasSemana = aulasConfirmadas.filter(a => {
-      const dataAula = parseISO(a.data);
-      return dataAula >= inicioSemana && dataAula <= hoje;
-    });
-    const receitaAulasSemana = aulasSemana.reduce((sum, a) => sum + a.valor, 0);
-    const alugueisSemana = alugueisValidos.filter(a => {
-      const dataAluguel = parseISO(a.created_at);
-      return dataAluguel >= inicioSemana && dataAluguel <= hoje;
-    });
-    const receitaAluguelSemana = alugueisSemana.reduce((sum, a) => sum + a.valor_total, 0);
-    const receitaSemana = receitaAulasSemana + receitaAluguelSemana;
-
-    // Receita mês atual
-    const aulasMes = aulasConfirmadas.filter(a => {
-      const dataAula = parseISO(a.data);
-      return dataAula >= inicioMes && dataAula <= fimMes;
-    });
-    const receitaAulasMes = aulasMes.reduce((sum, a) => sum + a.valor, 0);
-    const alugueisMes = alugueisValidos.filter(a => {
-      const dataAluguel = parseISO(a.created_at);
-      return dataAluguel >= inicioMes && dataAluguel <= fimMes;
-    });
-    const receitaAluguelMes = alugueisMes.reduce((sum, a) => sum + a.valor_total, 0);
-    const receitaMes = receitaAulasMes + receitaAluguelMes;
-
-    // Receita mês passado (para calcular crescimento)
-    const aulasMesPassado = aulasConfirmadas.filter(a => {
-      const dataAula = parseISO(a.data);
-      return dataAula >= mesPassadoInicio && dataAula <= mesPassadoFim;
-    });
-    const receitaAulasMesPassado = aulasMesPassado.reduce((sum, a) => sum + a.valor, 0);
-    const alugueisMesPassado = alugueisValidos.filter(a => {
-      const dataAluguel = parseISO(a.created_at);
-      return dataAluguel >= mesPassadoInicio && dataAluguel <= mesPassadoFim;
-    });
-    const receitaAluguelMesPassado = alugueisMesPassado.reduce((sum, a) => sum + a.valor_total, 0);
-    const receitaMesPassado = receitaAulasMesPassado + receitaAluguelMesPassado;
-
-    // Crescimento
-    const crescimentoMes = receitaMesPassado > 0 
-      ? ((receitaMes - receitaMesPassado) / receitaMesPassado) * 100 
-      : 0;
-
-    // Ticket médio
-    const totalTransacoes = aulasConfirmadas.length + alugueisValidos.length;
-    const ticketMedio = totalTransacoes > 0 ? receitaTotal / totalTransacoes : 0;
-
-    // Transações hoje
-    const transacoesHoje = aulasHoje.length + alugueisHoje.length;
-
-    // A receber (aulas pendentes)
-    const aulasPendentes = agendamentosData.filter(a => a.status === 'pendente');
-    const aReceber = aulasPendentes.reduce((sum, a) => sum + a.valor, 0);
-
-    // Meta mensal
-    const metaMensal = 15000;
-    const progressoMeta = (receitaMes / metaMensal) * 100;
-
-    setStats({
-      receitaTotal,
-      receitaAulas,
-      receitaAluguel,
-      ticketMedio,
-      metaMensal,
-      progressoMeta: Math.min(progressoMeta, 100),
-      receitaHoje,
-      receitaSemana,
-      receitaMes,
-      crescimentoMes,
-      transacoesHoje,
-      aReceber,
-    });
-
-    // Gerar dados diários para gráfico (últimos 14 dias)
-    const dias = eachDayOfInterval({
-      start: subDays(hoje, 13),
-      end: hoje,
-    });
-
-    const dadosDiarios: DailyRevenue[] = dias.map(dia => {
-      const diaStr = format(dia, 'yyyy-MM-dd');
-      const aulaDia = aulasConfirmadas.filter(a => a.data.startsWith(diaStr));
-      const aluguelDia = alugueisValidos.filter(a => a.created_at.startsWith(diaStr));
+    // Simulate loading for premium feel
+    setTimeout(() => {
+      const agendamentosData = localStorageService.listarAgendamentos();
+      const alugueisData = localStorageService.listarAlugueis();
       
-      const receitaAulasDia = aulaDia.reduce((sum, a) => sum + a.valor, 0);
-      const receitaAluguelDia = aluguelDia.reduce((sum, a) => sum + a.valor_total, 0);
+      setAgendamentos(agendamentosData);
+      setAlugueis(alugueisData);
 
-      return {
-        data: diaStr,
-        dataFormatada: format(dia, 'dd/MM', { locale: ptBR }),
-        aulas: receitaAulasDia,
-        aluguel: receitaAluguelDia,
-        total: receitaAulasDia + receitaAluguelDia,
-      };
-    });
+      const hoje = new Date();
+      const inicioSemana = subDays(hoje, 7);
+      const inicioMes = startOfMonth(hoje);
+      const fimMes = endOfMonth(hoje);
+      const mesPassadoInicio = startOfMonth(subDays(inicioMes, 1));
+      const mesPassadoFim = endOfMonth(subDays(inicioMes, 1));
 
-    setDailyData(dadosDiarios);
+      // Receita de aulas confirmadas
+      const aulasConfirmadas = agendamentosData.filter(a => a.status === 'confirmada');
+      const receitaAulas = aulasConfirmadas.reduce((sum, a) => sum + a.valor, 0);
 
-    // Gerar insights
-    generateInsights(
-      receitaMes,
-      metaMensal,
-      crescimentoMes,
-      aReceber,
-      ticketMedio,
-      agendamentosData,
-      alugueisData
-    );
+      // Receita de aluguéis ativos e concluídos
+      const alugueisValidos = alugueisData.filter(a => a.status === 'ativo' || a.status === 'concluido');
+      const receitaAluguel = alugueisValidos.reduce((sum, a) => sum + a.valor_total, 0);
+
+      // Receita total
+      const receitaTotal = receitaAulas + receitaAluguel;
+
+      // Receita hoje
+      const hojeStr = format(hoje, 'yyyy-MM-dd');
+      const aulasHoje = aulasConfirmadas.filter(a => a.data.startsWith(hojeStr));
+      const receitaAulasHoje = aulasHoje.reduce((sum, a) => sum + a.valor, 0);
+      const alugueisHoje = alugueisValidos.filter(a => a.created_at.startsWith(hojeStr));
+      const receitaAluguelHoje = alugueisHoje.reduce((sum, a) => sum + a.valor_total, 0);
+      const receitaHoje = receitaAulasHoje + receitaAluguelHoje;
+
+      // Receita semana
+      const aulasSemana = aulasConfirmadas.filter(a => {
+        const dataAula = parseISO(a.data);
+        return dataAula >= inicioSemana && dataAula <= hoje;
+      });
+      const receitaAulasSemana = aulasSemana.reduce((sum, a) => sum + a.valor, 0);
+      const alugueisSemana = alugueisValidos.filter(a => {
+        const dataAluguel = parseISO(a.created_at);
+        return dataAluguel >= inicioSemana && dataAluguel <= hoje;
+      });
+      const receitaAluguelSemana = alugueisSemana.reduce((sum, a) => sum + a.valor_total, 0);
+      const receitaSemana = receitaAulasSemana + receitaAluguelSemana;
+
+      // Receita mês atual
+      const aulasMes = aulasConfirmadas.filter(a => {
+        const dataAula = parseISO(a.data);
+        return dataAula >= inicioMes && dataAula <= fimMes;
+      });
+      const receitaAulasMes = aulasMes.reduce((sum, a) => sum + a.valor, 0);
+      const alugueisMes = alugueisValidos.filter(a => {
+        const dataAluguel = parseISO(a.created_at);
+        return dataAluguel >= inicioMes && dataAluguel <= fimMes;
+      });
+      const receitaAluguelMes = alugueisMes.reduce((sum, a) => sum + a.valor_total, 0);
+      const receitaMes = receitaAulasMes + receitaAluguelMes;
+
+      // Receita mês passado
+      const aulasMesPassado = aulasConfirmadas.filter(a => {
+        const dataAula = parseISO(a.data);
+        return dataAula >= mesPassadoInicio && dataAula <= mesPassadoFim;
+      });
+      const receitaAulasMesPassado = aulasMesPassado.reduce((sum, a) => sum + a.valor, 0);
+      const alugueisMesPassado = alugueisValidos.filter(a => {
+        const dataAluguel = parseISO(a.created_at);
+        return dataAluguel >= mesPassadoInicio && dataAluguel <= mesPassadoFim;
+      });
+      const receitaAluguelMesPassado = alugueisMesPassado.reduce((sum, a) => sum + a.valor_total, 0);
+      const receitaMesPassado = receitaAulasMesPassado + receitaAluguelMesPassado;
+
+      // Crescimento
+      const crescimentoMes = receitaMesPassado > 0 
+        ? ((receitaMes - receitaMesPassado) / receitaMesPassado) * 100 
+        : 0;
+
+      // Ticket médio
+      const totalTransacoes = aulasConfirmadas.length + alugueisValidos.length;
+      const ticketMedio = totalTransacoes > 0 ? receitaTotal / totalTransacoes : 0;
+
+      // Transações hoje
+      const transacoesHoje = aulasHoje.length + alugueisHoje.length;
+
+      // A receber (aulas pendentes)
+      const aulasPendentes = agendamentosData.filter(a => a.status === 'pendente');
+      const aReceber = aulasPendentes.reduce((sum, a) => sum + a.valor, 0);
+
+      // Meta mensal
+      const metaMensal = 15000;
+      const progressoMeta = (receitaMes / metaMensal) * 100;
+
+      setStats({
+        receitaTotal,
+        receitaAulas,
+        receitaAluguel,
+        ticketMedio,
+        metaMensal,
+        progressoMeta: Math.min(progressoMeta, 100),
+        receitaHoje,
+        receitaSemana,
+        receitaMes,
+        crescimentoMes,
+        transacoesHoje,
+        aReceber,
+      });
+
+      // Gerar dados diários para gráfico (últimos 14 dias)
+      const dias = eachDayOfInterval({
+        start: subDays(hoje, 13),
+        end: hoje,
+      });
+
+      const dadosDiarios: DailyRevenue[] = dias.map(dia => {
+        const diaStr = format(dia, 'yyyy-MM-dd');
+        const aulaDia = aulasConfirmadas.filter(a => a.data.startsWith(diaStr));
+        const aluguelDia = alugueisValidos.filter(a => a.created_at.startsWith(diaStr));
+        
+        const receitaAulasDia = aulaDia.reduce((sum, a) => sum + a.valor, 0);
+        const receitaAluguelDia = aluguelDia.reduce((sum, a) => sum + a.valor_total, 0);
+
+        return {
+          data: diaStr,
+          dataFormatada: format(dia, 'dd/MM', { locale: ptBR }),
+          aulas: receitaAulasDia,
+          aluguel: receitaAluguelDia,
+          total: receitaAulasDia + receitaAluguelDia,
+        };
+      });
+
+      setDailyData(dadosDiarios);
+
+      // Gerar insights
+      generateInsights(
+        receitaMes,
+        metaMensal,
+        crescimentoMes,
+        aReceber,
+        ticketMedio,
+        agendamentosData,
+        alugueisData
+      );
+      
+      setIsLoading(false);
+    }, 300);
   };
 
   const generateInsights = (
@@ -272,11 +284,10 @@ export default function Financeiro() {
     const diasRestantesMes = differenceInDays(endOfMonth(hoje), hoje);
     const progressoMeta = (receitaMes / metaMensal) * 100;
 
-    // Insight de meta
     if (progressoMeta >= 100) {
       newInsights.push({
         tipo: 'sucesso',
-        titulo: '🎉 Meta batida!',
+        titulo: 'Meta batida!',
         descricao: `Você alcançou ${progressoMeta.toFixed(0)}% da meta mensal. Parabéns pelo excelente resultado!`,
       });
     } else if (progressoMeta >= 80) {
@@ -290,12 +301,11 @@ export default function Financeiro() {
       newInsights.push({
         tipo: 'alerta',
         titulo: 'Atenção com a meta',
-        descricao: `Restam ${diasRestantesMes} dias e você está em ${progressoMeta.toFixed(0)}% da meta. Considere ações promocionais.`,
+        descricao: `Restam ${diasRestantesMes} dias e você está em ${progressoMeta.toFixed(0)}% da meta.`,
         acao: 'Ver estratégias',
       });
     }
 
-    // Insight de crescimento
     if (crescimento > 20) {
       newInsights.push({
         tipo: 'sucesso',
@@ -311,7 +321,6 @@ export default function Financeiro() {
       });
     }
 
-    // Insight de valores a receber
     if (aReceber > 0) {
       newInsights.push({
         tipo: 'dica',
@@ -321,17 +330,15 @@ export default function Financeiro() {
       });
     }
 
-    // Insight de ticket médio
     if (ticketMedio > 0 && ticketMedio < 300) {
       newInsights.push({
         tipo: 'dica',
         titulo: 'Aumente o ticket médio',
-        descricao: `Seu ticket médio é R$ ${ticketMedio.toFixed(0)}. Ofereça pacotes para aumentar o valor por cliente.`,
+        descricao: `Seu ticket médio é R$ ${ticketMedio.toFixed(0)}. Ofereça pacotes para aumentar o valor.`,
         acao: 'Criar pacote',
       });
     }
 
-    // Insight de aluguéis atrasados
     const alugueisAtrasados = alugueis.filter(a => {
       if (a.status !== 'ativo') return false;
       const dataFim = parseISO(a.data_fim);
@@ -353,8 +360,8 @@ export default function Financeiro() {
 
   // Dados para gráfico de pizza
   const pieData = useMemo(() => [
-    { name: 'Aulas', value: stats.receitaAulas, fill: 'hsl(var(--primary))' },
-    { name: 'Aluguel', value: stats.receitaAluguel, fill: 'hsl(var(--accent))' },
+    { name: 'Aulas', value: stats.receitaAulas, fill: 'hsl(var(--chart-1))' },
+    { name: 'Aluguel', value: stats.receitaAluguel, fill: 'hsl(var(--chart-2))' },
   ].filter(item => item.value > 0), [stats]);
 
   const formatCurrency = (value: number) => {
@@ -363,190 +370,273 @@ export default function Financeiro() {
 
   const getInsightIcon = (tipo: Insight['tipo']) => {
     switch (tipo) {
-      case 'sucesso': return <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />;
-      case 'alerta': return <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />;
-      case 'dica': return <Lightbulb className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />;
-      case 'meta': return <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />;
+      case 'sucesso': return CheckCircle2;
+      case 'alerta': return AlertTriangle;
+      case 'dica': return Lightbulb;
+      case 'meta': return Target;
     }
   };
 
-  const getInsightBg = (tipo: Insight['tipo']) => {
+  const getInsightVariant = (tipo: Insight['tipo']): "success" | "urgent" | "warning" | "info" => {
     switch (tipo) {
-      case 'sucesso': return 'bg-success/10 border-success/20';
-      case 'alerta': return 'bg-destructive/10 border-destructive/20';
-      case 'dica': return 'bg-warning/10 border-warning/20';
-      case 'meta': return 'bg-primary/10 border-primary/20';
+      case 'sucesso': return 'success';
+      case 'alerta': return 'urgent';
+      case 'dica': return 'warning';
+      case 'meta': return 'info';
     }
   };
+
+  const currentHour = new Date().getHours();
+  const greeting = currentHour < 12 ? 'Bom dia' : currentHour < 18 ? 'Boa tarde' : 'Boa noite';
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gestão Financeira</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Acompanhe suas receitas, metas e insights</p>
+    <div className="space-y-6 sm:space-y-8">
+      {/* Premium Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">
+              {greeting}, Léo!
+            </h1>
+            {stats.progressoMeta >= 100 && (
+              <Trophy className="h-6 w-6 text-accent animate-float" />
+            )}
+          </div>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Aqui está o resumo financeiro da sua escola
+          </p>
         </div>
-        <Badge variant="outline" className="text-xs sm:text-sm py-1 px-2 sm:px-3 w-fit">
-          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-          {format(new Date(), "MMM 'de' yyyy", { locale: ptBR })}
-        </Badge>
+        <PremiumBadge variant="info" icon={Calendar} className="self-start sm:self-auto">
+          {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+        </PremiumBadge>
       </div>
 
-      {/* KPIs Principais - 2 colunas mobile */}
+      {/* KPIs Premium - Grid Responsivo */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
-          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">Receita Mês</CardTitle>
-            <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground truncate">
-              {formatCurrency(stats.receitaMes)}
+        {/* Receita do Mês - Destaque */}
+        <PremiumCard featured gradient="primary" className="col-span-2 lg:col-span-1">
+          <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Receita Mês
+            </PremiumCardTitle>
+            <div className="icon-container icon-container-primary h-10 w-10 sm:h-12 sm:w-12">
+              <DollarSign className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <div className="flex items-center gap-1 sm:gap-2 mt-1 sm:mt-2">
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="number-display text-2xl sm:text-3xl lg:text-4xl text-foreground">
+              <AnimatedNumber value={stats.receitaMes} format="currency" />
+            </div>
+            <div className="flex items-center gap-2 mt-2">
               {stats.crescimentoMes >= 0 ? (
-                <Badge variant="secondary" className="bg-success/20 text-success border-0 text-[10px] sm:text-xs px-1 sm:px-2">
-                  <ArrowUpRight className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5" />
-                  +{stats.crescimentoMes.toFixed(0)}%
-                </Badge>
+                <PremiumBadge variant="success" icon={ArrowUpRight} size="sm">
+                  +{stats.crescimentoMes.toFixed(0)}% vs mês anterior
+                </PremiumBadge>
               ) : (
-                <Badge variant="secondary" className="bg-destructive/20 text-destructive border-0 text-[10px] sm:text-xs px-1 sm:px-2">
-                  <ArrowDownRight className="h-2 w-2 sm:h-3 sm:w-3 mr-0.5" />
-                  {stats.crescimentoMes.toFixed(0)}%
-                </Badge>
+                <PremiumBadge variant="urgent" icon={ArrowDownRight} size="sm">
+                  {stats.crescimentoMes.toFixed(0)}% vs mês anterior
+                </PremiumBadge>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </PremiumCardContent>
+        </PremiumCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">Hoje</CardTitle>
-            <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground truncate">
-              {formatCurrency(stats.receitaHoje)}
+        {/* Receita Hoje */}
+        <PremiumCard>
+          <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Hoje
+            </PremiumCardTitle>
+            <div className="icon-container icon-container-accent h-9 w-9 sm:h-10 sm:w-10">
+              <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
-              {stats.transacoesHoje} transação
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="number-display text-xl sm:text-2xl lg:text-3xl text-foreground">
+              <AnimatedNumber value={stats.receitaHoje} format="currency" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.transacoesHoje} transação(ões)
             </p>
-          </CardContent>
-        </Card>
+          </PremiumCardContent>
+        </PremiumCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">Ticket Médio</CardTitle>
-            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground truncate">
-              {formatCurrency(stats.ticketMedio)}
+        {/* Ticket Médio */}
+        <PremiumCard>
+          <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Ticket Médio
+            </PremiumCardTitle>
+            <div className="icon-container icon-container-success h-9 w-9 sm:h-10 sm:w-10">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="number-display text-xl sm:text-2xl lg:text-3xl text-foreground">
+              <AnimatedNumber value={stats.ticketMedio} format="currency" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
               Por transação
             </p>
-          </CardContent>
-        </Card>
+          </PremiumCardContent>
+        </PremiumCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground">A Receber</CardTitle>
-            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-warning" />
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-lg sm:text-2xl lg:text-3xl font-bold text-warning truncate">
-              {formatCurrency(stats.aReceber)}
+        {/* A Receber */}
+        <PremiumCard className={stats.aReceber > 0 ? "border-warning/30" : ""}>
+          <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              A Receber
+            </PremiumCardTitle>
+            <div className="icon-container icon-container-warning h-9 w-9 sm:h-10 sm:w-10">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className={`number-display text-xl sm:text-2xl lg:text-3xl ${stats.aReceber > 0 ? 'text-warning' : 'text-foreground'}`}>
+              <AnimatedNumber value={stats.aReceber} format="currency" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
               Pendentes
             </p>
-          </CardContent>
-        </Card>
+          </PremiumCardContent>
+        </PremiumCard>
       </div>
 
-      {/* Meta Mensal */}
-      <Card>
-        <CardHeader className="p-3 sm:p-6">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                <Target className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0" />
-                <span className="truncate">Meta Mensal</span>
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm truncate">
-                {formatCurrency(stats.receitaMes)} de {formatCurrency(stats.metaMensal)}
-              </CardDescription>
+      {/* Meta Mensal Premium */}
+      <PremiumCard featured={stats.progressoMeta >= 100}>
+        <PremiumCardHeader className="p-4 sm:p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className={`icon-container h-10 w-10 sm:h-12 sm:w-12 ${
+                stats.progressoMeta >= 100 ? 'icon-container-success' : 'icon-container-primary'
+              }`}>
+                <Target className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <div>
+                <PremiumCardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  Meta Mensal
+                  {stats.progressoMeta >= 100 && (
+                    <Sparkles className="h-4 w-4 text-accent animate-pulse-soft" />
+                  )}
+                </PremiumCardTitle>
+                <PremiumCardDescription className="text-sm">
+                  {formatCurrency(stats.receitaMes)} de {formatCurrency(stats.metaMensal)}
+                </PremiumCardDescription>
+              </div>
             </div>
-            <Badge 
-              variant={stats.progressoMeta >= 100 ? "default" : stats.progressoMeta >= 70 ? "secondary" : "outline"}
-              className={`${stats.progressoMeta >= 100 ? "bg-success" : ""} text-xs sm:text-sm shrink-0`}
+            <PremiumBadge 
+              variant={stats.progressoMeta >= 100 ? "success" : stats.progressoMeta >= 70 ? "info" : "neutral"}
+              glow={stats.progressoMeta >= 100}
+              size="lg"
             >
               {stats.progressoMeta.toFixed(0)}%
-            </Badge>
+            </PremiumBadge>
           </div>
-        </CardHeader>
-        <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-          <Progress value={stats.progressoMeta} className="h-2 sm:h-3" />
-          <div className="flex justify-between mt-2 text-[10px] sm:text-sm text-muted-foreground">
-            <span>R$ 0</span>
-            <span className="font-medium text-foreground">
-              Falta {formatCurrency(Math.max(0, stats.metaMensal - stats.receitaMes))}
-            </span>
-            <span>{formatCurrency(stats.metaMensal)}</span>
+        </PremiumCardHeader>
+        <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="space-y-3">
+            <div className="progress-premium h-3 sm:h-4">
+              <div 
+                className="progress-premium-bar" 
+                style={{ width: `${stats.progressoMeta}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs sm:text-sm text-muted-foreground">
+              <span>R$ 0</span>
+              <span className="font-medium text-foreground">
+                {stats.progressoMeta < 100 
+                  ? `Falta ${formatCurrency(Math.max(0, stats.metaMensal - stats.receitaMes))}`
+                  : 'Meta alcançada! 🎉'
+                }
+              </span>
+              <span>{formatCurrency(stats.metaMensal)}</span>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </PremiumCardContent>
+      </PremiumCard>
 
-      {/* Insights Inteligentes */}
+      {/* Insights Premium */}
       {insights.length > 0 && (
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {insights.map((insight, index) => (
-            <Card key={index} className={`border ${getInsightBg(insight.tipo)}`}>
-              <CardContent className="p-3 sm:pt-4 sm:p-4">
-                <div className="flex items-start gap-2 sm:gap-3">
-                  {getInsightIcon(insight.tipo)}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-foreground text-sm sm:text-base truncate">{insight.titulo}</h4>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{insight.descricao}</p>
-                    {insight.acao && (
-                      <Badge variant="outline" className="mt-2 cursor-pointer hover:bg-muted text-[10px] sm:text-xs">
-                        {insight.acao}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold font-display flex items-center gap-2">
+            <Zap className="h-5 w-5 text-accent" />
+            Insights Inteligentes
+          </h2>
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {insights.map((insight, index) => {
+              const Icon = getInsightIcon(insight.tipo);
+              return (
+                <PremiumCard 
+                  key={index} 
+                  className={`hover-lift stagger-${index + 1}`}
+                  style={{ animationFillMode: 'both' }}
+                >
+                  <PremiumCardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`icon-container h-10 w-10 shrink-0 ${
+                        insight.tipo === 'sucesso' ? 'icon-container-success' :
+                        insight.tipo === 'alerta' ? 'bg-destructive/10 text-destructive' :
+                        insight.tipo === 'dica' ? 'icon-container-warning' :
+                        'icon-container-primary'
+                      }`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-foreground text-sm sm:text-base">
+                          {insight.titulo}
+                        </h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
+                          {insight.descricao}
+                        </p>
+                        {insight.acao && (
+                          <PremiumBadge 
+                            variant={getInsightVariant(insight.tipo)} 
+                            size="sm" 
+                            className="mt-3 cursor-pointer hover:scale-105 transition-transform"
+                          >
+                            {insight.acao}
+                          </PremiumBadge>
+                        )}
+                      </div>
+                    </div>
+                  </PremiumCardContent>
+                </PremiumCard>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Gráficos */}
-      <Tabs defaultValue="evolucao" className="space-y-3 sm:space-y-4">
-        <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex">
-          <TabsTrigger value="evolucao" className="text-xs sm:text-sm">Evolução</TabsTrigger>
-          <TabsTrigger value="composicao" className="text-xs sm:text-sm">Composição</TabsTrigger>
-          <TabsTrigger value="comparativo" className="text-xs sm:text-sm">Comparativo</TabsTrigger>
+      {/* Gráficos Premium */}
+      <Tabs defaultValue="evolucao" className="space-y-4">
+        <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:flex bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="evolucao" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            Evolução
+          </TabsTrigger>
+          <TabsTrigger value="composicao" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            Composição
+          </TabsTrigger>
+          <TabsTrigger value="comparativo" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            Comparativo
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="evolucao" className="space-y-4">
-          <Card>
-            <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="text-sm sm:text-base">Receita Diária</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Últimos 14 dias</CardDescription>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-6 pt-0">
-              <ChartContainer config={chartConfig} className="h-[200px] sm:h-[300px] w-full">
+        <TabsContent value="evolucao" className="space-y-4 animate-fade-in">
+          <PremiumCard>
+            <PremiumCardHeader>
+              <PremiumCardTitle>Receita Diária</PremiumCardTitle>
+              <PremiumCardDescription>Últimos 14 dias</PremiumCardDescription>
+            </PremiumCardHeader>
+            <PremiumCardContent>
+              <ChartContainer config={chartConfig} className="h-[220px] sm:h-[300px] w-full">
                 <AreaChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis 
                     dataKey="dataFormatada" 
                     className="text-[10px] sm:text-xs fill-muted-foreground"
@@ -559,7 +649,7 @@ export default function Financeiro() {
                     tickFormatter={(value) => `R$${value}`}
                     tickLine={false}
                     axisLine={false}
-                    width={45}
+                    width={50}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent 
@@ -569,32 +659,32 @@ export default function Financeiro() {
                   <Area
                     type="monotone"
                     dataKey="total"
-                    stroke="hsl(var(--primary))"
+                    stroke="hsl(var(--chart-1))"
                     fill="url(#fillTotal)"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                   />
                 </AreaChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
+            </PremiumCardContent>
+          </PremiumCard>
         </TabsContent>
 
-        <TabsContent value="composicao" className="space-y-4">
-          <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-2">
-            <Card>
-              <CardHeader className="p-3 sm:p-6">
-                <CardTitle className="text-sm sm:text-base">Receita por Categoria</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Aulas vs Aluguéis</CardDescription>
-              </CardHeader>
-              <CardContent className="p-2 sm:p-6 pt-0">
-                <ChartContainer config={chartConfig} className="h-[180px] sm:h-[250px] w-full">
+        <TabsContent value="composicao" className="space-y-4 animate-fade-in">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+            <PremiumCard>
+              <PremiumCardHeader>
+                <PremiumCardTitle>Receita por Categoria</PremiumCardTitle>
+                <PremiumCardDescription>Aulas vs Aluguéis</PremiumCardDescription>
+              </PremiumCardHeader>
+              <PremiumCardContent>
+                <ChartContainer config={chartConfig} className="h-[200px] sm:h-[260px] w-full">
                   <PieChart>
                     <Pie
                       data={pieData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={40}
-                      outerRadius={70}
+                      innerRadius={50}
+                      outerRadius={80}
                       paddingAngle={5}
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -610,64 +700,69 @@ export default function Financeiro() {
                     />
                   </PieChart>
                 </ChartContainer>
-              </CardContent>
-            </Card>
+              </PremiumCardContent>
+            </PremiumCard>
 
-            <Card>
-              <CardHeader className="p-3 sm:p-6">
-                <CardTitle className="text-sm sm:text-base">Detalhamento</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">Valores por categoria</CardDescription>
-              </CardHeader>
-              <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0 space-y-3 sm:space-y-4">
-                <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-primary/10">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-primary" />
-                    <span className="font-medium text-sm sm:text-base">Aulas</span>
+            <PremiumCard>
+              <PremiumCardHeader>
+                <PremiumCardTitle>Detalhamento</PremiumCardTitle>
+                <PremiumCardDescription>Valores por categoria</PremiumCardDescription>
+              </PremiumCardHeader>
+              <PremiumCardContent className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/10">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-primary" />
+                    <span className="font-medium">Aulas</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-sm sm:text-base">{formatCurrency(stats.receitaAulas)}</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground">
+                    <div className="font-bold text-lg">
+                      <AnimatedNumber value={stats.receitaAulas} format="currency" />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
                       {stats.receitaTotal > 0 
                         ? ((stats.receitaAulas / stats.receitaTotal) * 100).toFixed(0)
                         : 0}%
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg bg-accent/10">
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <div className="h-2 w-2 sm:h-3 sm:w-3 rounded-full bg-accent" />
-                    <span className="font-medium text-sm sm:text-base">Aluguel</span>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-accent/5 border border-accent/10">
+                  <div className="flex items-center gap-3">
+                    <div className="h-3 w-3 rounded-full bg-accent" />
+                    <span className="font-medium">Aluguel</span>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-sm sm:text-base">{formatCurrency(stats.receitaAluguel)}</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground">
+                    <div className="font-bold text-lg">
+                      <AnimatedNumber value={stats.receitaAluguel} format="currency" />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
                       {stats.receitaTotal > 0 
                         ? ((stats.receitaAluguel / stats.receitaTotal) * 100).toFixed(0)
                         : 0}%
                     </div>
                   </div>
                 </div>
-                <div className="border-t pt-3 sm:pt-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm sm:text-base">Total Geral</span>
-                    <span className="text-lg sm:text-xl font-bold text-primary">{formatCurrency(stats.receitaTotal)}</span>
-                  </div>
+                <div className="divider-premium" />
+                <div className="flex items-center justify-between pt-2">
+                  <span className="font-semibold">Total Geral</span>
+                  <span className="text-xl sm:text-2xl font-bold text-gradient">
+                    <AnimatedNumber value={stats.receitaTotal} format="currency" />
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
+              </PremiumCardContent>
+            </PremiumCard>
           </div>
         </TabsContent>
 
-        <TabsContent value="comparativo" className="space-y-4">
-          <Card>
-            <CardHeader className="p-3 sm:p-6">
-              <CardTitle className="text-sm sm:text-base">Receita por Tipo</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Últimos 14 dias</CardDescription>
-            </CardHeader>
-            <CardContent className="p-2 sm:p-6 pt-0">
-              <ChartContainer config={chartConfig} className="h-[200px] sm:h-[300px] w-full">
+        <TabsContent value="comparativo" className="space-y-4 animate-fade-in">
+          <PremiumCard>
+            <PremiumCardHeader>
+              <PremiumCardTitle>Receita por Tipo</PremiumCardTitle>
+              <PremiumCardDescription>Últimos 14 dias</PremiumCardDescription>
+            </PremiumCardHeader>
+            <PremiumCardContent>
+              <ChartContainer config={chartConfig} className="h-[220px] sm:h-[300px] w-full">
                 <BarChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
                   <XAxis 
                     dataKey="dataFormatada" 
                     className="text-[10px] sm:text-xs fill-muted-foreground"
@@ -680,64 +775,72 @@ export default function Financeiro() {
                     tickFormatter={(value) => `R$${value}`}
                     tickLine={false}
                     axisLine={false}
-                    width={45}
+                    width={50}
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent 
                       formatter={(value) => formatCurrency(Number(value))}
                     />} 
                   />
-                  <Bar dataKey="aulas" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="aluguel" stackId="a" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="aulas" stackId="a" fill="hsl(var(--chart-1))" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="aluguel" stackId="a" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ChartContainer>
-            </CardContent>
-          </Card>
+            </PremiumCardContent>
+          </PremiumCard>
         </TabsContent>
       </Tabs>
 
-      {/* Resumo Rápido */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground flex items-center gap-1 sm:gap-2">
-              <PiggyBank className="h-3 w-3 sm:h-4 sm:w-4" />
+      {/* Resumo Rápido Premium */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <PremiumCard>
+          <PremiumCardHeader className="pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <PiggyBank className="h-4 w-4" />
               <span className="hidden sm:inline">Semana Atual</span>
               <span className="sm:hidden">Semana</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-sm sm:text-xl lg:text-2xl font-bold truncate">{formatCurrency(stats.receitaSemana)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground flex items-center gap-1 sm:gap-2">
-              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
+            </PremiumCardTitle>
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="number-display text-base sm:text-xl lg:text-2xl">
+              <AnimatedNumber value={stats.receitaSemana} format="currency" />
+            </div>
+          </PremiumCardContent>
+        </PremiumCard>
+        <PremiumCard>
+          <PremiumCardHeader className="pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
               <span className="hidden sm:inline">Média Diária</span>
               <span className="sm:hidden">Média</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-sm sm:text-xl lg:text-2xl font-bold truncate">
-              {formatCurrency(stats.receitaMes / Math.max(1, new Date().getDate()))}
+            </PremiumCardTitle>
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="number-display text-base sm:text-xl lg:text-2xl">
+              <AnimatedNumber 
+                value={stats.receitaMes / Math.max(1, new Date().getDate())} 
+                format="currency" 
+              />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1 sm:pb-2 p-3 sm:p-6">
-            <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground flex items-center gap-1 sm:gap-2">
-              <Target className="h-3 w-3 sm:h-4 sm:w-4" />
+          </PremiumCardContent>
+        </PremiumCard>
+        <PremiumCard>
+          <PremiumCardHeader className="pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Target className="h-4 w-4" />
               <span className="hidden sm:inline">Projeção Mensal</span>
               <span className="sm:hidden">Projeção</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
-            <div className="text-sm sm:text-xl lg:text-2xl font-bold truncate">
-              {formatCurrency((stats.receitaMes / Math.max(1, new Date().getDate())) * 30)}
+            </PremiumCardTitle>
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="number-display text-base sm:text-xl lg:text-2xl">
+              <AnimatedNumber 
+                value={(stats.receitaMes / Math.max(1, new Date().getDate())) * 30} 
+                format="currency" 
+              />
             </div>
-          </CardContent>
-        </Card>
+          </PremiumCardContent>
+        </PremiumCard>
       </div>
     </div>
   );
