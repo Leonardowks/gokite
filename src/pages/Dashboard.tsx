@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { DollarSign, Calendar as CalendarIcon, TrendingUp, Users, CheckCircle, XCircle, Clock, ArrowRight } from "lucide-react";
+import { DollarSign, Calendar as CalendarIcon, TrendingUp, Users, CheckCircle, XCircle, Clock, ArrowRight, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { localStorageService, type Agendamento } from "@/lib/localStorage";
-import { MetricCard } from "@/components/MetricCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -13,6 +12,9 @@ import { DailyRoutineWidget } from "@/components/DailyRoutineWidget";
 import { QuickActionsPanel } from "@/components/QuickActionsPanel";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { useNavigate } from "react-router-dom";
+import { PremiumCard } from "@/components/ui/premium-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { PremiumBadge } from "@/components/ui/premium-badge";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -131,18 +133,32 @@ export default function Dashboard() {
     }] : [])
   ];
 
+  const hora = new Date().getHours();
+  const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+
   return (
     <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-fade-in">
       <OnboardingTour />
       
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground tracking-tight">
-          Dashboard
-        </h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-1">
-          Visão geral da sua operação
-        </p>
+      {/* Header Premium */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm text-muted-foreground">{saudacao}! 👋</span>
+            <PremiumBadge variant="success" size="sm" icon={Sparkles}>
+              Sistema Ativo
+            </PremiumBadge>
+          </div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground tracking-tight">
+            Dashboard
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Visão geral da sua operação
+          </p>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {format(new Date(), "EEEE, dd 'de' MMMM")}
+        </div>
       </div>
 
       {/* Widgets */}
@@ -155,80 +171,147 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs Premium */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
-        <MetricCard 
-          title="Aulas Hoje" 
-          value={stats.aulasHoje} 
-          icon={CalendarIcon}
-          className="metric-card-hoje"
-        />
-        <MetricCard 
-          title="Receita Hoje" 
-          value={`R$ ${stats.receitaHoje.toLocaleString('pt-BR')}`} 
-          icon={DollarSign}
-        />
-        <MetricCard 
-          title="Pendentes" 
-          value={stats.aulasPendentes} 
-          icon={Clock}
-          className="metric-card-pendentes"
-        />
-        <MetricCard 
-          title="Total Clientes" 
-          value={stats.totalClientes} 
-          icon={Users}
-        />
+        <PremiumCard hover className="metric-card-hoje">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
+                  Aulas Hoje
+                </p>
+                <AnimatedNumber 
+                  value={stats.aulasHoje} 
+                  className="text-2xl sm:text-3xl font-bold text-foreground"
+                />
+              </div>
+              <div className="icon-container shrink-0">
+                <CalendarIcon className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+
+        <PremiumCard hover>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
+                  Receita Hoje
+                </p>
+                <AnimatedNumber 
+                  value={stats.receitaHoje} 
+                  format="currency"
+                  className="text-2xl sm:text-3xl font-bold text-foreground"
+                />
+              </div>
+              <div className="icon-container shrink-0">
+                <DollarSign className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+
+        <PremiumCard hover className="metric-card-pendentes">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
+                  Pendentes
+                </p>
+                <AnimatedNumber 
+                  value={stats.aulasPendentes} 
+                  className="text-2xl sm:text-3xl font-bold text-foreground"
+                />
+              </div>
+              <div className="icon-container bg-warning/10 shrink-0">
+                <Clock className="h-5 w-5 text-warning" />
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+
+        <PremiumCard hover>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
+                  Total Clientes
+                </p>
+                <AnimatedNumber 
+                  value={stats.totalClientes} 
+                  className="text-2xl sm:text-3xl font-bold text-foreground"
+                />
+              </div>
+              <div className="icon-container shrink-0">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
       </div>
 
-      {/* Secondary Stats */}
+      {/* Secondary Stats Premium */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
-        <Card className="group hover-lift">
+        <PremiumCard hover>
           <CardContent className="p-4 sm:p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
               <CheckCircle className="h-6 w-6 text-success" />
             </div>
             <div>
               <p className="text-xs sm:text-sm text-muted-foreground">Confirmadas</p>
-              <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.aulasConfirmadas}</p>
+              <AnimatedNumber 
+                value={stats.aulasConfirmadas}
+                className="text-2xl sm:text-3xl font-bold text-foreground"
+              />
             </div>
           </CardContent>
-        </Card>
+        </PremiumCard>
 
-        <Card className="group hover-lift">
+        <PremiumCard hover>
           <CardContent className="p-4 sm:p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
               <XCircle className="h-6 w-6 text-destructive" />
             </div>
             <div>
               <p className="text-xs sm:text-sm text-muted-foreground">Canceladas</p>
-              <p className="text-2xl sm:text-3xl font-bold text-foreground">{stats.aulasCanceladas}</p>
+              <AnimatedNumber 
+                value={stats.aulasCanceladas}
+                className="text-2xl sm:text-3xl font-bold text-foreground"
+              />
             </div>
           </CardContent>
-        </Card>
+        </PremiumCard>
 
-        <Card className="group hover-lift">
+        <PremiumCard hover>
           <CardContent className="p-4 sm:p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <TrendingUp className="h-6 w-6 text-primary" />
             </div>
             <div>
               <p className="text-xs sm:text-sm text-muted-foreground">Taxa de Conversão</p>
-              <p className="text-2xl sm:text-3xl font-bold text-foreground">
-                {stats.aulasConfirmadas + stats.aulasPendentes > 0 
+              <AnimatedNumber 
+                value={stats.aulasConfirmadas + stats.aulasPendentes > 0 
                   ? Math.round((stats.aulasConfirmadas / (stats.aulasConfirmadas + stats.aulasPendentes)) * 100)
-                  : 0}%
-              </p>
+                  : 0}
+                suffix="%"
+                className="text-2xl sm:text-3xl font-bold text-foreground"
+              />
             </div>
           </CardContent>
-        </Card>
+        </PremiumCard>
       </div>
 
-      {/* Charts */}
+      {/* Charts Premium */}
       <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
-        <Card>
+        <PremiumCard>
           <CardHeader className="p-4 sm:p-5 pb-0">
-            <CardTitle className="text-base sm:text-lg font-display">Receita por Tipo de Aula</CardTitle>
+            <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <DollarSign className="h-4 w-4 text-primary" />
+              </div>
+              Receita por Tipo de Aula
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-5">
             <ResponsiveContainer width="100%" height={220} className="sm:!h-[280px]">
@@ -240,21 +323,26 @@ export default function Dashboard() {
                   contentStyle={{ 
                     backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '10px',
+                    borderRadius: '12px',
                     fontSize: '13px',
-                    boxShadow: 'var(--shadow-lg)'
+                    boxShadow: '0 10px 40px -10px hsl(var(--primary) / 0.15)'
                   }}
                   formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Receita']}
                 />
-                <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="receita" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
-        </Card>
+        </PremiumCard>
 
-        <Card>
+        <PremiumCard>
           <CardHeader className="p-4 sm:p-5 pb-0">
-            <CardTitle className="text-base sm:text-lg font-display">Status das Aulas</CardTitle>
+            <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <CalendarIcon className="h-4 w-4 text-accent" />
+              </div>
+              Status das Aulas
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-3 sm:p-5">
             <ResponsiveContainer width="100%" height={220} className="sm:!h-[280px]">
@@ -266,7 +354,7 @@ export default function Dashboard() {
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
-                  innerRadius={40}
+                  innerRadius={45}
                   paddingAngle={4}
                   fill="hsl(var(--primary))"
                   dataKey="value"
@@ -279,22 +367,22 @@ export default function Dashboard() {
                   contentStyle={{ 
                     backgroundColor: 'hsl(var(--card))', 
                     border: '1px solid hsl(var(--border))',
-                    borderRadius: '10px',
+                    borderRadius: '12px',
                     fontSize: '13px',
-                    boxShadow: 'var(--shadow-lg)'
+                    boxShadow: '0 10px 40px -10px hsl(var(--primary) / 0.15)'
                   }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
-        </Card>
+        </PremiumCard>
       </div>
 
-      {/* Upcoming Classes */}
-      <Card>
+      {/* Upcoming Classes Premium */}
+      <PremiumCard>
         <CardHeader className="p-4 sm:p-5 flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2.5 text-base sm:text-lg font-display">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
               <CalendarIcon className="h-4.5 w-4.5 text-primary" />
             </div>
             Próximas Aulas
@@ -307,7 +395,9 @@ export default function Dashboard() {
         <CardContent className="p-4 sm:p-5 pt-0">
           {proximasAulas.length === 0 ? (
             <div className="text-center py-10 sm:py-12">
-              <CalendarIcon className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <CalendarIcon className="h-8 w-8 text-muted-foreground/50" />
+              </div>
               <p className="text-muted-foreground text-sm">Nenhuma aula agendada</p>
             </div>
           ) : (
@@ -315,9 +405,9 @@ export default function Dashboard() {
               {/* Mobile Cards */}
               <div className="space-y-3 sm:hidden">
                 {proximasAulas.map((aula) => (
-                  <div key={aula.id} className="p-3.5 border border-border/50 rounded-xl bg-muted/30 space-y-2.5">
+                  <div key={aula.id} className="p-4 border border-border/50 rounded-xl bg-muted/20 space-y-3 hover:bg-muted/30 transition-colors">
                     <div className="flex items-center justify-between">
-                      <div className="font-medium text-sm">{aula.cliente_nome}</div>
+                      <div className="font-medium">{aula.cliente_nome}</div>
                       <StatusBadge status={aula.status} />
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -326,14 +416,14 @@ export default function Dashboard() {
                     </div>
                     <div className="flex gap-2 pt-1">
                       {aula.status === 'pendente' && (
-                        <Button size="sm" className="flex-1 h-9 text-xs" onClick={() => confirmarAula(aula.id)}>
+                        <Button size="sm" className="flex-1 h-10" onClick={() => confirmarAula(aula.id)}>
                           Confirmar
                         </Button>
                       )}
                       <Button 
                         size="sm" 
                         variant="outline"
-                        className="flex-1 h-9 text-xs"
+                        className="flex-1 h-10"
                         onClick={() => cancelarAula(aula.id)} 
                         disabled={aula.status === 'cancelada'}
                       >
@@ -393,7 +483,7 @@ export default function Dashboard() {
             </>
           )}
         </CardContent>
-      </Card>
+      </PremiumCard>
     </div>
   );
 }

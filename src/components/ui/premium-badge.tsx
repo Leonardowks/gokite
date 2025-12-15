@@ -8,6 +8,7 @@ const premiumBadgeVariants = cva(
   {
     variants: {
       variant: {
+        default: "bg-primary/15 text-primary border border-primary/20",
         success: "bg-success/15 text-success border border-success/20",
         warning: "bg-warning/15 text-warning border border-warning/20",
         urgent: "bg-destructive/15 text-destructive border border-destructive/20 animate-pulse-soft",
