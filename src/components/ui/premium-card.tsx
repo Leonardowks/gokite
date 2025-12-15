@@ -4,11 +4,12 @@ import { cn } from "@/lib/utils";
 interface PremiumCardProps extends React.HTMLAttributes<HTMLDivElement> {
   featured?: boolean;
   glow?: boolean;
+  hover?: boolean;
   gradient?: "primary" | "accent" | "success" | "none";
 }
 
 const PremiumCard = React.forwardRef<HTMLDivElement, PremiumCardProps>(
-  ({ className, featured, glow, gradient = "none", children, ...props }, ref) => {
+  ({ className, featured, glow, hover = false, gradient = "none", children, ...props }, ref) => {
     const gradientClasses = {
       primary: "from-primary/5 via-transparent to-primary/10",
       accent: "from-accent/5 via-transparent to-accent/10",
@@ -21,7 +22,7 @@ const PremiumCard = React.forwardRef<HTMLDivElement, PremiumCardProps>(
         ref={ref}
         className={cn(
           "relative rounded-2xl border bg-card text-card-foreground overflow-hidden transition-all duration-300",
-          "hover:shadow-lg hover:-translate-y-0.5",
+          hover && "hover:shadow-lg hover:-translate-y-0.5",
           gradient !== "none" && `bg-gradient-to-br ${gradientClasses[gradient]}`,
           featured && "border-primary/30 shadow-glow ring-1 ring-primary/10",
           glow && "hover:shadow-glow",
