@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { BarChart3, TrendingUp, DollarSign } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart3, TrendingUp, DollarSign, ShoppingCart, Calendar } from "lucide-react";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { localStorageService } from "@/lib/localStorage";
+import { PremiumCard } from "@/components/ui/premium-card";
+import { AnimatedNumber } from "@/components/ui/animated-number";
+import { PremiumBadge } from "@/components/ui/premium-badge";
+import { SkeletonKPI } from "@/components/ui/skeleton-premium";
 
 export default function Relatorios() {
   const [receitas, setReceitas] = useState({
@@ -45,88 +49,171 @@ export default function Relatorios() {
   const totalReceita = receitas.aulas + receitas.aluguel + receitas.ecommerce;
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in">
+      {/* Header Premium */}
       <div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-1 sm:mb-2">Relatórios</h1>
-        <p className="text-xs sm:text-sm text-muted-foreground">Análise de performance e receitas</p>
+        <div className="flex items-center gap-2 mb-1">
+          <PremiumBadge variant="default" size="sm" icon={BarChart3}>
+            Análise
+          </PremiumBadge>
+        </div>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground tracking-tight">
+          Relatórios
+        </h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          Análise de performance e receitas
+        </p>
       </div>
 
       {loading ? (
-        <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">Carregando...</p>
+        <SkeletonKPI />
       ) : (
         <>
-          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+          {/* Receita Total Premium */}
+          <PremiumCard featured gradient="primary">
             <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-primary text-base sm:text-lg">
-                <DollarSign className="h-5 w-5 sm:h-6 sm:w-6" />
+              <CardTitle className="flex items-center gap-2 text-primary text-base sm:text-lg font-display">
+                <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </div>
                 Receita Total
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-              <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground">
-                R$ {totalReceita.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Todas as verticais</p>
+              <AnimatedNumber 
+                value={totalReceita}
+                format="currency"
+                className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground"
+              />
+              <p className="text-sm text-muted-foreground mt-2">Todas as verticais</p>
             </CardContent>
-          </Card>
+          </PremiumCard>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+          {/* Cards de Receita por Categoria */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
+            <PremiumCard hover>
+              <CardHeader className="p-4 sm:p-5">
+                <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-display">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Calendar className="h-4 w-4 text-primary" />
+                  </div>
                   Aulas
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
-                  R$ {receitas.aulas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </div>
-                <div className="mt-2 flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
-                  <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
-                  {totalReceita > 0 ? ((receitas.aulas / totalReceita) * 100).toFixed(1) : 0}% do total
+              <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
+                <AnimatedNumber 
+                  value={receitas.aulas}
+                  format="currency"
+                  className="text-2xl sm:text-3xl font-bold text-foreground"
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-500 rounded-full" 
+                      style={{ width: `${totalReceita > 0 ? (receitas.aulas / totalReceita) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {totalReceita > 0 ? ((receitas.aulas / totalReceita) * 100).toFixed(0) : 0}%
+                  </span>
                 </div>
               </CardContent>
-            </Card>
+            </PremiumCard>
 
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <PremiumCard hover>
+              <CardHeader className="p-4 sm:p-5">
+                <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-display">
+                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <BarChart3 className="h-4 w-4 text-accent" />
+                  </div>
                   Aluguel
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
-                  R$ {receitas.aluguel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
+                <AnimatedNumber 
+                  value={receitas.aluguel}
+                  format="currency"
+                  className="text-2xl sm:text-3xl font-bold text-foreground"
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-accent transition-all duration-500 rounded-full" 
+                      style={{ width: `${totalReceita > 0 ? (receitas.aluguel / totalReceita) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {totalReceita > 0 ? ((receitas.aluguel / totalReceita) * 100).toFixed(0) : 0}%
+                  </span>
                 </div>
-                <div className="mt-2 flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
-                  <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
-                  {totalReceita > 0 ? ((receitas.aluguel / totalReceita) * 100).toFixed(1) : 0}% do total
-                </div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">Em breve</p>
+                <PremiumBadge variant="neutral" size="sm" className="mt-2">
+                  Em breve
+                </PremiumBadge>
               </CardContent>
-            </Card>
+            </PremiumCard>
 
-            <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-sm sm:text-base">
-                  <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+            <PremiumCard hover>
+              <CardHeader className="p-4 sm:p-5">
+                <CardTitle className="flex items-center gap-2 text-sm sm:text-base font-display">
+                  <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                    <ShoppingCart className="h-4 w-4 text-success" />
+                  </div>
                   E-commerce
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
-                  R$ {receitas.ecommerce.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
+                <AnimatedNumber 
+                  value={receitas.ecommerce}
+                  format="currency"
+                  className="text-2xl sm:text-3xl font-bold text-foreground"
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-success transition-all duration-500 rounded-full" 
+                      style={{ width: `${totalReceita > 0 ? (receitas.ecommerce / totalReceita) * 100 : 0}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {totalReceita > 0 ? ((receitas.ecommerce / totalReceita) * 100).toFixed(0) : 0}%
+                  </span>
                 </div>
-                <div className="mt-2 flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
-                  <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
-                  {totalReceita > 0 ? ((receitas.ecommerce / totalReceita) * 100).toFixed(1) : 0}% do total
-                </div>
-                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">Em breve</p>
+                <PremiumBadge variant="neutral" size="sm" className="mt-2">
+                  Em breve
+                </PremiumBadge>
               </CardContent>
-            </Card>
+            </PremiumCard>
           </div>
+
+          {/* Insights Premium */}
+          <PremiumCard>
+            <CardHeader className="p-4 sm:p-5">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg font-display">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                </div>
+                Insights
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 sm:p-5 pt-0">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                  <p className="text-sm font-medium text-foreground mb-1">Receita de Aulas</p>
+                  <p className="text-xs text-muted-foreground">
+                    {receitas.aulas > 0 
+                      ? `Você já gerou R$ ${receitas.aulas.toLocaleString('pt-BR')} com aulas confirmadas.`
+                      : 'Nenhuma aula confirmada ainda. Comece a agendar!'}
+                  </p>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/30 border border-border/50">
+                  <p className="text-sm font-medium text-foreground mb-1">Oportunidades</p>
+                  <p className="text-xs text-muted-foreground">
+                    Aluguel e E-commerce em breve disponíveis para diversificar sua receita.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </PremiumCard>
         </>
       )}
     </div>
