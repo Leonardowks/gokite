@@ -1,23 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
-import Dashboard from "./pages/Dashboard";
-import Clientes from "./pages/Clientes";
-import Aulas from "./pages/Aulas";
-import Aluguel from "./pages/Aluguel";
-import Ecommerce from "./pages/Ecommerce";
-import Relatorios from "./pages/Relatorios";
-import Configuracoes from "./pages/Configuracoes";
-import Vendas from "./pages/admin/Vendas";
-import Estoque from "./pages/admin/Estoque";
-import Financeiro from "./pages/admin/Financeiro";
+import { LayoutSkeleton } from "./components/LayoutSkeleton";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { localStorageService } from "./lib/localStorage";
+
+// Code Splitting - Lazy load all pages except Login (LCP optimization)
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Clientes = lazy(() => import("./pages/Clientes"));
+const Aulas = lazy(() => import("./pages/Aulas"));
+const Aluguel = lazy(() => import("./pages/Aluguel"));
+const Ecommerce = lazy(() => import("./pages/Ecommerce"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Vendas = lazy(() => import("./pages/admin/Vendas"));
+const Estoque = lazy(() => import("./pages/admin/Estoque"));
+const Financeiro = lazy(() => import("./pages/admin/Financeiro"));
 
 const queryClient = new QueryClient();
 
@@ -34,11 +37,17 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* LOGIN */}
+            {/* LOGIN - Loaded immediately for LCP */}
             <Route path="/login" element={<Login />} />
 
-            {/* ROTAS CRM (Protegidas) */}
-            <Route element={<AdminLayout><Outlet /></AdminLayout>}>
+            {/* ROTAS CRM (Protegidas) com Suspense */}
+            <Route element={
+              <AdminLayout>
+                <Suspense fallback={<LayoutSkeleton />}>
+                  <Outlet />
+                </Suspense>
+              </AdminLayout>
+            }>
               <Route path="/" element={<Dashboard />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/aulas" element={<Aulas />} />
