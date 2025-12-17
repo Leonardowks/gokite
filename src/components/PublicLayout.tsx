@@ -1,6 +1,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Phone, Instagram, Facebook, Mail, Shield, Menu } from "lucide-react";
+import { Phone, Instagram, Facebook, Mail, Shield, Menu, Award } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 interface PublicLayoutProps {
   children: ReactNode;
 }
+
+const WHATSAPP_NUMBER = "5548984091618";
 
 export function PublicLayout({ children }: PublicLayoutProps) {
   const [scrolled, setScrolled] = useState(false);
@@ -37,7 +39,10 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center shadow-md">
                 <span className="text-primary-foreground font-bold text-xl">G</span>
               </div>
-              <span className="font-bold text-xl text-foreground">Gokite</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-xl text-foreground leading-tight">GoKite</span>
+                <span className="text-[10px] text-muted-foreground leading-tight hidden sm:block">20+ anos de experiência</span>
+              </div>
             </Link>
 
             {/* Navigation */}
@@ -51,7 +56,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <Button 
                 size="sm" 
                 variant="ghost"
-                onClick={() => window.open('https://wa.me/554891541618', '_blank')}
+                onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}`, '_blank')}
                 className="gap-2"
               >
                 <Phone className="h-4 w-4" />
@@ -78,7 +83,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <Button 
                 size="sm" 
                 variant="ghost"
-                onClick={() => window.open('https://wa.me/554891541618', '_blank')}
+                onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}`, '_blank')}
               >
                 <Phone className="h-4 w-4" />
               </Button>
@@ -106,7 +111,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                     <Button 
                       variant="outline"
                       className="w-full gap-2 justify-start"
-                      onClick={() => window.open('https://wa.me/554891541618', '_blank')}
+                      onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}`, '_blank')}
                     >
                       <Phone className="h-4 w-4" />
                       WhatsApp
@@ -148,10 +153,14 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-lg flex items-center justify-center">
                   <span className="text-primary-foreground font-bold text-xl">G</span>
                 </div>
-                <span className="font-bold text-xl text-foreground">Gokite</span>
+                <span className="font-bold text-xl text-foreground">GoKite</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Award className="h-4 w-4 text-primary" />
+                <span>20+ anos de experiência</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Escola de kitesurf em Florianópolis e Taíba. Aulas com instrutores certificados e equipamentos de qualidade.
+                Escola de kitesurf em Florianópolis e Taíba. Estrutura completa com barco de apoio, equipamentos Duotone e instrutores certificados IKO.
               </p>
             </div>
 
@@ -171,7 +180,17 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 </li>
                 <li>
                   <a 
-                    href="https://wa.me/554891541618" 
+                    href="https://gokite.com.br" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Loja Online
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href={`https://wa.me/${WHATSAPP_NUMBER}`}
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -190,7 +209,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                 variant="default"
                 size="lg"
                 className="w-full gap-2 bg-green-600 hover:bg-green-700"
-                onClick={() => window.open('https://wa.me/554891541618', '_blank')}
+                onClick={() => window.open(`https://wa.me/${WHATSAPP_NUMBER}`, '_blank')}
               >
                 <Phone className="h-5 w-5" />
                 Fale no WhatsApp
@@ -199,14 +218,14 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <ul className="space-y-3">
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="h-4 w-4" />
-                  <a href="tel:+554891541618" className="hover:text-foreground transition-colors">
-                    (48) 99154-1618
+                  <a href={`tel:+${WHATSAPP_NUMBER}`} className="hover:text-foreground transition-colors">
+                    (48) 98409-1618
                   </a>
                 </li>
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="h-4 w-4" />
-                  <a href="mailto:contato@gokite.com" className="hover:text-foreground transition-colors">
-                    contato@gokite.com
+                  <a href="mailto:contato@gokite.com.br" className="hover:text-foreground transition-colors">
+                    contato@gokite.com.br
                   </a>
                 </li>
               </ul>
@@ -217,7 +236,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
               <h3 className="font-semibold text-foreground">Redes Sociais</h3>
               <div className="flex gap-3">
                 <a 
-                  href="https://instagram.com/gokite" 
+                  href="https://instagram.com/gokitebrasil" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -225,7 +244,7 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                   <Instagram className="h-5 w-5" />
                 </a>
                 <a 
-                  href="https://facebook.com/gokite" 
+                  href="https://facebook.com/gokitebrasil" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="w-10 h-10 rounded-full bg-muted flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
@@ -233,13 +252,24 @@ export function PublicLayout({ children }: PublicLayoutProps) {
                   <Facebook className="h-5 w-5" />
                 </a>
               </div>
+              
+              <div className="pt-4">
+                <h4 className="text-sm font-medium text-foreground mb-2">Localizações</h4>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>📍 Lagoa da Conceição - Florianópolis/SC</li>
+                  <li>📍 Praia da Taíba - São Gonçalo do Amarante/CE</li>
+                </ul>
+              </div>
             </div>
           </div>
 
           {/* Copyright */}
           <div className="mt-12 pt-8 border-t border-border text-center">
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} Gokite. Todos os direitos reservados.
+              © {new Date().getFullYear()} GoKite - Escola de Kitesurf. Todos os direitos reservados.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Equipamentos Duotone | Instrutores IKO | Barco de Apoio
             </p>
           </div>
         </div>
