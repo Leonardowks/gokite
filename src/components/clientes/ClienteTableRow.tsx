@@ -1,4 +1,4 @@
-import React from "react";
+import { memo, CSSProperties } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { PremiumBadge } from "@/components/ui/premium-badge";
@@ -9,10 +9,10 @@ import type { ClienteAgregado } from "@/lib/localStorage";
 interface ClienteTableRowProps {
   cliente: ClienteAgregado;
   onEdit: (cliente: ClienteAgregado) => void;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
-export const ClienteTableRow = React.memo(function ClienteTableRow({ 
+export const ClienteTableRow = memo(function ClienteTableRow({ 
   cliente, 
   onEdit,
   style 

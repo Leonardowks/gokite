@@ -1,4 +1,4 @@
-import React from "react";
+import { memo, CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { format } from "date-fns";
@@ -8,10 +8,10 @@ import type { ClienteAgregado } from "@/lib/localStorage";
 interface ClienteCardProps {
   cliente: ClienteAgregado;
   onEdit: (cliente: ClienteAgregado) => void;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }
 
-export const ClienteCard = React.memo(function ClienteCard({ 
+export const ClienteCard = memo(function ClienteCard({ 
   cliente, 
   onEdit,
   style 
