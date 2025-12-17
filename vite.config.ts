@@ -24,6 +24,13 @@ export default defineConfig(({ mode }) => ({
       { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
       { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
       { find: /^react\/jsx-dev-runtime$/, replacement: require.resolve("react/jsx-dev-runtime") },
+
+      // Some dependencies may (rarely) reference React via deep CJS paths.
+      // Alias them back to the canonical entry to prevent hook dispatcher mismatches.
+      { find: /^react\/cjs\/react\.production\.min\.js$/, replacement: require.resolve("react") },
+      { find: /^react\/cjs\/react\.development\.js$/, replacement: require.resolve("react") },
+      { find: /^react\/cjs\/react-jsx-runtime\.production\.min\.js$/, replacement: require.resolve("react/jsx-runtime") },
+      { find: /^react\/cjs\/react-jsx-runtime\.development\.js$/, replacement: require.resolve("react/jsx-runtime") },
     ],
     dedupe: ["react", "react-dom"],
   },
