@@ -35,12 +35,21 @@ export default defineConfig(({ mode }) => ({
     dedupe: ["react", "react-dom"],
   },
   optimizeDeps: {
+    force: true, // Force re-bundle to clear stale React instances
     include: [
       "react",
       "react-dom",
       "react-dom/client",
       "react/jsx-runtime",
       "react/jsx-dev-runtime",
+      "@radix-ui/react-tooltip",
+      "@radix-ui/react-toast",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-slot",
+      "next-themes",
+      "sonner",
+      "@tanstack/react-query",
+      "@tanstack/react-virtual",
     ],
   },
 }));
