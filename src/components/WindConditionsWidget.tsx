@@ -1,9 +1,14 @@
-import { useState } from "react";
-import { Wind, Waves, Thermometer, Compass, Sun, Cloud, CloudRain, Droplets, MapPin, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Wind, Waves, Thermometer, Compass, Sun, Cloud, CloudRain, Droplets, MapPin, RefreshCw, AlertCircle } from "lucide-react";
 import { PremiumCard, PremiumCardHeader, PremiumCardTitle, PremiumCardContent } from "@/components/ui/premium-card";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Refresh interval: 5 minutes
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 interface LocationWeather {
   location: string;
@@ -14,11 +19,11 @@ interface LocationWeather {
   temperature: number;
   humidity: number;
   waveHeight: number;
-  condition: "sunny" | "cloudy" | "rainy" | "partly-cloudy";
+  condition: "sunny" | "cloudy" | "rainy" | "partly-cloudy" | "stormy" | "foggy" | "snowy";
   kiteCondition: "excellent" | "good" | "moderate" | "poor";
 }
 
-// Mock data for kitesurf locations
+// Fallback mock data
 const mockWeatherData: LocationWeather[] = [
   {
     location: "Lagoa da Conceição",
@@ -50,7 +55,10 @@ const conditionIcons = {
   sunny: Sun,
   cloudy: Cloud,
   rainy: CloudRain,
-  "partly-cloudy": Cloud
+  "partly-cloudy": Cloud,
+  stormy: CloudRain,
+  foggy: Cloud,
+  snowy: Cloud
 };
 
 const kiteConditionConfig = {
@@ -63,14 +71,113 @@ const kiteConditionConfig = {
 export function WindConditionsWidget() {
   const [selectedLocation, setSelectedLocation] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const weather = mockWeatherData[selectedLocation];
-  const WeatherIcon = conditionIcons[weather.condition];
-  const kiteConfig = kiteConditionConfig[weather.kiteCondition];
+  const [weatherData, setWeatherData] = useState<LocationWeather[]>(mockWeatherData);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isUsingMock, setIsUsingMock] = useState(false);
+
+  const fetchWeatherData = useCallback(async (showRefreshAnimation = false) => {
+    if (showRefreshAnimation) {
+      setIsRefreshing(true);
+    }
+
+    try {
+      console.log('Fetching weather data from edge function...');
+      const { data, error } = await supabase.functions.invoke('get-weather');
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      if (data?.locations && Array.isArray(data.locations)) {
+        const formattedData: LocationWeather[] = data.locations.map((loc: any) => ({
+          location: loc.name,
+          state: loc.state,
+          windSpeed: loc.windSpeed,
+          windDirection: loc.windDirection,
+          windDegrees: loc.windDegrees,
+          temperature: loc.temperature,
+          humidity: loc.humidity,
+          waveHeight: Number(loc.waveHeight.toFixed(1)),
+          condition: loc.condition as LocationWeather['condition'],
+          kiteCondition: loc.kiteCondition as LocationWeather['kiteCondition']
+        }));
+
+        setWeatherData(formattedData);
+        setLastUpdate(new Date());
+        setIsUsingMock(false);
+        console.log('Weather data updated successfully');
+      }
+    } catch (error) {
+      console.error('Failed to fetch weather data:', error);
+      setIsUsingMock(true);
+      // Keep using current data (mock or last successful fetch)
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Initial fetch and auto-refresh
+  useEffect(() => {
+    fetchWeatherData();
+
+    const intervalId = setInterval(() => {
+      fetchWeatherData();
+    }, REFRESH_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [fetchWeatherData]);
 
   const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 1000);
+    fetchWeatherData(true);
   };
+
+  const getTimeSinceUpdate = () => {
+    if (!lastUpdate) return null;
+    const now = new Date();
+    const diffMs = now.getTime() - lastUpdate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return "agora";
+    if (diffMins === 1) return "1 min atrás";
+    return `${diffMins} min atrás`;
+  };
+
+  const weather = weatherData[selectedLocation];
+  const WeatherIcon = conditionIcons[weather?.condition] || Sun;
+  const kiteConfig = kiteConditionConfig[weather?.kiteCondition] || kiteConditionConfig.moderate;
+
+  // Loading skeleton
+  if (isLoading) {
+    return (
+      <PremiumCard variant="ocean" className="overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-primary via-cyan to-primary" />
+        <PremiumCardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+          <div className="flex gap-2 mt-4">
+            <Skeleton className="h-10 w-36" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </PremiumCardHeader>
+        <PremiumCardContent className="pt-0">
+          <Skeleton className="h-8 w-40 mb-5" />
+          <div className="flex justify-center py-6">
+            <Skeleton className="h-36 w-36 rounded-full" />
+          </div>
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+        </PremiumCardContent>
+      </PremiumCard>
+    );
+  }
 
   // Calculate wind indicator rotation
   const windRotation = weather.windDegrees;
@@ -88,19 +195,35 @@ export function WindConditionsWidget() {
             </div>
             <span>Condições de Vento</span>
           </PremiumCardTitle>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            onClick={handleRefresh}
-          >
-            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-          </Button>
+          <div className="flex items-center gap-2">
+            {lastUpdate && (
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {getTimeSinceUpdate()}
+              </span>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+            </Button>
+          </div>
         </div>
+
+        {/* Mock data warning */}
+        {isUsingMock && (
+          <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600 dark:text-amber-400">
+            <AlertCircle className="h-3.5 w-3.5" />
+            <span>Usando dados de demonstração</span>
+          </div>
+        )}
 
         {/* Location Tabs */}
         <div className="flex gap-2 mt-4">
-          {mockWeatherData.map((loc, idx) => (
+          {weatherData.map((loc, idx) => (
             <button
               key={idx}
               onClick={() => setSelectedLocation(idx)}
@@ -147,7 +270,7 @@ export function WindConditionsWidget() {
               <span className="text-4xl font-display font-bold text-gradient-ocean">
                 {weather.windSpeed}
               </span>
-              <span className="text-xs text-muted-foreground font-medium">km/h</span>
+              <span className="text-xs text-muted-foreground font-medium">nós</span>
             </div>
 
             {/* Wind direction indicator */}
@@ -190,6 +313,13 @@ export function WindConditionsWidget() {
             <span className="text-muted-foreground"> • Vento {weather.windDirection} constante</span>
           </p>
         </div>
+
+        {/* Last update indicator on mobile */}
+        {lastUpdate && (
+          <p className="text-xs text-center text-muted-foreground mt-3 sm:hidden">
+            Atualizado {getTimeSinceUpdate()}
+          </p>
+        )}
       </PremiumCardContent>
     </PremiumCard>
   );
