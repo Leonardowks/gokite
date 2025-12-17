@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Wind, Waves, Thermometer, Compass, Sun, Cloud, CloudRain, Droplets, MapPin, RefreshCw, AlertCircle } from "lucide-react";
 import { PremiumCard, PremiumCardHeader, PremiumCardTitle, PremiumCardContent } from "@/components/ui/premium-card";
 import { PremiumBadge } from "@/components/ui/premium-badge";
@@ -6,9 +6,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
 
 // Refresh interval: 1 minute
 const REFRESH_INTERVAL_MS = 60 * 1000;
+
+// Thresholds for significant changes
+const WIND_SPEED_CHANGE_THRESHOLD = 5; // knots
+const SIGNIFICANT_CONDITIONS: Array<LocationWeather['kiteCondition']> = ['excellent', 'poor'];
 
 interface LocationWeather {
   location: string;
@@ -75,6 +80,37 @@ export function WindConditionsWidget() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isUsingMock, setIsUsingMock] = useState(false);
+  const previousDataRef = useRef<LocationWeather[] | null>(null);
+
+  const checkForSignificantChanges = useCallback((oldData: LocationWeather[], newData: LocationWeather[]) => {
+    newData.forEach((newLoc, idx) => {
+      const oldLoc = oldData[idx];
+      if (!oldLoc) return;
+
+      const windSpeedChange = Math.abs(newLoc.windSpeed - oldLoc.windSpeed);
+      const conditionChanged = oldLoc.kiteCondition !== newLoc.kiteCondition;
+
+      // Notify on significant wind speed change
+      if (windSpeedChange >= WIND_SPEED_CHANGE_THRESHOLD) {
+        const direction = newLoc.windSpeed > oldLoc.windSpeed ? "aumentou" : "diminuiu";
+        toast({
+          title: `🌊 Vento ${direction} em ${newLoc.location}`,
+          description: `${oldLoc.windSpeed} → ${newLoc.windSpeed} nós (${windSpeedChange > 0 ? '+' : ''}${newLoc.windSpeed - oldLoc.windSpeed} nós)`,
+        });
+      }
+
+      // Notify on kite condition change to excellent or poor
+      if (conditionChanged && SIGNIFICANT_CONDITIONS.includes(newLoc.kiteCondition)) {
+        const config = kiteConditionConfig[newLoc.kiteCondition];
+        const emoji = newLoc.kiteCondition === 'excellent' ? '🪁' : '⚠️';
+        toast({
+          title: `${emoji} ${newLoc.location}: ${config.label}`,
+          description: config.description,
+          variant: newLoc.kiteCondition === 'poor' ? 'destructive' : 'default',
+        });
+      }
+    });
+  }, []);
 
   const fetchWeatherData = useCallback(async (showRefreshAnimation = false) => {
     if (showRefreshAnimation) {
@@ -104,6 +140,12 @@ export function WindConditionsWidget() {
           kiteCondition: loc.kiteCondition as LocationWeather['kiteCondition']
         }));
 
+        // Check for significant changes (only after initial load)
+        if (previousDataRef.current && !isLoading) {
+          checkForSignificantChanges(previousDataRef.current, formattedData);
+        }
+
+        previousDataRef.current = formattedData;
         setWeatherData(formattedData);
         setLastUpdate(new Date());
         setIsUsingMock(false);
@@ -117,7 +159,7 @@ export function WindConditionsWidget() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [checkForSignificantChanges, isLoading]);
 
   // Initial fetch and auto-refresh
   useEffect(() => {
