@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -11,92 +11,103 @@
   --spacing-desktop: 1.5rem;
 }
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Definition of the design system - Aquatic Radical Sports Theme */
 
 @layer base {
   :root {
-    /* GoKite Premium Theme - Teal & Sophistication */
-    --background: 210 20% 98%;
-    --foreground: 210 25% 12%;
+    /* GoKite Aquatic Theme - Ocean Blues & Sunset Orange */
+    --background: 200 30% 98%;
+    --foreground: 200 40% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 25% 12%;
+    --card-foreground: 200 40% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 25% 12%;
+    --popover-foreground: 200 40% 10%;
 
-    /* GoKite Teal - Primary Brand (from logo) */
-    --primary: 185 55% 40%;
+    /* Ocean Blue - Primary Brand */
+    --primary: 195 85% 45%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 185 45% 95%;
-    --primary-glow: 185 60% 50%;
+    --primary-light: 195 60% 95%;
+    --primary-glow: 185 90% 55%;
     
-    /* Premium Gold - Accent */
-    --secondary: 185 45% 92%;
-    --secondary-foreground: 185 55% 35%;
+    /* Turquoise - Secondary */
+    --secondary: 180 50% 92%;
+    --secondary-foreground: 195 85% 35%;
     
-    /* Refined neutrals */
-    --muted: 210 15% 96%;
-    --muted-foreground: 210 10% 45%;
+    /* Refined neutrals with ocean tint */
+    --muted: 200 20% 96%;
+    --muted-foreground: 200 15% 45%;
 
-    --accent: 35 90% 55%;
-    --accent-foreground: 35 95% 15%;
-    --accent-glow: 35 90% 60%;
+    /* Sunset Orange - Accent */
+    --accent: 25 95% 55%;
+    --accent-foreground: 25 95% 15%;
+    --accent-glow: 25 95% 60%;
+
+    /* Neon Cyan - Highlight */
+    --cyan: 185 100% 50%;
+    --cyan-foreground: 185 100% 10%;
+    --cyan-glow: 185 100% 60%;
 
     --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 15% 90%;
-    --input: 210 15% 92%;
-    --ring: 185 55% 40%;
+    --border: 200 20% 88%;
+    --input: 200 20% 92%;
+    --ring: 195 85% 45%;
 
     --radius: 0.75rem;
 
-    /* Sidebar Premium Theme */
-    --sidebar-background: 210 25% 10%;
-    --sidebar-foreground: 210 10% 95%;
-    --sidebar-primary: 185 55% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 20% 16%;
-    --sidebar-accent-foreground: 185 55% 60%;
-    --sidebar-border: 210 20% 18%;
-    --sidebar-ring: 185 55% 50%;
+    /* Deep Sea Sidebar Theme */
+    --sidebar-background: 200 50% 8%;
+    --sidebar-foreground: 195 30% 95%;
+    --sidebar-primary: 185 100% 50%;
+    --sidebar-primary-foreground: 200 50% 8%;
+    --sidebar-accent: 200 40% 14%;
+    --sidebar-accent-foreground: 185 100% 60%;
+    --sidebar-border: 200 40% 15%;
+    --sidebar-ring: 185 100% 50%;
 
-    /* Success state */
-    --success: 152 60% 42%;
+    /* Success state - Sea Green */
+    --success: 160 70% 42%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning state */
+    /* Warning state - Sunset */
     --warning: 38 92% 50%;
     --warning-foreground: 38 95% 15%;
 
-    /* Chart colors - harmonious palette */
-    --chart-1: 185 55% 40%;
-    --chart-2: 35 90% 55%;
-    --chart-3: 152 60% 42%;
-    --chart-4: 280 60% 55%;
+    /* Chart colors - Ocean palette */
+    --chart-1: 195 85% 45%;
+    --chart-2: 25 95% 55%;
+    --chart-3: 160 70% 42%;
+    --chart-4: 185 100% 50%;
     --chart-5: 210 70% 50%;
 
-    /* Premium Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(185 55% 40%) 0%, hsl(185 60% 32%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(35 90% 55%) 0%, hsl(25 85% 50%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(210 20% 98%) 0%, hsl(210 15% 96%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 20% 99%) 100%);
-    --gradient-premium: linear-gradient(135deg, hsl(185 55% 40%) 0%, hsl(35 90% 55%) 100%);
-    --gradient-dark: linear-gradient(180deg, hsl(210 25% 10%) 0%, hsl(210 25% 6%) 100%);
+    /* Aquatic Gradients */
+    --gradient-ocean: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(210 80% 35%) 100%);
+    --gradient-sunset: linear-gradient(135deg, hsl(25 95% 55%) 0%, hsl(350 85% 50%) 100%);
+    --gradient-wave: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(185 90% 55%) 100%);
+    --gradient-aurora: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(25 95% 55%) 100%);
+    --gradient-deep-sea: linear-gradient(180deg, hsl(200 50% 8%) 0%, hsl(210 60% 5%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(195 85% 35%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(25 95% 55%) 0%, hsl(15 90% 50%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(200 30% 98%) 0%, hsl(200 25% 96%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(200 30% 99%) 100%);
+    --gradient-premium: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(25 95% 55%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(200 50% 8%) 0%, hsl(200 50% 5%) 100%);
     
-    /* Premium Shadows */
-    --shadow-xs: 0 1px 2px 0 hsl(210 25% 15% / 0.03);
-    --shadow-sm: 0 1px 3px 0 hsl(210 25% 15% / 0.05), 0 1px 2px -1px hsl(210 25% 15% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(210 25% 15% / 0.07), 0 2px 4px -2px hsl(210 25% 15% / 0.05);
-    --shadow-lg: 0 10px 15px -3px hsl(210 25% 15% / 0.08), 0 4px 6px -4px hsl(210 25% 15% / 0.05);
-    --shadow-xl: 0 20px 25px -5px hsl(210 25% 15% / 0.08), 0 8px 10px -6px hsl(210 25% 15% / 0.05);
-    --shadow-2xl: 0 25px 50px -12px hsl(210 25% 15% / 0.15);
-    --shadow-glow: 0 0 20px hsl(185 55% 40% / 0.15);
-    --shadow-glow-accent: 0 0 20px hsl(35 90% 55% / 0.15);
-    --shadow-inner: inset 0 2px 4px 0 hsl(210 25% 15% / 0.05);
+    /* Aquatic Shadows */
+    --shadow-xs: 0 1px 2px 0 hsl(200 40% 15% / 0.03);
+    --shadow-sm: 0 1px 3px 0 hsl(200 40% 15% / 0.05), 0 1px 2px -1px hsl(200 40% 15% / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(200 40% 15% / 0.07), 0 2px 4px -2px hsl(200 40% 15% / 0.05);
+    --shadow-lg: 0 10px 15px -3px hsl(200 40% 15% / 0.08), 0 4px 6px -4px hsl(200 40% 15% / 0.05);
+    --shadow-xl: 0 20px 25px -5px hsl(200 40% 15% / 0.08), 0 8px 10px -6px hsl(200 40% 15% / 0.05);
+    --shadow-2xl: 0 25px 50px -12px hsl(200 40% 15% / 0.15);
+    --shadow-glow: 0 0 25px hsl(195 85% 45% / 0.2);
+    --shadow-glow-accent: 0 0 25px hsl(25 95% 55% / 0.2);
+    --shadow-glow-cyan: 0 0 30px hsl(185 100% 50% / 0.3);
+    --shadow-ocean: 0 4px 20px -2px hsl(195 85% 45% / 0.25);
+    --shadow-inner: inset 0 2px 4px 0 hsl(200 40% 15% / 0.05);
     
     /* Transitions */
     --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -106,64 +117,73 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 210 25% 7%;
-    --foreground: 210 10% 95%;
+    --background: 200 50% 5%;
+    --foreground: 195 30% 95%;
 
-    --card: 210 22% 10%;
-    --card-foreground: 210 10% 95%;
+    --card: 200 45% 8%;
+    --card-foreground: 195 30% 95%;
 
-    --popover: 210 22% 10%;
-    --popover-foreground: 210 10% 95%;
+    --popover: 200 45% 8%;
+    --popover-foreground: 195 30% 95%;
 
-    --primary: 185 55% 50%;
-    --primary-foreground: 210 25% 8%;
-    --primary-light: 185 40% 15%;
-    --primary-glow: 185 60% 55%;
+    --primary: 195 85% 50%;
+    --primary-foreground: 200 50% 5%;
+    --primary-light: 195 50% 15%;
+    --primary-glow: 185 90% 60%;
 
-    --secondary: 210 20% 14%;
-    --secondary-foreground: 185 55% 60%;
+    --secondary: 200 35% 12%;
+    --secondary-foreground: 185 100% 65%;
 
-    --muted: 210 20% 12%;
-    --muted-foreground: 210 10% 55%;
+    --muted: 200 35% 10%;
+    --muted-foreground: 200 20% 55%;
 
-    --accent: 35 85% 50%;
-    --accent-foreground: 35 95% 95%;
-    --accent-glow: 35 85% 55%;
+    --accent: 25 90% 52%;
+    --accent-foreground: 25 95% 95%;
+    --accent-glow: 25 90% 58%;
+
+    --cyan: 185 100% 55%;
+    --cyan-foreground: 185 100% 95%;
+    --cyan-glow: 185 100% 65%;
 
     --destructive: 0 65% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 210 20% 16%;
-    --input: 210 20% 14%;
-    --ring: 185 55% 50%;
+    --border: 200 35% 14%;
+    --input: 200 35% 12%;
+    --ring: 195 85% 50%;
 
-    --sidebar-background: 210 25% 5%;
-    --sidebar-foreground: 210 10% 95%;
-    --sidebar-primary: 185 55% 55%;
-    --sidebar-primary-foreground: 210 25% 8%;
-    --sidebar-accent: 210 22% 10%;
-    --sidebar-accent-foreground: 185 55% 60%;
-    --sidebar-border: 210 20% 12%;
-    --sidebar-ring: 185 55% 55%;
+    --sidebar-background: 200 55% 4%;
+    --sidebar-foreground: 195 30% 95%;
+    --sidebar-primary: 185 100% 55%;
+    --sidebar-primary-foreground: 200 55% 4%;
+    --sidebar-accent: 200 45% 10%;
+    --sidebar-accent-foreground: 185 100% 65%;
+    --sidebar-border: 200 40% 10%;
+    --sidebar-ring: 185 100% 55%;
 
-    --success: 152 55% 48%;
-    --success-foreground: 152 95% 10%;
+    --success: 160 65% 48%;
+    --success-foreground: 160 95% 10%;
 
     --warning: 38 85% 50%;
     --warning-foreground: 38 95% 10%;
 
-    --chart-1: 185 55% 55%;
-    --chart-2: 35 85% 55%;
-    --chart-3: 152 55% 48%;
-    --chart-4: 280 55% 60%;
-    --chart-5: 210 65% 55%;
+    --chart-1: 195 85% 55%;
+    --chart-2: 25 90% 55%;
+    --chart-3: 160 65% 48%;
+    --chart-4: 185 100% 55%;
+    --chart-5: 210 70% 55%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(185 55% 50%) 0%, hsl(185 60% 40%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(35 85% 50%) 0%, hsl(25 80% 45%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(210 25% 7%) 0%, hsl(210 22% 9%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(210 22% 10%) 0%, hsl(210 22% 11%) 100%);
-    --gradient-premium: linear-gradient(135deg, hsl(185 55% 50%) 0%, hsl(35 85% 50%) 100%);
-    --gradient-dark: linear-gradient(180deg, hsl(210 25% 5%) 0%, hsl(210 25% 3%) 100%);
+    --gradient-ocean: linear-gradient(135deg, hsl(195 85% 50%) 0%, hsl(210 80% 40%) 100%);
+    --gradient-sunset: linear-gradient(135deg, hsl(25 90% 52%) 0%, hsl(350 80% 48%) 100%);
+    --gradient-wave: linear-gradient(135deg, hsl(195 85% 50%) 0%, hsl(185 90% 60%) 100%);
+    --gradient-aurora: linear-gradient(135deg, hsl(195 85% 50%) 0%, hsl(25 90% 52%) 100%);
+    --gradient-deep-sea: linear-gradient(180deg, hsl(200 55% 4%) 0%, hsl(210 60% 2%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(195 85% 50%) 0%, hsl(195 85% 40%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(25 90% 52%) 0%, hsl(15 85% 48%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(200 50% 5%) 0%, hsl(200 45% 7%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(200 45% 8%) 0%, hsl(200 45% 9%) 100%);
+    --gradient-premium: linear-gradient(135deg, hsl(195 85% 50%) 0%, hsl(25 90% 52%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(200 55% 4%) 0%, hsl(200 55% 2%) 100%);
 
     --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
     --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.25), 0 1px 2px -1px hsl(0 0% 0% / 0.2);
@@ -171,8 +191,10 @@ All colors MUST be HSL.
     --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.35), 0 4px 6px -4px hsl(0 0% 0% / 0.2);
     --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.35), 0 8px 10px -6px hsl(0 0% 0% / 0.2);
     --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.4);
-    --shadow-glow: 0 0 25px hsl(185 55% 50% / 0.2);
-    --shadow-glow-accent: 0 0 25px hsl(35 85% 50% / 0.2);
+    --shadow-glow: 0 0 30px hsl(195 85% 50% / 0.25);
+    --shadow-glow-accent: 0 0 30px hsl(25 90% 52% / 0.25);
+    --shadow-glow-cyan: 0 0 35px hsl(185 100% 55% / 0.35);
+    --shadow-ocean: 0 4px 25px -2px hsl(195 85% 50% / 0.3);
     --shadow-inner: inset 0 2px 4px 0 hsl(0 0% 0% / 0.2);
   }
 }
@@ -195,12 +217,54 @@ All colors MUST be HSL.
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    font-family: 'Outfit', 'Inter', system-ui, sans-serif;
     @apply tracking-tight;
   }
 }
 
-/* Premium Animations */
+/* Aquatic Animations */
+@keyframes wave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3px) rotate(1deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(3px) rotate(-1deg); }
+}
+
+@keyframes splash {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes wind {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+}
+
+@keyframes ocean-glow {
+  0%, 100% { box-shadow: 0 0 20px hsl(195 85% 45% / 0.2), 0 0 40px hsl(185 100% 50% / 0.1); }
+  50% { box-shadow: 0 0 30px hsl(195 85% 45% / 0.4), 0 0 60px hsl(185 100% 50% / 0.2); }
+}
+
+@keyframes ripple {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  25% { transform: translateY(-6px) translateX(2px); }
+  50% { transform: translateY(-3px) translateX(0); }
+  75% { transform: translateY(-6px) translateX(-2px); }
+}
+
+@keyframes wave-bg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Standard Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -265,6 +329,36 @@ All colors MUST be HSL.
 @keyframes gradient-shift {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
+}
+
+/* Animation Classes */
+.animate-wave {
+  animation: wave 3s ease-in-out infinite;
+}
+
+.animate-splash {
+  animation: splash 0.6s ease-out;
+}
+
+.animate-wind {
+  animation: wind 2s ease-in-out infinite;
+}
+
+.animate-ocean-glow {
+  animation: ocean-glow 3s ease-in-out infinite;
+}
+
+.animate-ripple {
+  animation: ripple 1s ease-out forwards;
+}
+
+.animate-float-gentle {
+  animation: float-gentle 6s ease-in-out infinite;
+}
+
+.animate-wave-bg {
+  background-size: 200% 200%;
+  animation: wave-bg 8s ease infinite;
 }
 
 .animate-fade-in {
@@ -339,6 +433,15 @@ All colors MUST be HSL.
   box-shadow: var(--shadow-glow);
 }
 
+.hover-ocean {
+  transition: var(--transition-base);
+}
+
+.hover-ocean:hover {
+  box-shadow: var(--shadow-ocean);
+  border-color: hsl(var(--primary) / 0.3);
+}
+
 .hover-scale {
   transition: var(--transition-fast);
 }
@@ -354,6 +457,31 @@ All colors MUST be HSL.
 .hover-premium:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-xl);
+}
+
+/* Aquatic Card Styles */
+.card-ocean {
+  @apply bg-card border border-primary/20 rounded-2xl;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-base);
+}
+
+.card-ocean:hover {
+  box-shadow: var(--shadow-ocean);
+  border-color: hsl(var(--primary) / 0.4);
+  transform: translateY(-2px);
+}
+
+.card-sunset {
+  @apply bg-card border border-accent/20 rounded-2xl;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-base);
+}
+
+.card-sunset:hover {
+  box-shadow: var(--shadow-glow-accent);
+  border-color: hsl(var(--accent) / 0.4);
+  transform: translateY(-2px);
 }
 
 /* Premium Card Styles */
@@ -379,13 +507,20 @@ All colors MUST be HSL.
 .card-featured::before {
   content: '';
   @apply absolute top-0 left-0 right-0 h-1;
-  background: var(--gradient-premium);
+  background: var(--gradient-aurora);
 }
 
-/* Glassmorphism Effect */
+/* Glassmorphism Effect - Aquatic */
 .glass {
   @apply bg-background/80 backdrop-blur-xl;
   border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.glass-ocean {
+  background: linear-gradient(135deg, hsl(195 85% 45% / 0.1) 0%, hsl(185 90% 55% / 0.05) 100%);
+  backdrop-filter: blur(24px);
+  border: 1px solid hsl(var(--primary) / 0.2);
+  box-shadow: var(--shadow-ocean);
 }
 
 .glass-premium {
@@ -416,10 +551,51 @@ All colors MUST be HSL.
   box-shadow: var(--shadow-md);
 }
 
+.btn-ocean {
+  background: var(--gradient-ocean);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-ocean);
+  transition: var(--transition-base);
+}
+
+.btn-ocean:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -3px hsl(195 85% 45% / 0.4);
+}
+
+.btn-sunset {
+  background: var(--gradient-sunset);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-glow-accent);
+  transition: var(--transition-base);
+}
+
+.btn-sunset:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -3px hsl(25 95% 55% / 0.4);
+}
+
 /* Gradient Text */
 .text-gradient {
   @apply bg-clip-text text-transparent;
   background-image: var(--gradient-primary);
+}
+
+.text-gradient-ocean {
+  @apply bg-clip-text text-transparent;
+  background-image: var(--gradient-ocean);
+}
+
+.text-gradient-sunset {
+  @apply bg-clip-text text-transparent;
+  background-image: var(--gradient-sunset);
+}
+
+.text-gradient-aurora {
+  @apply bg-clip-text text-transparent;
+  background-image: var(--gradient-aurora);
 }
 
 .text-gradient-premium {
@@ -427,9 +603,29 @@ All colors MUST be HSL.
   background-image: var(--gradient-premium);
 }
 
-/* Sidebar Premium Styles */
+/* Deep Sea Sidebar Styles */
+.sidebar-ocean {
+  background: var(--gradient-deep-sea);
+}
+
 .sidebar-premium {
   background: var(--gradient-dark);
+}
+
+/* Wave Divider */
+.wave-divider {
+  position: relative;
+  height: 60px;
+  overflow: hidden;
+}
+
+.wave-divider::before {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 100%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z' fill='hsl(195, 85%%, 45%%)'/%3E%3C/svg%3E") repeat-x;
+  animation: wave-bg 15s linear infinite;
 }
 
 /* Focus States */
@@ -476,6 +672,11 @@ All colors MUST be HSL.
   box-shadow: 0 0 8px hsl(var(--destructive) / 0.5);
 }
 
+.status-dot-ocean {
+  @apply bg-primary;
+  box-shadow: 0 0 8px hsl(var(--primary) / 0.5);
+}
+
 /* Icon Container Premium */
 .icon-container {
   @apply flex items-center justify-center rounded-xl transition-all duration-200;
@@ -485,8 +686,18 @@ All colors MUST be HSL.
   @apply bg-primary/10 text-primary;
 }
 
+.icon-container-ocean {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.15) 0%, hsl(185 100% 50% / 0.1) 100%);
+  @apply text-primary;
+}
+
 .icon-container-accent {
   @apply bg-accent/10 text-accent;
+}
+
+.icon-container-sunset {
+  background: linear-gradient(135deg, hsl(var(--accent) / 0.15) 0%, hsl(350 85% 50% / 0.1) 100%);
+  @apply text-accent;
 }
 
 .icon-container-success {
@@ -499,53 +710,61 @@ All colors MUST be HSL.
 
 /* Progress bar premium */
 .progress-premium {
-  @apply relative overflow-hidden rounded-full;
-  background: hsl(var(--muted));
+  @apply h-2 bg-muted rounded-full overflow-hidden;
 }
 
-.progress-premium-bar {
+.progress-premium-fill {
   @apply h-full rounded-full transition-all duration-500;
-  background: var(--gradient-primary);
+  background: var(--gradient-aurora);
 }
 
-.progress-premium-bar::after {
-  content: '';
-  @apply absolute inset-0;
-  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.2), transparent);
-  animation: shimmer 2s infinite;
+/* Ocean Background Pattern */
+.bg-ocean-pattern {
+  background-color: hsl(var(--background));
+  background-image: 
+    radial-gradient(ellipse at 20% 30%, hsl(195 85% 45% / 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, hsl(185 100% 50% / 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, hsl(25 95% 55% / 0.04) 0%, transparent 50%);
 }
 
-/* Metric card premium */
-.metric-premium {
+/* Metric Card Premium - Ocean Theme */
+.metric-card-ocean {
   @apply relative overflow-hidden;
+  background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(195 85% 45% / 0.05) 100%);
+  border: 1px solid hsl(var(--primary) / 0.15);
 }
 
-.metric-premium::before {
+.metric-card-ocean::before {
   content: '';
-  @apply absolute -top-24 -right-24 w-48 h-48 rounded-full opacity-10;
-  background: radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%);
+  @apply absolute top-0 left-0 right-0 h-1;
+  background: var(--gradient-wave);
 }
 
-/* Number styling */
-.number-display {
-  @apply font-display font-bold tabular-nums tracking-tight;
+/* Number Display Premium */
+.number-display-ocean {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  @apply font-bold tracking-tight;
+  background: var(--gradient-ocean);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Divider premium */
-.divider-premium {
+/* Divider Premium - Wave Style */
+.divider-wave {
   @apply h-px w-full;
-  background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
+  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.3), hsl(185 100% 50% / 0.2), transparent);
 }
 
-/* Badge glow effect */
-.badge-glow {
-  position: relative;
+/* Badge Glow - Ocean */
+.badge-glow-ocean {
+  box-shadow: 0 0 12px hsl(195 85% 45% / 0.4);
 }
 
-.badge-glow::before {
-  content: '';
-  @apply absolute inset-0 rounded-full opacity-50;
-  filter: blur(8px);
-  background: inherit;
-  z-index: -1;
+.badge-glow-sunset {
+  box-shadow: 0 0 12px hsl(25 95% 55% / 0.4);
+}
+
+.badge-glow-cyan {
+  box-shadow: 0 0 12px hsl(185 100% 50% / 0.5);
 }
