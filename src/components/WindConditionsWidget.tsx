@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Refresh interval: 5 minutes
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+// Refresh interval: 1 minute
+const REFRESH_INTERVAL_MS = 60 * 1000;
 
 interface LocationWeather {
   location: string;
