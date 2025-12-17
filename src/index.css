@@ -768,3 +768,16 @@
 .badge-glow-cyan {
   box-shadow: 0 0 12px hsl(185 100% 50% / 0.5);
 }
+
+/* Safe area for mobile devices with home indicator */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Bottom navigation glass effect */
+@supports (backdrop-filter: blur(12px)) {
+  .glass-premium {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}

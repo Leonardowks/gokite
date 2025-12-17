@@ -85,6 +85,8 @@ export default function Login() {
                 <img 
                   src={gokiteLogo} 
                   alt="GoKite" 
+                  loading="eager"
+                  fetchPriority="high"
                   className="relative h-16 w-auto drop-shadow-2xl"
                 />
               </div>
