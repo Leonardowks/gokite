@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ClienteCard } from "./ClienteCard";
 import type { ClienteAgregado } from "@/lib/localStorage";
@@ -14,8 +14,8 @@ export function VirtualizedClienteList({ clientes, onEdit }: VirtualizedClienteL
   const virtualizer = useVirtualizer({
     count: clientes.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 180, // Altura estimada de cada card
-    overscan: 5, // Renderiza 5 itens extras acima/abaixo para scroll suave
+    estimateSize: () => 180,
+    overscan: 5,
   });
 
   const handleEdit = useCallback((cliente: ClienteAgregado) => {

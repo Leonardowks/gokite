@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from "react";
+import { useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClienteTableRow } from "./ClienteTableRow";
@@ -15,8 +15,8 @@ export function VirtualizedClienteTable({ clientes, onEdit }: VirtualizedCliente
   const virtualizer = useVirtualizer({
     count: clientes.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 72, // Altura estimada de cada linha
-    overscan: 10, // Mais overscan para tabelas
+    estimateSize: () => 72,
+    overscan: 10,
   });
 
   const handleEdit = useCallback((cliente: ClienteAgregado) => {
