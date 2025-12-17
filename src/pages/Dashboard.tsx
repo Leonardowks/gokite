@@ -11,6 +11,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { DailyRoutineWidget } from "@/components/DailyRoutineWidget";
 import { QuickActionsPanel } from "@/components/QuickActionsPanel";
 import { OnboardingTour } from "@/components/OnboardingTour";
+import { WindConditionsWidget } from "@/components/WindConditionsWidget";
 import { useNavigate } from "react-router-dom";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -161,14 +162,19 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Widgets */}
+      {/* Widgets Row 1 - Wind + Daily Routine */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:gap-6">
+        <div className="lg:col-span-1">
+          <WindConditionsWidget />
+        </div>
         <div className="lg:col-span-2">
           <DailyRoutineWidget tasks={routineTasks} />
         </div>
-        <div>
-          <QuickActionsPanel actions={quickActions} />
-        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div>
+        <QuickActionsPanel actions={quickActions} />
       </div>
 
       {/* KPIs Premium */}
