@@ -90,9 +90,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </header>
 
-        {/* Main Content with Ocean Background */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl">
+        {/* Main Content */}
+        <main className="flex-1">
+          <div className="px-3 py-4 sm:px-4 sm:py-5 md:px-6 lg:px-8 lg:py-6 max-w-7xl mx-auto">
             {children}
           </div>
         </main>

@@ -114,7 +114,7 @@ export default function Dashboard() {
       title: `Confirmar ${stats.aulasPendentes} aula(s) pendente(s)`,
       description: 'Aulas aguardando sua confirmação',
       priority: 'urgent' as const,
-      link: '/admin/aulas',
+      link: '/aulas',
       count: stats.aulasPendentes,
       icon: Clock
     }] : [])
@@ -138,47 +138,39 @@ export default function Dashboard() {
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
 
   return (
-    <div className="space-y-5 sm:space-y-6 lg:space-y-8 animate-fade-in">
+    <div className="space-y-4 sm:space-y-5 lg:space-y-6 animate-fade-in">
       <OnboardingTour />
       
-      {/* Header Premium */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm text-muted-foreground">{saudacao}! 👋</span>
-            <PremiumBadge variant="success" size="sm" icon={Sparkles}>
-              Sistema Ativo
-            </PremiumBadge>
+      {/* Header Premium - Compacto */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-display font-bold text-foreground tracking-tight">
+              {saudacao}! 👋
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {format(new Date(), "EEEE, dd 'de' MMMM")}
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Visão geral da sua operação
-          </p>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {format(new Date(), "EEEE, dd 'de' MMMM")}
+          <PremiumBadge variant="success" size="sm" icon={Sparkles} className="hidden sm:flex">
+            Ativo
+          </PremiumBadge>
         </div>
       </div>
 
-      {/* Widgets Row 1 - Wind + Daily Routine */}
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:gap-6">
-        <div className="lg:col-span-1">
-          <WindConditionsWidget />
-        </div>
+      {/* Wind Conditions Drawer + Daily Routine */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <WindConditionsWidget />
         <div className="lg:col-span-2">
           <DailyRoutineWidget tasks={routineTasks} />
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div>
-        <QuickActionsPanel actions={quickActions} />
-      </div>
+      {quickActions.length > 0 && <QuickActionsPanel actions={quickActions} />}
 
-      {/* KPIs Premium */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
+      {/* KPIs */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
         <PremiumCard hover className="metric-card-hoje">
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
@@ -257,8 +249,8 @@ export default function Dashboard() {
         </PremiumCard>
       </div>
 
-      {/* Secondary Stats Premium */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
         <PremiumCard hover>
           <CardContent className="p-4 sm:p-5 flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center shrink-0">
@@ -393,7 +385,7 @@ export default function Dashboard() {
             </div>
             Próximas Aulas
           </CardTitle>
-          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-primary" onClick={() => navigate('/admin/aulas')}>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-primary" onClick={() => navigate('/aulas')}>
             Ver todas
             <ArrowRight className="h-4 w-4" />
           </Button>
