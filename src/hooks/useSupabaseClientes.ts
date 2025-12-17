@@ -3,42 +3,79 @@ import { supabase } from '@/integrations/supabase/client';
 
 const PAGE_SIZE = 50;
 
+// Tipo para cliente com dados agregados (compatível com a UI existente)
+export interface ClienteComAulas {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string | null;
+  status: string | null;
+  tags: string[] | null;
+  total_aulas: number;
+  ultima_aula: string | null;
+}
+
 /**
- * Hook otimizado para listagem de clientes
- * Usa select específico para economizar dados
+ * Hook otimizado para listagem de clientes COM dados de aulas
+ * Usa select específico para economizar dados + join com aulas
  */
 export function useClientesListagem(searchTerm?: string) {
   return useQuery({
     queryKey: ['clientes-listagem', searchTerm],
-    queryFn: async () => {
+    queryFn: async (): Promise<ClienteComAulas[]> => {
+      // Buscar clientes
       let query = supabase
         .from('clientes')
-        // ✅ Select específico - apenas campos necessários para listagem
         .select('id, nome, email, telefone, status, tags')
         .order('nome', { ascending: true });
 
-      // Busca case-insensitive usando índice idx_clientes_nome_lower
       if (searchTerm && searchTerm.trim()) {
-        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,telefone.ilike.%${searchTerm}%`);
       }
 
-      const { data, error } = await query.limit(1000);
-
+      const { data: clientes, error } = await query.limit(1000);
       if (error) throw error;
-      return data || [];
+      if (!clientes || clientes.length === 0) return [];
+
+      // Buscar aulas para agregar dados
+      const clienteIds = clientes.map(c => c.id);
+      const { data: aulas, error: aulasError } = await supabase
+        .from('aulas')
+        .select('cliente_id, data')
+        .in('cliente_id', clienteIds);
+
+      if (aulasError) throw aulasError;
+
+      // Agregar dados de aulas por cliente
+      const aulasMap = new Map<string, { total: number; ultima: string | null }>();
+      
+      (aulas || []).forEach(aula => {
+        const existing = aulasMap.get(aula.cliente_id) || { total: 0, ultima: null };
+        existing.total++;
+        if (!existing.ultima || aula.data > existing.ultima) {
+          existing.ultima = aula.data;
+        }
+        aulasMap.set(aula.cliente_id, existing);
+      });
+
+      // Combinar clientes com dados de aulas
+      return clientes.map(cliente => ({
+        ...cliente,
+        total_aulas: aulasMap.get(cliente.id)?.total || 0,
+        ultima_aula: aulasMap.get(cliente.id)?.ultima || null,
+      }));
     },
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 /**
  * Hook com Infinite Scroll para grandes listas
- * Carrega clientes em páginas de 50
  */
 export function useClientesInfinite(searchTerm?: string) {
   return useInfiniteQuery({
     queryKey: ['clientes-infinite', searchTerm],
-    queryFn: async ({ pageParam = 0 }) => {
+    queryFn: async ({ pageParam = 0 }): Promise<ClienteComAulas[]> => {
       let query = supabase
         .from('clientes')
         .select('id, nome, email, telefone, status, tags')
@@ -46,17 +83,38 @@ export function useClientesInfinite(searchTerm?: string) {
         .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1);
 
       if (searchTerm && searchTerm.trim()) {
-        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,telefone.ilike.%${searchTerm}%`);
       }
 
-      const { data, error } = await query;
-
+      const { data: clientes, error } = await query;
       if (error) throw error;
-      return data || [];
+      if (!clientes || clientes.length === 0) return [];
+
+      // Buscar aulas para agregar
+      const clienteIds = clientes.map(c => c.id);
+      const { data: aulas } = await supabase
+        .from('aulas')
+        .select('cliente_id, data')
+        .in('cliente_id', clienteIds);
+
+      const aulasMap = new Map<string, { total: number; ultima: string | null }>();
+      (aulas || []).forEach(aula => {
+        const existing = aulasMap.get(aula.cliente_id) || { total: 0, ultima: null };
+        existing.total++;
+        if (!existing.ultima || aula.data > existing.ultima) {
+          existing.ultima = aula.data;
+        }
+        aulasMap.set(aula.cliente_id, existing);
+      });
+
+      return clientes.map(cliente => ({
+        ...cliente,
+        total_aulas: aulasMap.get(cliente.id)?.total || 0,
+        ultima_aula: aulasMap.get(cliente.id)?.ultima || null,
+      }));
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
-      // Se última página tem menos que PAGE_SIZE, não há mais páginas
       return lastPage.length === PAGE_SIZE ? allPages.length : undefined;
     },
     staleTime: 5 * 60 * 1000,
@@ -65,7 +123,6 @@ export function useClientesInfinite(searchTerm?: string) {
 
 /**
  * Hook para detalhes completos de um cliente
- * Usa select('*') porque precisa de todos os campos
  */
 export function useClienteDetalhes(clienteId: string | null) {
   return useQuery({
@@ -75,7 +132,6 @@ export function useClienteDetalhes(clienteId: string | null) {
 
       const { data, error } = await supabase
         .from('clientes')
-        // ✅ Aqui usa select('*') porque página de detalhes precisa de tudo
         .select('*')
         .eq('id', clienteId)
         .maybeSingle();
@@ -84,7 +140,7 @@ export function useClienteDetalhes(clienteId: string | null) {
       return data;
     },
     enabled: !!clienteId,
-    staleTime: 2 * 60 * 1000, // 2 minutos
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -108,6 +164,7 @@ export function useCreateCliente() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes-listagem'] });
       queryClient.invalidateQueries({ queryKey: ['clientes-infinite'] });
+      queryClient.invalidateQueries({ queryKey: ['clientes-count'] });
     },
   });
 }
@@ -156,12 +213,13 @@ export function useDeleteCliente() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clientes-listagem'] });
       queryClient.invalidateQueries({ queryKey: ['clientes-infinite'] });
+      queryClient.invalidateQueries({ queryKey: ['clientes-count'] });
     },
   });
 }
 
 /**
- * Hook para contar total de clientes (para paginação)
+ * Hook para contar total de clientes
  */
 export function useClientesCount(searchTerm?: string) {
   return useQuery({
@@ -172,11 +230,10 @@ export function useClientesCount(searchTerm?: string) {
         .select('*', { count: 'exact', head: true });
 
       if (searchTerm && searchTerm.trim()) {
-        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+        query = query.or(`nome.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,telefone.ilike.%${searchTerm}%`);
       }
 
       const { count, error } = await query;
-
       if (error) throw error;
       return count || 0;
     },

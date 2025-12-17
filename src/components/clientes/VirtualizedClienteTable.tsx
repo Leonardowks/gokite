@@ -2,11 +2,11 @@ import { useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClienteTableRow } from "./ClienteTableRow";
-import type { ClienteAgregado } from "@/lib/localStorage";
+import type { ClienteComAulas } from "@/hooks/useSupabaseClientes";
 
 interface VirtualizedClienteTableProps {
-  clientes: ClienteAgregado[];
-  onEdit: (cliente: ClienteAgregado) => void;
+  clientes: ClienteComAulas[];
+  onEdit: (cliente: ClienteComAulas) => void;
 }
 
 export function VirtualizedClienteTable({ clientes, onEdit }: VirtualizedClienteTableProps) {
@@ -19,7 +19,7 @@ export function VirtualizedClienteTable({ clientes, onEdit }: VirtualizedCliente
     overscan: 10,
   });
 
-  const handleEdit = useCallback((cliente: ClienteAgregado) => {
+  const handleEdit = useCallback((cliente: ClienteComAulas) => {
     onEdit(cliente);
   }, [onEdit]);
 
@@ -46,7 +46,7 @@ export function VirtualizedClienteTable({ clientes, onEdit }: VirtualizedCliente
                   const cliente = clientes[virtualRow.index];
                   return (
                     <div
-                      key={cliente.email}
+                      key={cliente.id}
                       style={{
                         position: 'absolute',
                         top: 0,

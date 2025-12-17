@@ -3,11 +3,11 @@ import { Button } from "@/components/ui/button";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { format } from "date-fns";
 import { Mail, Phone, Edit } from "lucide-react";
-import type { ClienteAgregado } from "@/lib/localStorage";
+import type { ClienteComAulas } from "@/hooks/useSupabaseClientes";
 
 interface ClienteCardProps {
-  cliente: ClienteAgregado;
-  onEdit: (cliente: ClienteAgregado) => void;
+  cliente: ClienteComAulas;
+  onEdit: (cliente: ClienteComAulas) => void;
   style?: CSSProperties;
 }
 
@@ -17,7 +17,10 @@ export const ClienteCard = memo(function ClienteCard({
   style 
 }: ClienteCardProps) {
   const handleWhatsApp = () => {
-    window.open(`https://wa.me/${cliente.whatsapp}`, '_blank');
+    const telefone = cliente.telefone?.replace(/\D/g, '') || '';
+    if (telefone) {
+      window.open(`https://wa.me/55${telefone}`, '_blank');
+    }
   };
 
   return (
@@ -32,10 +35,12 @@ export const ClienteCard = memo(function ClienteCard({
             <Mail className="h-3 w-3" />
             <span className="truncate">{cliente.email}</span>
           </div>
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-            <Phone className="h-3 w-3" />
-            <span>{cliente.whatsapp}</span>
-          </div>
+          {cliente.telefone && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+              <Phone className="h-3 w-3" />
+              <span>{cliente.telefone}</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
@@ -54,6 +59,7 @@ export const ClienteCard = memo(function ClienteCard({
           variant="outline" 
           className="flex-1 min-h-[44px]"
           onClick={handleWhatsApp}
+          disabled={!cliente.telefone}
         >
           <Phone className="h-4 w-4 mr-2" />
           WhatsApp

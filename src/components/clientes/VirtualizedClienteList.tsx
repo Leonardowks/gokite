@@ -1,11 +1,11 @@
 import { useRef, useCallback } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ClienteCard } from "./ClienteCard";
-import type { ClienteAgregado } from "@/lib/localStorage";
+import type { ClienteComAulas } from "@/hooks/useSupabaseClientes";
 
 interface VirtualizedClienteListProps {
-  clientes: ClienteAgregado[];
-  onEdit: (cliente: ClienteAgregado) => void;
+  clientes: ClienteComAulas[];
+  onEdit: (cliente: ClienteComAulas) => void;
 }
 
 export function VirtualizedClienteList({ clientes, onEdit }: VirtualizedClienteListProps) {
@@ -18,7 +18,7 @@ export function VirtualizedClienteList({ clientes, onEdit }: VirtualizedClienteL
     overscan: 5,
   });
 
-  const handleEdit = useCallback((cliente: ClienteAgregado) => {
+  const handleEdit = useCallback((cliente: ClienteComAulas) => {
     onEdit(cliente);
   }, [onEdit]);
 
@@ -38,7 +38,7 @@ export function VirtualizedClienteList({ clientes, onEdit }: VirtualizedClienteL
           const cliente = clientes[virtualRow.index];
           return (
             <div
-              key={cliente.email}
+              key={cliente.id}
               style={{
                 position: 'absolute',
                 top: 0,

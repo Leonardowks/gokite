@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { localStorageService, type ClienteAgregado } from "@/lib/localStorage";
 import { ClienteDialog } from "@/components/ClienteDialog";
 import { Search, UserPlus, Users, Calendar, Loader2 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
@@ -11,49 +10,29 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { useDebounce } from "@/hooks/useDebounce";
 import { VirtualizedClienteList, VirtualizedClienteTable } from "@/components/clientes";
+import { useClientesListagem, useCreateCliente, useUpdateCliente, type ClienteComAulas } from "@/hooks/useSupabaseClientes";
 
 export default function Clientes() {
-  const [clientes, setClientes] = useState<ClienteAgregado[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState<ClienteAgregado | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
+  const [selectedCliente, setSelectedCliente] = useState<ClienteComAulas | undefined>();
   const { toast } = useToast();
 
   // Debounce de 300ms na busca
   const debouncedSearch = useDebounce(searchTerm, 300);
 
-  useEffect(() => { 
-    loadClientes(); 
-  }, []);
+  // Hooks do Supabase
+  const { data: clientes = [], isLoading, error, refetch } = useClientesListagem(debouncedSearch);
+  const createMutation = useCreateCliente();
+  const updateMutation = useUpdateCliente();
 
-  const loadClientes = () => {
-    setIsLoading(true);
-    try {
-      const data = localStorageService.listarClientes();
-      setClientes(data);
-    } catch (error) {
-      console.error("Erro:", error);
-      toast({ title: "Erro", description: "Não foi possível carregar os clientes.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Filtro memoizado usando o valor debounced
-  const filteredClientes = useMemo(() => {
-    if (!debouncedSearch) return clientes;
-    
-    const searchLower = debouncedSearch.toLowerCase();
-    return clientes.filter((c) =>
-      c.nome.toLowerCase().includes(searchLower) ||
-      c.email.toLowerCase().includes(searchLower) ||
-      c.whatsapp.includes(debouncedSearch)
-    );
-  }, [clientes, debouncedSearch]);
+  // Mostrar erro se houver
+  if (error) {
+    console.error("Erro ao carregar clientes:", error);
+  }
 
   // Callbacks memoizados
-  const handleEdit = useCallback((cliente: ClienteAgregado) => {
+  const handleEdit = useCallback((cliente: ClienteComAulas) => {
     setSelectedCliente(cliente);
     setDialogOpen(true);
   }, []);
@@ -63,10 +42,36 @@ export default function Clientes() {
     setSelectedCliente(undefined);
   }, []);
 
-  const handleSave = useCallback(() => {
-    loadClientes();
-    handleCloseDialog();
-  }, [handleCloseDialog]);
+  const handleSave = useCallback(async (data: { nome: string; email: string; telefone: string }) => {
+    try {
+      if (selectedCliente) {
+        // Atualizar cliente existente
+        await updateMutation.mutateAsync({
+          id: selectedCliente.id,
+          nome: data.nome,
+          email: data.email,
+          telefone: data.telefone,
+        });
+        toast({ title: "Cliente atualizado!", description: "As informações foram salvas com sucesso." });
+      } else {
+        // Criar novo cliente
+        await createMutation.mutateAsync({
+          nome: data.nome,
+          email: data.email,
+          telefone: data.telefone,
+        });
+        toast({ title: "Cliente adicionado!", description: "O novo cliente foi cadastrado com sucesso." });
+      }
+      handleCloseDialog();
+    } catch (err) {
+      console.error("Erro ao salvar cliente:", err);
+      toast({ 
+        title: "Erro ao salvar", 
+        description: "Não foi possível salvar as informações do cliente.", 
+        variant: "destructive" 
+      });
+    }
+  }, [selectedCliente, updateMutation, createMutation, toast, handleCloseDialog]);
 
   // KPIs memoizados
   const totalAulas = useMemo(() => 
@@ -75,6 +80,7 @@ export default function Clientes() {
   );
 
   const isSearching = searchTerm !== debouncedSearch;
+  const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
@@ -148,11 +154,6 @@ export default function Clientes() {
               <Users className="h-4 w-4 text-primary" />
             </div>
             Lista de Clientes
-            {filteredClientes.length !== clientes.length && (
-              <span className="text-sm font-normal text-muted-foreground ml-2">
-                ({filteredClientes.length} de {clientes.length})
-              </span>
-            )}
           </CardTitle>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -172,7 +173,17 @@ export default function Clientes() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : filteredClientes.length === 0 ? (
+          ) : error ? (
+            <div className="text-center py-10 sm:py-12">
+              <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-destructive/50" />
+              </div>
+              <p className="text-destructive text-sm mb-4">Erro ao carregar clientes.</p>
+              <Button variant="outline" onClick={() => refetch()}>
+                Tentar novamente
+              </Button>
+            </div>
+          ) : clientes.length === 0 ? (
             <div className="text-center py-10 sm:py-12">
               <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
                 <Users className="h-8 w-8 text-muted-foreground/50" />
@@ -186,7 +197,7 @@ export default function Clientes() {
               {/* Lista Virtualizada Mobile */}
               <div className="md:hidden">
                 <VirtualizedClienteList 
-                  clientes={filteredClientes} 
+                  clientes={clientes} 
                   onEdit={handleEdit} 
                 />
               </div>
@@ -194,7 +205,7 @@ export default function Clientes() {
               {/* Tabela Virtualizada Desktop */}
               <div className="hidden md:block">
                 <VirtualizedClienteTable 
-                  clientes={filteredClientes} 
+                  clientes={clientes} 
                   onEdit={handleEdit} 
                 />
               </div>
@@ -208,6 +219,7 @@ export default function Clientes() {
         onOpenChange={handleCloseDialog}
         onSave={handleSave}
         cliente={selectedCliente}
+        isLoading={isSaving}
       />
     </div>
   );
