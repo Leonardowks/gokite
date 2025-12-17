@@ -1,7 +1,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { createRequire } from "module";
 import { componentTagger } from "lovable-tagger";
+
+const require = createRequire(import.meta.url);
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -13,9 +16,9 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      react: path.resolve(__dirname, "./node_modules/react"),
-      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
-      "react-dom/client": path.resolve(__dirname, "./node_modules/react-dom/client"),
+      react: require.resolve("react"),
+      "react-dom": require.resolve("react-dom"),
+      "react-dom/client": require.resolve("react-dom/client"),
     },
     dedupe: [
       "react",
@@ -29,5 +32,8 @@ export default defineConfig(({ mode }) => ({
       "@tanstack/react-virtual",
       "@tanstack/react-query",
     ],
+  },
+  optimizeDeps: {
+    include: ["react", "react-dom", "react-dom/client"],
   },
 }));
