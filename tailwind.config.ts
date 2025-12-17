@@ -15,7 +15,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+        display: ['Outfit', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -45,6 +45,11 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
           glow: "hsl(var(--accent-glow))",
+        },
+        cyan: {
+          DEFAULT: "hsl(var(--cyan))",
+          foreground: "hsl(var(--cyan-foreground))",
+          glow: "hsl(var(--cyan-glow))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -96,6 +101,8 @@ export default {
         '2xl': 'var(--shadow-2xl)',
         'glow': 'var(--shadow-glow)',
         'glow-accent': 'var(--shadow-glow-accent)',
+        'glow-cyan': 'var(--shadow-glow-cyan)',
+        'ocean': 'var(--shadow-ocean)',
         'inner': 'var(--shadow-inner)',
       },
       keyframes: {
@@ -144,6 +151,23 @@ export default {
           "50%": { transform: "scale(1.05)" },
           "100%": { transform: "scale(1)" },
         },
+        "wave": {
+          "0%, 100%": { transform: "translateY(0) rotate(0deg)" },
+          "25%": { transform: "translateY(-3px) rotate(1deg)" },
+          "75%": { transform: "translateY(3px) rotate(-1deg)" },
+        },
+        "ocean-glow": {
+          "0%, 100%": { boxShadow: "0 0 20px hsl(195 85% 45% / 0.2), 0 0 40px hsl(185 100% 50% / 0.1)" },
+          "50%": { boxShadow: "0 0 30px hsl(195 85% 45% / 0.4), 0 0 60px hsl(185 100% 50% / 0.2)" },
+        },
+        "wind": {
+          "0%, 100%": { transform: "translateX(0)" },
+          "50%": { transform: "translateX(4px)" },
+        },
+        "ripple": {
+          "0%": { transform: "scale(0.8)", opacity: "1" },
+          "100%": { transform: "scale(2.5)", opacity: "0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -157,6 +181,10 @@ export default {
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
         "float": "float 3s ease-in-out infinite",
         "number-update": "number-update 0.3s ease-out",
+        "wave": "wave 3s ease-in-out infinite",
+        "ocean-glow": "ocean-glow 3s ease-in-out infinite",
+        "wind": "wind 2s ease-in-out infinite",
+        "ripple": "ripple 1s ease-out forwards",
       },
     },
   },

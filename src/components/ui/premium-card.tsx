@@ -5,16 +5,25 @@ interface PremiumCardProps extends React.HTMLAttributes<HTMLDivElement> {
   featured?: boolean;
   glow?: boolean;
   hover?: boolean;
-  gradient?: "primary" | "accent" | "success" | "none";
+  gradient?: "primary" | "accent" | "success" | "ocean" | "sunset" | "none";
+  variant?: "default" | "ocean" | "sunset";
 }
 
 const PremiumCard = React.forwardRef<HTMLDivElement, PremiumCardProps>(
-  ({ className, featured, glow, hover = false, gradient = "none", children, ...props }, ref) => {
+  ({ className, featured, glow, hover = false, gradient = "none", variant = "default", children, ...props }, ref) => {
     const gradientClasses = {
       primary: "from-primary/5 via-transparent to-primary/10",
       accent: "from-accent/5 via-transparent to-accent/10",
       success: "from-success/5 via-transparent to-success/10",
+      ocean: "from-primary/5 via-cyan/5 to-primary/10",
+      sunset: "from-accent/5 via-transparent to-accent/10",
       none: "",
+    };
+
+    const variantClasses = {
+      default: "border-border/50",
+      ocean: "border-primary/20 hover:border-primary/40 hover:shadow-ocean",
+      sunset: "border-accent/20 hover:border-accent/40 hover:shadow-glow-accent",
     };
 
     return (
@@ -24,15 +33,24 @@ const PremiumCard = React.forwardRef<HTMLDivElement, PremiumCardProps>(
           "relative rounded-2xl border bg-card text-card-foreground overflow-hidden transition-all duration-300",
           hover && "hover:shadow-lg hover:-translate-y-0.5",
           gradient !== "none" && `bg-gradient-to-br ${gradientClasses[gradient]}`,
+          variantClasses[variant],
           featured && "border-primary/30 shadow-glow ring-1 ring-primary/10",
           glow && "hover:shadow-glow",
           className
         )}
         {...props}
       >
-        {/* Subtle top gradient line for featured cards */}
+        {/* Ocean wave top line for featured cards */}
         {featured && (
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-cyan to-primary" />
+        )}
+        {/* Sunset top line for sunset variant when featured */}
+        {variant === "sunset" && featured && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent via-[hsl(350,85%,50%)] to-accent" />
+        )}
+        {/* Ocean top line for ocean variant when featured */}
+        {variant === "ocean" && featured && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-cyan to-primary" />
         )}
         {children}
       </div>
