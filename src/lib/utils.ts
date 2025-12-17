@@ -9,10 +9,12 @@ export function cn(...inputs: ClassValue[]) {
 // Calcular preço por tipo de aula
 export const calcularPreco = (tipo: string): number => {
   const precos: Record<string, number> = {
-    iniciante: 400,
-    intermediario: 500,
-    avancado: 600,
+    kitesurf_iniciante: 400,
+    kitesurf_intermediario: 500,
+    kitesurf_avancado: 600,
     wing_foil: 700,
+    foil: 650,
+    downwind: 750,
   };
   return precos[tipo] || 0;
 };
@@ -32,10 +34,12 @@ export const formatarDataBR = (isoDate: string): string => {
 // Traduzir tipo de aula
 export const traduzirTipoAula = (tipo: string): string => {
   const traducoes: Record<string, string> = {
-    iniciante: 'Iniciante',
-    intermediario: 'Intermediário',
-    avancado: 'Avançado',
+    kitesurf_iniciante: 'Kitesurf Iniciante',
+    kitesurf_intermediario: 'Kitesurf Intermediário',
+    kitesurf_avancado: 'Kitesurf Avançado',
     wing_foil: 'Wing Foil',
+    foil: 'Foil',
+    downwind: 'Downwind',
   };
   return traducoes[tipo] || tipo;
 };

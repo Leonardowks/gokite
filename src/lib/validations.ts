@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const agendamentoSchema = z.object({
-  tipo_aula: z.enum(['iniciante', 'intermediario', 'avancado', 'wing_foil'], {
+  tipo_aula: z.enum(['kitesurf_iniciante', 'kitesurf_intermediario', 'kitesurf_avancado', 'wing_foil', 'foil', 'downwind'], {
     errorMap: () => ({ message: "Selecione um tipo de aula" })
   }),
   localizacao: z.enum(['florianopolis', 'taiba'], {
