@@ -1,49 +1,74 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface ClienteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: () => void;
+  onSave: (data: { nome: string; email: string; telefone: string }) => void;
   cliente?: {
+    id?: string;
     nome: string;
     email: string;
-    whatsapp: string;
+    telefone?: string | null;
   };
+  isLoading?: boolean;
 }
 
-export function ClienteDialog({ open, onOpenChange, onSave, cliente }: ClienteDialogProps) {
-  const { toast } = useToast();
+export function ClienteDialog({ open, onOpenChange, onSave, cliente, isLoading }: ClienteDialogProps) {
   const [formData, setFormData] = useState({
-    nome: cliente?.nome || "",
-    email: cliente?.email || "",
-    whatsapp: cliente?.whatsapp || "",
+    nome: "",
+    email: "",
+    telefone: "",
   });
+  const [errors, setErrors] = useState<{ nome?: string; email?: string; telefone?: string }>({});
+
+  // Reset form quando abre/fecha ou muda cliente
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        nome: cliente?.nome || "",
+        email: cliente?.email || "",
+        telefone: cliente?.telefone || "",
+      });
+      setErrors({});
+    }
+  }, [open, cliente]);
+
+  const validate = () => {
+    const newErrors: { nome?: string; email?: string; telefone?: string } = {};
+    
+    if (!formData.nome.trim()) {
+      newErrors.nome = "Nome é obrigatório";
+    }
+    
+    if (!formData.email.trim()) {
+      newErrors.email = "Email é obrigatório";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Email inválido";
+    }
+    
+    if (!formData.telefone.trim()) {
+      newErrors.telefone = "Telefone é obrigatório";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.nome || !formData.email || !formData.whatsapp) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Aqui você salvaria no localStorage
-    toast({
-      title: cliente ? "Cliente atualizado!" : "Cliente adicionado!",
-      description: "As informações foram salvas com sucesso.",
-    });
+    if (!validate()) return;
     
-    onSave();
-    onOpenChange(false);
+    onSave({
+      nome: formData.nome.trim(),
+      email: formData.email.trim(),
+      telefone: formData.telefone.trim(),
+    });
   };
 
   return (
@@ -65,7 +90,10 @@ export function ClienteDialog({ open, onOpenChange, onSave, cliente }: ClienteDi
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               placeholder="João Silva"
+              className={errors.nome ? "border-destructive" : ""}
+              disabled={isLoading}
             />
+            {errors.nome && <p className="text-xs text-destructive">{errors.nome}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -75,22 +103,29 @@ export function ClienteDialog({ open, onOpenChange, onSave, cliente }: ClienteDi
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="joao@email.com"
+              className={errors.email ? "border-destructive" : ""}
+              disabled={isLoading}
             />
+            {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="whatsapp">WhatsApp</Label>
+            <Label htmlFor="telefone">WhatsApp / Telefone</Label>
             <Input
-              id="whatsapp"
-              value={formData.whatsapp}
-              onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+              id="telefone"
+              value={formData.telefone}
+              onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
               placeholder="(48) 99999-9999"
+              className={errors.telefone ? "border-destructive" : ""}
+              disabled={isLoading}
             />
+            {errors.telefone && <p className="text-xs text-destructive">{errors.telefone}</p>}
           </div>
           <div className="flex gap-3 pt-4">
-            <Button type="submit" className="flex-1">
+            <Button type="submit" className="flex-1" disabled={isLoading}>
+              {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {cliente ? "Atualizar" : "Adicionar"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancelar
             </Button>
           </div>

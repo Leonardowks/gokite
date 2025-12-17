@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { format } from "date-fns";
 import { Mail, Phone, Edit } from "lucide-react";
-import type { ClienteAgregado } from "@/lib/localStorage";
+import type { ClienteComAulas } from "@/hooks/useSupabaseClientes";
 
 interface ClienteTableRowProps {
-  cliente: ClienteAgregado;
-  onEdit: (cliente: ClienteAgregado) => void;
+  cliente: ClienteComAulas;
+  onEdit: (cliente: ClienteComAulas) => void;
   style?: CSSProperties;
 }
 
@@ -18,7 +18,10 @@ export const ClienteTableRow = memo(function ClienteTableRow({
   style 
 }: ClienteTableRowProps) {
   const handleWhatsApp = () => {
-    window.open(`https://wa.me/${cliente.whatsapp}`, '_blank');
+    const telefone = cliente.telefone?.replace(/\D/g, '') || '';
+    if (telefone) {
+      window.open(`https://wa.me/55${telefone}`, '_blank');
+    }
   };
 
   return (
@@ -30,10 +33,12 @@ export const ClienteTableRow = memo(function ClienteTableRow({
             <Mail className="h-3.5 w-3.5 text-muted-foreground" />
             {cliente.email}
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Phone className="h-3.5 w-3.5" />
-            {cliente.whatsapp}
-          </div>
+          {cliente.telefone && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Phone className="h-3.5 w-3.5" />
+              {cliente.telefone}
+            </div>
+          )}
         </div>
       </TableCell>
       <TableCell>
@@ -42,7 +47,7 @@ export const ClienteTableRow = memo(function ClienteTableRow({
         </PremiumBadge>
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {cliente.ultima_aula ? format(new Date(cliente.ultima_aula), 'dd/MM/yyyy') : 'N/A'}
+        {cliente.ultima_aula ? format(new Date(cliente.ultima_aula), 'dd/MM/yyyy') : 'Sem aulas'}
       </TableCell>
       <TableCell>
         <div className="flex gap-2">
@@ -50,6 +55,7 @@ export const ClienteTableRow = memo(function ClienteTableRow({
             size="sm"
             variant="ghost"
             onClick={handleWhatsApp}
+            disabled={!cliente.telefone}
             className="gap-2"
           >
             <Phone className="h-4 w-4" />
