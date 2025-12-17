@@ -1,11 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Wind, Waves, Thermometer, Compass, Sun, Cloud, CloudRain, Droplets, MapPin, RefreshCw, AlertCircle, ChevronUp } from "lucide-react";
+import { Wind, Waves, Thermometer, Compass, Sun, Cloud, CloudRain, Droplets, MapPin, RefreshCw, AlertCircle, ChevronUp, WifiOff, Database } from "lucide-react";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
+import { 
+  fetchWeatherWithCache, 
+  getWeatherCacheStatus, 
+  getCacheAgeText,
+  type WeatherLocation 
+} from "@/lib/weatherCache";
 import {
   Drawer,
   DrawerContent,
@@ -14,7 +20,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 
-// Refresh interval: 1 minute
+// Refresh interval: 1 minute (but cache prevents unnecessary fetches)
 const REFRESH_INTERVAL_MS = 60 * 1000;
 
 // Thresholds for significant changes
@@ -79,6 +85,8 @@ const kiteConditionConfig = {
   poor: { label: "Fraco", variant: "urgent" as const, description: "Não recomendado para aulas" }
 };
 
+type DataSource = 'network' | 'cache-fresh' | 'cache-stale' | 'cache-offline' | 'mock';
+
 export function WindConditionsWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(0);
@@ -86,7 +94,7 @@ export function WindConditionsWidget() {
   const [weatherData, setWeatherData] = useState<LocationWeather[]>(mockWeatherData);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [isUsingMock, setIsUsingMock] = useState(false);
+  const [dataSource, setDataSource] = useState<DataSource>('mock');
   const previousDataRef = useRef<LocationWeather[] | null>(null);
 
   const checkForSignificantChanges = useCallback((oldData: LocationWeather[], newData: LocationWeather[]) => {
@@ -119,22 +127,40 @@ export function WindConditionsWidget() {
     });
   }, []);
 
-  const fetchWeatherData = useCallback(async (showRefreshAnimation = false) => {
+  // Raw fetch function for the edge function
+  const rawFetchWeather = useCallback(async (): Promise<{ locations: WeatherLocation[]; fetchedAt: string } | null> => {
+    const { data, error } = await supabase.functions.invoke('get-weather');
+    
+    if (error) {
+      console.error('Edge function error:', error);
+      throw error;
+    }
+    
+    if (data?.locations && Array.isArray(data.locations)) {
+      return {
+        locations: data.locations,
+        fetchedAt: data.fetchedAt || new Date().toISOString(),
+      };
+    }
+    
+    return null;
+  }, []);
+
+  const fetchWeatherData = useCallback(async (showRefreshAnimation = false, forceRefresh = false) => {
     if (showRefreshAnimation) {
       setIsRefreshing(true);
     }
 
     try {
-      console.log('Fetching weather data from edge function...');
-      const { data, error } = await supabase.functions.invoke('get-weather');
+      console.log('Fetching weather data with cache...');
+      
+      // Use cache-aware fetch
+      const result = await fetchWeatherWithCache(
+        forceRefresh ? rawFetchWeather : rawFetchWeather
+      );
 
-      if (error) {
-        console.error('Edge function error:', error);
-        throw error;
-      }
-
-      if (data?.locations && Array.isArray(data.locations)) {
-        const formattedData: LocationWeather[] = data.locations.map((loc: any) => ({
+      if (result.data?.locations) {
+        const formattedData: LocationWeather[] = result.data.locations.map((loc) => ({
           location: loc.name,
           state: loc.state,
           windSpeed: loc.windSpeed,
@@ -154,19 +180,47 @@ export function WindConditionsWidget() {
 
         previousDataRef.current = formattedData;
         setWeatherData(formattedData);
-        setLastUpdate(new Date());
-        setIsUsingMock(false);
-        console.log('Weather data updated successfully');
+        setLastUpdate(new Date(result.data.cachedAt));
+        
+        // Set data source
+        if (result.source === 'network') {
+          setDataSource('network');
+        } else if (result.source === 'cache-fresh') {
+          setDataSource('cache-fresh');
+        } else if (result.source === 'cache-stale') {
+          setDataSource('cache-stale');
+        } else if (result.source === 'cache-offline') {
+          setDataSource('cache-offline');
+        }
+
+        // Show toast for cache/offline states on manual refresh
+        if (showRefreshAnimation && result.source !== 'network') {
+          if (result.source === 'cache-offline') {
+            toast({
+              title: 'Modo Offline',
+              description: 'Usando dados do clima em cache',
+            });
+          } else if (result.source === 'cache-fresh') {
+            toast({
+              title: 'Cache Atualizado',
+              description: 'Dados ainda estão frescos',
+            });
+          }
+        }
+
+        console.log(`Weather data loaded from: ${result.source}`);
+      } else {
+        // No data available, keep using mock
+        setDataSource('mock');
       }
     } catch (error) {
       console.error('Failed to fetch weather data:', error);
-      setIsUsingMock(true);
-      // Keep using current data (mock or last successful fetch)
+      setDataSource('mock');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [checkForSignificantChanges, isLoading]);
+  }, [checkForSignificantChanges, isLoading, rawFetchWeather]);
 
   // Initial fetch and auto-refresh
   useEffect(() => {
@@ -180,23 +234,36 @@ export function WindConditionsWidget() {
   }, [fetchWeatherData]);
 
   const handleRefresh = () => {
-    fetchWeatherData(true);
+    fetchWeatherData(true, true); // Force refresh on manual action
   };
 
   const getTimeSinceUpdate = () => {
     if (!lastUpdate) return null;
-    const now = new Date();
-    const diffMs = now.getTime() - lastUpdate.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 1) return "agora";
-    if (diffMins === 1) return "1 min atrás";
-    return `${diffMins} min atrás`;
+    const cacheStatus = getWeatherCacheStatus();
+    return getCacheAgeText(cacheStatus.ageMs);
+  };
+
+  const getSourceIndicator = () => {
+    switch (dataSource) {
+      case 'network':
+        return null;
+      case 'cache-fresh':
+        return { icon: Database, label: 'Cache', color: 'text-success' };
+      case 'cache-stale':
+        return { icon: Database, label: 'Cache antigo', color: 'text-warning' };
+      case 'cache-offline':
+        return { icon: WifiOff, label: 'Offline', color: 'text-amber-500' };
+      case 'mock':
+        return { icon: AlertCircle, label: 'Demo', color: 'text-amber-500' };
+      default:
+        return null;
+    }
   };
 
   const weather = weatherData[selectedLocation];
   const WeatherIcon = conditionIcons[weather?.condition] || Sun;
   const kiteConfig = kiteConditionConfig[weather?.kiteCondition] || kiteConditionConfig.moderate;
+  const sourceIndicator = getSourceIndicator();
 
   // Loading skeleton for trigger
   if (isLoading) {
@@ -241,6 +308,12 @@ export function WindConditionsWidget() {
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <MapPin className="h-3 w-3" />
                   <span>{weather.location}</span>
+                  {sourceIndicator && (
+                    <>
+                      <span className="mx-1">•</span>
+                      <sourceIndicator.icon className={cn("h-3 w-3", sourceIndicator.color)} />
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -289,11 +362,16 @@ export function WindConditionsWidget() {
               </div>
             </div>
 
-            {/* Mock data warning */}
-            {isUsingMock && (
-              <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600 dark:text-amber-400">
-                <AlertCircle className="h-3.5 w-3.5" />
-                <span>Usando dados de demonstração</span>
+            {/* Data source indicator */}
+            {sourceIndicator && (
+              <div className={cn("flex items-center gap-1.5 mt-2 text-xs", sourceIndicator.color)}>
+                <sourceIndicator.icon className="h-3.5 w-3.5" />
+                <span>
+                  {dataSource === 'cache-offline' && 'Modo offline - usando dados em cache'}
+                  {dataSource === 'cache-stale' && 'Cache desatualizado - verifique a conexão'}
+                  {dataSource === 'cache-fresh' && 'Dados em cache (economia de rede)'}
+                  {dataSource === 'mock' && 'Usando dados de demonstração'}
+                </span>
               </div>
             )}
 
