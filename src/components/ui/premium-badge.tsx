@@ -16,6 +16,7 @@ const premiumBadgeVariants = cva(
         new: "bg-accent/15 text-accent-foreground border border-accent/30",
         pro: "bg-gradient-to-r from-primary/20 to-accent/20 text-foreground border border-primary/30",
         neutral: "bg-muted text-muted-foreground border border-border",
+        accent: "bg-accent/20 text-accent-foreground border border-accent/30",
       },
       size: {
         sm: "px-2 py-0.5 text-[10px]",
@@ -32,6 +33,7 @@ const premiumBadgeVariants = cva(
       { variant: "warning", glow: true, className: "shadow-[0_0_12px_hsl(var(--warning)/0.4)]" },
       { variant: "urgent", glow: true, className: "shadow-[0_0_12px_hsl(var(--destructive)/0.4)]" },
       { variant: "info", glow: true, className: "shadow-[0_0_12px_hsl(var(--primary)/0.4)]" },
+      { variant: "accent", glow: true, className: "shadow-[0_0_12px_hsl(var(--accent)/0.4)]" },
     ],
     defaultVariants: {
       variant: "neutral",

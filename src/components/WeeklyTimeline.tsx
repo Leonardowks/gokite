@@ -104,9 +104,11 @@ export function WeeklyTimeline({ aulas, onAulaClick }: WeeklyTimelineProps) {
                           {aula.cliente_nome}
                         </div>
                         <Badge variant="outline" className="text-[10px] h-4">
-                          {aula.tipo_aula === 'iniciante' ? 'Init' :
-                           aula.tipo_aula === 'intermediario' ? 'Inter' :
-                           aula.tipo_aula === 'avancado' ? 'Avanç' : 'Wing'}
+                          {aula.tipo_aula === 'kitesurf_iniciante' ? 'Init' :
+                           aula.tipo_aula === 'kitesurf_intermediario' ? 'Inter' :
+                           aula.tipo_aula === 'kitesurf_avancado' ? 'Avanç' :
+                           aula.tipo_aula === 'wing_foil' ? 'Wing' :
+                           aula.tipo_aula === 'foil' ? 'Foil' : 'Down'}
                         </Badge>
                       </Button>
                     ))

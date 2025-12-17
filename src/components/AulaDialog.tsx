@@ -17,7 +17,7 @@ interface AulaDialogProps {
 export function AulaDialog({ open, onOpenChange, onSave, aula }: AulaDialogProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Partial<Agendamento>>({
-    tipo_aula: aula?.tipo_aula || 'iniciante',
+    tipo_aula: aula?.tipo_aula || 'kitesurf_iniciante',
     localizacao: aula?.localizacao || 'florianopolis',
     data: aula?.data?.split('T')[0] || new Date().toISOString().split('T')[0],
     horario: aula?.horario || '10:00',
@@ -84,11 +84,13 @@ export function AulaDialog({ open, onOpenChange, onSave, aula }: AulaDialogProps
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="iniciante">Iniciante</SelectItem>
-                  <SelectItem value="intermediario">Intermediário</SelectItem>
-                  <SelectItem value="avancado">Avançado</SelectItem>
+              <SelectContent>
+                  <SelectItem value="kitesurf_iniciante">Kitesurf Iniciante</SelectItem>
+                  <SelectItem value="kitesurf_intermediario">Kitesurf Intermediário</SelectItem>
+                  <SelectItem value="kitesurf_avancado">Kitesurf Avançado</SelectItem>
                   <SelectItem value="wing_foil">Wing Foil</SelectItem>
+                  <SelectItem value="foil">Foil</SelectItem>
+                  <SelectItem value="downwind">Downwind</SelectItem>
                 </SelectContent>
               </Select>
             </div>

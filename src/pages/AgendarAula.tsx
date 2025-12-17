@@ -35,10 +35,12 @@ export default function AgendarAula() {
   });
 
   const tiposAula = [
-    { valor: 'iniciante', nome: 'Iniciante', preco: 400, descricao: 'Primeira vez no kitesurf' },
-    { valor: 'intermediario', nome: 'Intermediário', preco: 500, descricao: 'Já praticou algumas vezes' },
-    { valor: 'avancado', nome: 'Avançado', preco: 600, descricao: 'Aperfeiçoamento de manobras' },
+    { valor: 'kitesurf_iniciante', nome: 'Kitesurf Iniciante', preco: 400, descricao: 'Primeira vez no kitesurf' },
+    { valor: 'kitesurf_intermediario', nome: 'Kitesurf Intermediário', preco: 500, descricao: 'Já praticou algumas vezes' },
+    { valor: 'kitesurf_avancado', nome: 'Kitesurf Avançado', preco: 600, descricao: 'Aperfeiçoamento de manobras' },
     { valor: 'wing_foil', nome: 'Wing Foil', preco: 700, descricao: 'Modalidade com foil' },
+    { valor: 'foil', nome: 'Foil', preco: 650, descricao: 'Especialização em foil' },
+    { valor: 'downwind', nome: 'Downwind', preco: 750, descricao: 'Travessias e downwind' },
   ];
 
   const horarios = ['08:00', '10:00', '14:00', '16:00'];
