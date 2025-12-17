@@ -1,7 +1,6 @@
 import { useEffect, Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
@@ -33,44 +32,44 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <OfflineIndicator />
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* LOGIN - Loaded immediately for LCP */}
-            <Route path="/login" element={<Login />} />
+      <OfflineIndicator />
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          {/* LOGIN - Loaded immediately for LCP */}
+          <Route path="/login" element={<Login />} />
 
-            {/* ROTAS CRM (Protegidas) com Suspense */}
-            <Route element={
+          {/* ROTAS CRM (Protegidas) com Suspense */}
+          <Route
+            element={
               <AdminLayout>
                 <Suspense fallback={<LayoutSkeleton />}>
                   <Outlet />
                 </Suspense>
               </AdminLayout>
-            }>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/clientes" element={<Clientes />} />
-              <Route path="/aulas" element={<Aulas />} />
-              <Route path="/vendas" element={<Vendas />} />
-              <Route path="/estoque" element={<Estoque />} />
-              <Route path="/aluguel" element={<Aluguel />} />
-              <Route path="/ecommerce" element={<Ecommerce />} />
-              <Route path="/financeiro" element={<Financeiro />} />
-              <Route path="/relatorios" element={<Relatorios />} />
-              <Route path="/configuracoes" element={<Configuracoes />} />
-            </Route>
+            }
+          >
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/clientes" element={<Clientes />} />
+            <Route path="/aulas" element={<Aulas />} />
+            <Route path="/vendas" element={<Vendas />} />
+            <Route path="/estoque" element={<Estoque />} />
+            <Route path="/aluguel" element={<Aluguel />} />
+            <Route path="/ecommerce" element={<Ecommerce />} />
+            <Route path="/financeiro" element={<Financeiro />} />
+            <Route path="/relatorios" element={<Relatorios />} />
+            <Route path="/configuracoes" element={<Configuracoes />} />
+          </Route>
 
-            {/* Redirect old /admin routes */}
-            <Route path="/admin" element={<Navigate to="/" replace />} />
-            <Route path="/admin/*" element={<Navigate to="/" replace />} />
+          {/* Redirect old /admin routes */}
+          <Route path="/admin" element={<Navigate to="/" replace />} />
+          <Route path="/admin/*" element={<Navigate to="/" replace />} />
 
-            {/* CATCH-ALL */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+          {/* CATCH-ALL */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 };
