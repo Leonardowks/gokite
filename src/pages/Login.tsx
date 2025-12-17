@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, ArrowLeft } from "lucide-react";
+import { LogIn } from "lucide-react";
+import gokiteLogo from "@/assets/gokite-logo.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -25,7 +26,7 @@ export default function Login() {
       
       if (success) {
         toast({ title: "Login realizado com sucesso!" });
-        navigate("/admin");
+        navigate("/");
       } else {
         toast({
           title: "Credenciais inválidas",
@@ -38,27 +39,19 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 to-orange-50 p-3 sm:p-4 relative">
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute top-4 left-4 gap-2"
-        onClick={() => navigate('/')}
-      >
-        <ArrowLeft className="h-4 w-4" />
-        <span className="hidden sm:inline">Voltar</span>
-      </Button>
-      
-      <Card className="w-full max-w-md animate-fade-in">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-3 sm:p-4">
+      <Card className="w-full max-w-md animate-fade-in shadow-xl border-border/50">
         <CardHeader className="space-y-1 text-center px-4 sm:px-6">
           <div className="flex justify-center mb-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-              <LogIn className="h-6 w-6 text-primary" />
-            </div>
+            <img 
+              src={gokiteLogo} 
+              alt="GoKite" 
+              className="h-12 w-auto"
+            />
           </div>
-          <CardTitle className="text-xl sm:text-2xl font-bold">Área Admin</CardTitle>
+          <CardTitle className="text-xl sm:text-2xl font-bold">GoKite CRM</CardTitle>
           <CardDescription>
-            Entre com suas credenciais para acessar o painel
+            Entre com suas credenciais para acessar o sistema
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
@@ -72,6 +65,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="min-h-[44px]"
               />
             </div>
             <div className="space-y-2">
@@ -83,13 +77,15 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="min-h-[44px]"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full min-h-[44px] gap-2" disabled={loading}>
+              <LogIn className="h-4 w-4" />
               {loading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+          <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-border/50">
             <p className="text-xs text-muted-foreground text-center">
               <strong>Demo:</strong> admin@gokite.com / admin123
             </p>
