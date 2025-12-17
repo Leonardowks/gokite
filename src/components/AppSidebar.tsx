@@ -15,16 +15,16 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Dashboard", url: "/admin", icon: Home },
-  { title: "Clientes", url: "/admin/clientes", icon: Users },
-  { title: "Aulas", url: "/admin/aulas", icon: Calendar },
-  { title: "Vendas", url: "/admin/vendas", icon: TrendingUp },
-  { title: "Estoque", url: "/admin/estoque", icon: Package },
-  { title: "Aluguel", url: "/admin/aluguel", icon: Package },
-  { title: "Financeiro", url: "/admin/financeiro", icon: DollarSign },
-  { title: "E-commerce", url: "/admin/ecommerce", icon: ShoppingCart },
-  { title: "Relatórios", url: "/admin/relatorios", icon: BarChart3 },
-  { title: "Configurações", url: "/admin/configuracoes", icon: Settings },
+  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Clientes", url: "/clientes", icon: Users },
+  { title: "Aulas", url: "/aulas", icon: Calendar },
+  { title: "Vendas", url: "/vendas", icon: TrendingUp },
+  { title: "Estoque", url: "/estoque", icon: Package },
+  { title: "Aluguel", url: "/aluguel", icon: Package },
+  { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+  { title: "E-commerce", url: "/ecommerce", icon: ShoppingCart },
+  { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
+  { title: "Configurações", url: "/configuracoes", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -55,13 +55,13 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="space-y-1">
               {menuItems.map((item) => {
-                const isActive = currentPath === item.url || (item.url !== '/admin' && currentPath.startsWith(item.url));
+                const isActive = currentPath === item.url || (item.url !== '/' && currentPath.startsWith(item.url));
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink
                         to={item.url}
-                        end={item.url === '/admin'}
+                        end={item.url === '/'}
                         className={`
                           flex items-center gap-3 px-3 py-2.5 sm:py-3 rounded-lg transition-all duration-200 min-h-[44px] group
                           ${isActive 

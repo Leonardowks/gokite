@@ -1,10 +1,10 @@
 import { ReactNode, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, ExternalLink, Menu, User } from "lucide-react";
+import { LogOut, Menu, User } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import gokiteLogo from "@/assets/gokite-logo.png";
@@ -19,7 +19,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      navigate("/admin/login");
+      navigate("/login");
     }
   }, [isAuthenticated, navigate]);
 
@@ -29,7 +29,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = () => {
     logout();
-    navigate("/admin/login");
+    navigate("/login");
   };
 
   return (
@@ -59,18 +59,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 <ThemeToggle />
                 
                 <NotificationCenter />
-                
-                <Button 
-                  asChild
-                  variant="ghost" 
-                  size="sm"
-                  className="hidden sm:flex gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl"
-                >
-                  <Link to="/">
-                    <ExternalLink className="h-4 w-4" />
-                    <span>Ver Site</span>
-                  </Link>
-                </Button>
 
                 {/* User Menu */}
                 <div className="hidden sm:flex items-center gap-3 pl-3 ml-2 border-l border-border/50">
