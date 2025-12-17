@@ -1,52 +1,80 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { localStorageService, type ClienteAgregado } from "@/lib/localStorage";
 import { ClienteDialog } from "@/components/ClienteDialog";
-import { format } from "date-fns";
-import { Search, UserPlus, Mail, Phone, Edit, Users, Calendar } from "lucide-react";
+import { Search, UserPlus, Users, Calendar, Loader2 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
+import { useDebounce } from "@/hooks/useDebounce";
+import { VirtualizedClienteList, VirtualizedClienteTable } from "@/components/clientes";
 
 export default function Clientes() {
   const [clientes, setClientes] = useState<ClienteAgregado[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<ClienteAgregado | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => { loadClientes(); }, []);
+  // Debounce de 300ms na busca
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  useEffect(() => { 
+    loadClientes(); 
+  }, []);
 
   const loadClientes = () => {
+    setIsLoading(true);
     try {
-      setClientes(localStorageService.listarClientes());
+      const data = localStorageService.listarClientes();
+      setClientes(data);
     } catch (error) {
       console.error("Erro:", error);
       toast({ title: "Erro", description: "Não foi possível carregar os clientes.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const filteredClientes = clientes.filter((c) =>
-    c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.whatsapp.includes(searchTerm)
-  );
+  // Filtro memoizado usando o valor debounced
+  const filteredClientes = useMemo(() => {
+    if (!debouncedSearch) return clientes;
+    
+    const searchLower = debouncedSearch.toLowerCase();
+    return clientes.filter((c) =>
+      c.nome.toLowerCase().includes(searchLower) ||
+      c.email.toLowerCase().includes(searchLower) ||
+      c.whatsapp.includes(debouncedSearch)
+    );
+  }, [clientes, debouncedSearch]);
 
-  const handleEdit = (cliente: ClienteAgregado) => {
+  // Callbacks memoizados
+  const handleEdit = useCallback((cliente: ClienteAgregado) => {
     setSelectedCliente(cliente);
     setDialogOpen(true);
-  };
+  }, []);
 
-  const handleCloseDialog = () => {
+  const handleCloseDialog = useCallback(() => {
     setDialogOpen(false);
     setSelectedCliente(undefined);
-  };
+  }, []);
 
-  const totalAulas = clientes.reduce((acc, c) => acc + c.total_aulas, 0);
+  const handleSave = useCallback(() => {
+    loadClientes();
+    handleCloseDialog();
+  }, [handleCloseDialog]);
+
+  // KPIs memoizados
+  const totalAulas = useMemo(() => 
+    clientes.reduce((acc, c) => acc + c.total_aulas, 0), 
+    [clientes]
+  );
+
+  const isSearching = searchTerm !== debouncedSearch;
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
@@ -120,6 +148,11 @@ export default function Clientes() {
               <Users className="h-4 w-4 text-primary" />
             </div>
             Lista de Clientes
+            {filteredClientes.length !== clientes.length && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                ({filteredClientes.length} de {clientes.length})
+              </span>
+            )}
           </CardTitle>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -127,12 +160,19 @@ export default function Clientes() {
               placeholder="Buscar por nome, email ou telefone..." 
               value={searchTerm} 
               onChange={(e) => setSearchTerm(e.target.value)} 
-              className="pl-10 min-h-[44px] bg-muted/30 border-border/50 focus:bg-background" 
+              className="pl-10 pr-10 min-h-[44px] bg-muted/30 border-border/50 focus:bg-background" 
             />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+            )}
           </div>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0">
-          {filteredClientes.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredClientes.length === 0 ? (
             <div className="text-center py-10 sm:py-12">
               <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
                 <Users className="h-8 w-8 text-muted-foreground/50" />
@@ -143,121 +183,20 @@ export default function Clientes() {
             </div>
           ) : (
             <>
-              {/* Cards Mobile Premium */}
-              <div className="md:hidden space-y-3">
-                {filteredClientes.map((cliente) => (
-                  <div 
-                    key={cliente.email} 
-                    className="p-4 border border-border/50 rounded-xl bg-muted/20 hover:bg-muted/30 transition-all duration-200"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <p className="font-semibold text-base">{cliente.nome}</p>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1.5">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{cliente.email}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                          <Phone className="h-3 w-3" />
-                          <span>{cliente.whatsapp}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-border/50">
-                      <div className="flex items-center gap-2">
-                        <PremiumBadge variant="default" size="sm">
-                          {cliente.total_aulas} aulas
-                        </PremiumBadge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {cliente.ultima_aula ? format(new Date(cliente.ultima_aula), 'dd/MM/yyyy') : 'Sem aulas'}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1 min-h-[44px]"
-                        onClick={() => window.open(`https://wa.me/${cliente.whatsapp}`, '_blank')}
-                      >
-                        <Phone className="h-4 w-4 mr-2" />
-                        WhatsApp
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1 min-h-[44px]"
-                        onClick={() => handleEdit(cliente)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+              {/* Lista Virtualizada Mobile */}
+              <div className="md:hidden">
+                <VirtualizedClienteList 
+                  clientes={filteredClientes} 
+                  onEdit={handleEdit} 
+                />
               </div>
 
-              {/* Tabela Desktop Premium */}
-              <div className="hidden md:block overflow-x-auto rounded-lg">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent border-border/50">
-                      <TableHead className="text-muted-foreground font-medium">Nome</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Contato</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Total de Aulas</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Última Aula</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredClientes.map((cliente) => (
-                      <TableRow key={cliente.email} className="border-border/50 hover:bg-muted/30">
-                        <TableCell className="font-medium">{cliente.nome}</TableCell>
-                        <TableCell>
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                              {cliente.email}
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Phone className="h-3.5 w-3.5" />
-                              {cliente.whatsapp}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <PremiumBadge variant="default" size="sm">
-                            {cliente.total_aulas} aulas
-                          </PremiumBadge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {cliente.ultima_aula ? format(new Date(cliente.ultima_aula), 'dd/MM/yyyy') : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => window.open(`https://wa.me/${cliente.whatsapp}`, '_blank')}
-                              className="gap-2"
-                            >
-                              <Phone className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleEdit(cliente)}
-                              className="gap-2"
-                            >
-                              <Edit className="h-4 w-4" />
-                              Editar
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              {/* Tabela Virtualizada Desktop */}
+              <div className="hidden md:block">
+                <VirtualizedClienteTable 
+                  clientes={filteredClientes} 
+                  onEdit={handleEdit} 
+                />
               </div>
             </>
           )}
@@ -267,10 +206,7 @@ export default function Clientes() {
       <ClienteDialog
         open={dialogOpen}
         onOpenChange={handleCloseDialog}
-        onSave={() => {
-          loadClientes();
-          handleCloseDialog();
-        }}
+        onSave={handleSave}
         cliente={selectedCliente}
       />
     </div>
