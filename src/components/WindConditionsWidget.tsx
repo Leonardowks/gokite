@@ -1,12 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Wind, Waves, Thermometer, Compass, Sun, Cloud, CloudRain, Droplets, MapPin, RefreshCw, AlertCircle } from "lucide-react";
-import { PremiumCard, PremiumCardHeader, PremiumCardTitle, PremiumCardContent } from "@/components/ui/premium-card";
+import { Wind, Waves, Thermometer, Compass, Sun, Cloud, CloudRain, Droplets, MapPin, RefreshCw, AlertCircle, ChevronUp } from "lucide-react";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 // Refresh interval: 1 minute
 const REFRESH_INTERVAL_MS = 60 * 1000;
@@ -74,6 +80,7 @@ const kiteConditionConfig = {
 };
 
 export function WindConditionsWidget() {
+  const [isOpen, setIsOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [weatherData, setWeatherData] = useState<LocationWeather[]>(mockWeatherData);
@@ -191,33 +198,21 @@ export function WindConditionsWidget() {
   const WeatherIcon = conditionIcons[weather?.condition] || Sun;
   const kiteConfig = kiteConditionConfig[weather?.kiteCondition] || kiteConditionConfig.moderate;
 
-  // Loading skeleton
+  // Loading skeleton for trigger
   if (isLoading) {
     return (
-      <PremiumCard variant="ocean" className="overflow-hidden">
-        <div className="h-1.5 bg-gradient-to-r from-primary via-cyan to-primary" />
-        <PremiumCardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-9 w-48" />
-            <Skeleton className="h-8 w-8 rounded-full" />
+      <div className="w-full p-4 rounded-xl bg-card border border-border/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-lg" />
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="h-4 w-24" />
+            </div>
           </div>
-          <div className="flex gap-2 mt-4">
-            <Skeleton className="h-10 w-36" />
-            <Skeleton className="h-10 w-24" />
-          </div>
-        </PremiumCardHeader>
-        <PremiumCardContent className="pt-0">
-          <Skeleton className="h-8 w-40 mb-5" />
-          <div className="flex justify-center py-6">
-            <Skeleton className="h-36 w-36 rounded-full" />
-          </div>
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-            <Skeleton className="h-20" />
-          </div>
-        </PremiumCardContent>
-      </PremiumCard>
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+      </div>
     );
   }
 
@@ -225,144 +220,178 @@ export function WindConditionsWidget() {
   const windRotation = weather.windDegrees;
 
   return (
-    <PremiumCard variant="ocean" className="overflow-hidden">
-      {/* Ocean wave header */}
-      <div className="h-1.5 bg-gradient-to-r from-primary via-cyan to-primary" />
-      
-      <PremiumCardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <PremiumCardTitle className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-cyan/20 flex items-center justify-center shadow-ocean">
-              <Wind className="h-5 w-5 text-primary animate-wind" />
+    <Drawer open={isOpen} onOpenChange={setIsOpen}>
+      {/* Compact Trigger - Always visible on Dashboard */}
+      <DrawerTrigger asChild>
+        <button className="w-full p-4 rounded-xl bg-gradient-to-r from-primary/5 via-cyan/5 to-primary/5 border border-primary/20 hover:border-primary/40 hover:shadow-ocean transition-all duration-300 group">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Wind icon with animation */}
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-cyan/20 flex items-center justify-center shadow-sm group-hover:shadow-ocean transition-shadow">
+                <Wind className="h-5 w-5 text-primary animate-wind" />
+              </div>
+              
+              {/* Wind info */}
+              <div className="flex flex-col items-start">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl font-bold text-foreground">{weather.windSpeed}</span>
+                  <span className="text-sm text-muted-foreground">nós</span>
+                  <span className="text-sm font-medium text-primary">{weather.windDirection}</span>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  <span>{weather.location}</span>
+                </div>
+              </div>
             </div>
-            <span>Condições de Vento</span>
-          </PremiumCardTitle>
-          <div className="flex items-center gap-2">
-            {lastUpdate && (
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                {getTimeSinceUpdate()}
-              </span>
+
+            {/* Condition badge + expand indicator */}
+            <div className="flex items-center gap-2">
+              <PremiumBadge 
+                variant={kiteConfig.variant} 
+                size="sm" 
+                pulse={weather.kiteCondition === "excellent"}
+              >
+                {kiteConfig.label}
+              </PremiumBadge>
+              <ChevronUp className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+            </div>
+          </div>
+        </button>
+      </DrawerTrigger>
+
+      {/* Expanded Drawer Content */}
+      <DrawerContent className="max-h-[85vh]">
+        <div className="mx-auto w-full max-w-lg">
+          <DrawerHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <DrawerTitle className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-cyan/20 flex items-center justify-center shadow-ocean">
+                  <Wind className="h-5 w-5 text-primary animate-wind" />
+                </div>
+                <span>Condições de Vento</span>
+              </DrawerTitle>
+              <div className="flex items-center gap-2">
+                {lastUpdate && (
+                  <span className="text-xs text-muted-foreground">
+                    {getTimeSinceUpdate()}
+                  </span>
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Mock data warning */}
+            {isUsingMock && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600 dark:text-amber-400">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Usando dados de demonstração</span>
+              </div>
             )}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-muted-foreground hover:text-primary"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-            >
-              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-            </Button>
-          </div>
-        </div>
 
-        {/* Mock data warning */}
-        {isUsingMock && (
-          <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600 dark:text-amber-400">
-            <AlertCircle className="h-3.5 w-3.5" />
-            <span>Usando dados de demonstração</span>
-          </div>
-        )}
+            {/* Location Tabs */}
+            <div className="flex gap-2 mt-4">
+              {weatherData.map((loc, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedLocation(idx)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                    selectedLocation === idx 
+                      ? "bg-primary/10 text-primary border border-primary/30" 
+                      : "text-muted-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <MapPin className="h-3.5 w-3.5" />
+                  {loc.location}
+                </button>
+              ))}
+            </div>
+          </DrawerHeader>
 
-        {/* Location Tabs */}
-        <div className="flex gap-2 mt-4">
-          {weatherData.map((loc, idx) => (
-            <button
-              key={idx}
-              onClick={() => setSelectedLocation(idx)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all",
-                selectedLocation === idx 
-                  ? "bg-primary/10 text-primary border border-primary/30" 
-                  : "text-muted-foreground hover:bg-muted/50"
-              )}
-            >
-              <MapPin className="h-3.5 w-3.5" />
-              {loc.location}
-            </button>
-          ))}
-        </div>
-      </PremiumCardHeader>
-
-      <PremiumCardContent className="pt-0">
-        {/* Kite Condition Badge */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <PremiumBadge variant={kiteConfig.variant} size="lg" glow pulse={weather.kiteCondition === "excellent"}>
-              {kiteConfig.label} para Kite
-            </PremiumBadge>
-          </div>
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <WeatherIcon className="h-5 w-5 text-accent" />
-            {weather.temperature}°C
-          </div>
-        </div>
-
-        {/* Main Wind Display */}
-        <div className="relative flex items-center justify-center py-6">
-          {/* Wind Circle */}
-          <div className="relative w-36 h-36">
-            {/* Outer ring */}
-            <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
-            
-            {/* Animated glow ring */}
-            <div className="absolute inset-2 rounded-full border-2 border-cyan/30 animate-pulse-soft" />
-            
-            {/* Inner gradient circle */}
-            <div className="absolute inset-4 rounded-full bg-gradient-to-br from-primary/10 to-cyan/10 flex flex-col items-center justify-center">
-              <span className="text-4xl font-display font-bold text-gradient-ocean">
-                {weather.windSpeed}
-              </span>
-              <span className="text-xs text-muted-foreground font-medium">nós</span>
+          <div className="px-4 pb-6">
+            {/* Kite Condition Badge */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <PremiumBadge variant={kiteConfig.variant} size="lg" glow pulse={weather.kiteCondition === "excellent"}>
+                  {kiteConfig.label} para Kite
+                </PremiumBadge>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <WeatherIcon className="h-5 w-5 text-accent" />
+                {weather.temperature}°C
+              </div>
             </div>
 
-            {/* Wind direction indicator */}
-            <div 
-              className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[16px] border-l-transparent border-r-transparent border-b-cyan drop-shadow-lg"
-              style={{ transform: `translateX(-50%) rotate(${windRotation}deg)`, transformOrigin: 'center 72px' }}
-            />
-          </div>
+            {/* Main Wind Display */}
+            <div className="relative flex items-center justify-center py-6">
+              {/* Wind Circle */}
+              <div className="relative w-36 h-36">
+                {/* Outer ring */}
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20" />
+                
+                {/* Animated glow ring */}
+                <div className="absolute inset-2 rounded-full border-2 border-cyan/30 animate-pulse-soft" />
+                
+                {/* Inner gradient circle */}
+                <div className="absolute inset-4 rounded-full bg-gradient-to-br from-primary/10 to-cyan/10 flex flex-col items-center justify-center">
+                  <span className="text-4xl font-display font-bold text-gradient-ocean">
+                    {weather.windSpeed}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-medium">nós</span>
+                </div>
 
-          {/* Wind Direction Label */}
-          <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
-            <Compass className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-foreground">{weather.windDirection}</span>
+                {/* Wind direction indicator */}
+                <div 
+                  className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[16px] border-l-transparent border-r-transparent border-b-cyan drop-shadow-lg"
+                  style={{ transform: `translateX(-50%) rotate(${windRotation}deg)`, transformOrigin: 'center 72px' }}
+                />
+              </div>
+
+              {/* Wind Direction Label */}
+              <div className="absolute -right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
+                <Compass className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-foreground">{weather.windDirection}</span>
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              <div className="flex flex-col items-center p-3 rounded-xl bg-muted/30 border border-border/30">
+                <Waves className="h-5 w-5 text-primary mb-1.5" />
+                <span className="text-lg font-bold text-foreground">{weather.waveHeight}m</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Ondas</span>
+              </div>
+              <div className="flex flex-col items-center p-3 rounded-xl bg-muted/30 border border-border/30">
+                <Thermometer className="h-5 w-5 text-accent mb-1.5" />
+                <span className="text-lg font-bold text-foreground">{weather.temperature}°</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Temp</span>
+              </div>
+              <div className="flex flex-col items-center p-3 rounded-xl bg-muted/30 border border-border/30">
+                <Droplets className="h-5 w-5 text-cyan mb-1.5" />
+                <span className="text-lg font-bold text-foreground">{weather.humidity}%</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Umidade</span>
+              </div>
+            </div>
+
+            {/* Condition Description */}
+            <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <p className="text-sm text-center">
+                <span className="text-primary font-medium">{kiteConfig.description}</span>
+                <span className="text-muted-foreground"> • Vento {weather.windDirection} constante</span>
+              </p>
+            </div>
           </div>
         </div>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="flex flex-col items-center p-3 rounded-xl bg-muted/30 border border-border/30">
-            <Waves className="h-5 w-5 text-primary mb-1.5" />
-            <span className="text-lg font-bold text-foreground">{weather.waveHeight}m</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Ondas</span>
-          </div>
-          <div className="flex flex-col items-center p-3 rounded-xl bg-muted/30 border border-border/30">
-            <Thermometer className="h-5 w-5 text-accent mb-1.5" />
-            <span className="text-lg font-bold text-foreground">{weather.temperature}°</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Temp</span>
-          </div>
-          <div className="flex flex-col items-center p-3 rounded-xl bg-muted/30 border border-border/30">
-            <Droplets className="h-5 w-5 text-cyan mb-1.5" />
-            <span className="text-lg font-bold text-foreground">{weather.humidity}%</span>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Umidade</span>
-          </div>
-        </div>
-
-        {/* Condition Description */}
-        <div className="mt-4 p-3 rounded-xl bg-primary/5 border border-primary/20">
-          <p className="text-sm text-center">
-            <span className="text-primary font-medium">{kiteConfig.description}</span>
-            <span className="text-muted-foreground"> • Vento {weather.windDirection} constante</span>
-          </p>
-        </div>
-
-        {/* Last update indicator on mobile */}
-        {lastUpdate && (
-          <p className="text-xs text-center text-muted-foreground mt-3 sm:hidden">
-            Atualizado {getTimeSinceUpdate()}
-          </p>
-        )}
-      </PremiumCardContent>
-    </PremiumCard>
+      </DrawerContent>
+    </Drawer>
   );
 }
