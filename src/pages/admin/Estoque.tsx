@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 
 export default function Estoque() {
   const { toast } = useToast();
@@ -41,14 +42,17 @@ export default function Estoque() {
   };
 
   const getTipoLabel = (tipo: Equipamento['tipo']) => {
-    const labels = {
-      prancha: '🏄 Prancha',
-      asa: '🪁 Asa',
-      trapezio: '⚓ Trapézio',
-      colete: '🦺 Colete',
+    const labels: Record<string, string> = {
+      kite: '🪁 Kite',
+      wing: '🦅 Wing',
+      barra: '🎛️ Barra',
+      prancha_twintip: '🏄 Twintip',
+      prancha_kitewave: '🏄 Kitewave',
+      trapezio: '🎽 Trapézio',
+      acessorio: '🔧 Acessório',
       wetsuit: '🤿 Wetsuit',
     };
-    return labels[tipo];
+    return labels[tipo] || '📦 Outro';
   };
 
   const getLocalizacaoLabel = (loc: string) => {
@@ -302,16 +306,34 @@ export default function Estoque() {
         {equipamentosFiltrados.map((eq) => {
           const statusBadge = getStatusBadge(eq.status);
           return (
-            <PremiumCard key={eq.id} hover>
-              <CardHeader className="p-4 sm:p-5">
+            <PremiumCard key={eq.id} hover className="overflow-hidden">
+              {/* Equipment Image */}
+              {eq.foto_url && (
+                <div className="relative h-40 overflow-hidden">
+                  <OptimizedImage
+                    src={eq.foto_url}
+                    alt={eq.nome}
+                    aspectRatio="4/3"
+                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                  />
+                  <div className="absolute top-2 right-2">
+                    <PremiumBadge variant={statusBadge.variant} size="sm">
+                      {statusBadge.label}
+                    </PremiumBadge>
+                  </div>
+                </div>
+              )}
+              <CardHeader className={`p-4 sm:p-5 ${eq.foto_url ? 'pt-3' : ''}`}>
                 <div className="flex items-start justify-between">
                   <div className="space-y-1 flex-1">
                     <CardTitle className="text-lg font-display">{eq.nome}</CardTitle>
                     <p className="text-sm text-muted-foreground">{getTipoLabel(eq.tipo)} • {eq.tamanho}</p>
                   </div>
-                  <PremiumBadge variant={statusBadge.variant} size="sm">
-                    {statusBadge.label}
-                  </PremiumBadge>
+                  {!eq.foto_url && (
+                    <PremiumBadge variant={statusBadge.variant} size="sm">
+                      {statusBadge.label}
+                    </PremiumBadge>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="p-4 sm:p-5 pt-0 space-y-3">
