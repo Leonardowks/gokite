@@ -15,58 +15,58 @@
 
 @layer base {
   :root {
-    /* GoKite Aquatic Theme - Ocean Blues & Sunset Orange */
-    --background: 200 30% 98%;
-    --foreground: 200 40% 10%;
+    /* GoKite Brand - Clean Teal Primary (aligned with gokite.com.br) */
+    --background: 0 0% 99%;
+    --foreground: 210 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 40% 10%;
+    --card-foreground: 210 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 40% 10%;
+    --popover-foreground: 210 20% 15%;
 
-    /* Ocean Blue - Primary Brand */
-    --primary: 195 85% 45%;
+    /* Teal Primary - GoKite Brand Color */
+    --primary: 174 72% 40%;
     --primary-foreground: 0 0% 100%;
-    --primary-light: 195 60% 95%;
-    --primary-glow: 185 90% 55%;
+    --primary-light: 174 50% 95%;
+    --primary-glow: 174 72% 50%;
     
-    /* Turquoise - Secondary */
-    --secondary: 180 50% 92%;
-    --secondary-foreground: 195 85% 35%;
+    /* Light Teal - Secondary */
+    --secondary: 174 30% 95%;
+    --secondary-foreground: 174 72% 30%;
     
-    /* Refined neutrals with ocean tint */
-    --muted: 200 20% 96%;
-    --muted-foreground: 200 15% 45%;
+    /* Clean neutrals */
+    --muted: 210 15% 96%;
+    --muted-foreground: 210 10% 45%;
 
-    /* Sunset Orange - Accent */
-    --accent: 25 95% 55%;
-    --accent-foreground: 25 95% 15%;
-    --accent-glow: 25 95% 60%;
+    /* Orange Accent - CTAs & Highlights */
+    --accent: 25 95% 53%;
+    --accent-foreground: 0 0% 100%;
+    --accent-glow: 25 95% 58%;
 
-    /* Neon Cyan - Highlight */
-    --cyan: 185 100% 50%;
-    --cyan-foreground: 185 100% 10%;
-    --cyan-glow: 185 100% 60%;
+    /* Cyan Highlight */
+    --cyan: 174 100% 45%;
+    --cyan-foreground: 174 100% 10%;
+    --cyan-glow: 174 100% 55%;
 
-    --destructive: 0 72% 55%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 88%;
-    --input: 200 20% 92%;
-    --ring: 195 85% 45%;
+    --border: 210 15% 90%;
+    --input: 210 15% 94%;
+    --ring: 174 72% 40%;
 
     --radius: 0.75rem;
 
-    /* Deep Sea Sidebar Theme */
-    --sidebar-background: 200 50% 8%;
-    --sidebar-foreground: 195 30% 95%;
-    --sidebar-primary: 185 100% 50%;
-    --sidebar-primary-foreground: 200 50% 8%;
-    --sidebar-accent: 200 40% 14%;
-    --sidebar-accent-foreground: 185 100% 60%;
-    --sidebar-border: 200 40% 15%;
-    --sidebar-ring: 185 100% 50%;
+    /* Modern Sidebar Theme */
+    --sidebar-background: 210 25% 12%;
+    --sidebar-foreground: 210 15% 95%;
+    --sidebar-primary: 174 100% 45%;
+    --sidebar-primary-foreground: 210 25% 12%;
+    --sidebar-accent: 210 20% 18%;
+    --sidebar-accent-foreground: 174 100% 55%;
+    --sidebar-border: 210 20% 18%;
+    --sidebar-ring: 174 100% 45%;
 
     /* Success state - Sea Green */
     --success: 160 70% 42%;
@@ -83,18 +83,18 @@
     --chart-4: 185 100% 50%;
     --chart-5: 210 70% 50%;
 
-    /* Aquatic Gradients */
-    --gradient-ocean: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(210 80% 35%) 100%);
-    --gradient-sunset: linear-gradient(135deg, hsl(25 95% 55%) 0%, hsl(350 85% 50%) 100%);
-    --gradient-wave: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(185 90% 55%) 100%);
-    --gradient-aurora: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(25 95% 55%) 100%);
-    --gradient-deep-sea: linear-gradient(180deg, hsl(200 50% 8%) 0%, hsl(210 60% 5%) 100%);
-    --gradient-primary: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(195 85% 35%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(25 95% 55%) 0%, hsl(15 90% 50%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(200 30% 98%) 0%, hsl(200 25% 96%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(200 30% 99%) 100%);
-    --gradient-premium: linear-gradient(135deg, hsl(195 85% 45%) 0%, hsl(25 95% 55%) 100%);
-    --gradient-dark: linear-gradient(180deg, hsl(200 50% 8%) 0%, hsl(200 50% 5%) 100%);
+    /* Brand Gradients - Clean & Modern */
+    --gradient-ocean: linear-gradient(135deg, hsl(174 72% 40%) 0%, hsl(174 80% 30%) 100%);
+    --gradient-sunset: linear-gradient(135deg, hsl(25 95% 53%) 0%, hsl(350 85% 48%) 100%);
+    --gradient-wave: linear-gradient(135deg, hsl(174 72% 40%) 0%, hsl(174 90% 50%) 100%);
+    --gradient-aurora: linear-gradient(135deg, hsl(174 72% 40%) 0%, hsl(25 95% 53%) 100%);
+    --gradient-deep-sea: linear-gradient(180deg, hsl(210 25% 12%) 0%, hsl(210 30% 8%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(174 72% 40%) 0%, hsl(174 72% 32%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(25 95% 53%) 0%, hsl(15 90% 48%) 100%);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 99%) 0%, hsl(210 15% 97%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 10% 99%) 100%);
+    --gradient-premium: linear-gradient(135deg, hsl(174 72% 40%) 0%, hsl(25 95% 53%) 100%);
+    --gradient-dark: linear-gradient(180deg, hsl(210 25% 12%) 0%, hsl(210 25% 8%) 100%);
     
     /* Aquatic Shadows */
     --shadow-xs: 0 1px 2px 0 hsl(200 40% 15% / 0.03);
@@ -117,49 +117,49 @@
   }
 
   .dark {
-    --background: 200 50% 5%;
-    --foreground: 195 30% 95%;
+    --background: 220 20% 8%;
+    --foreground: 210 15% 95%;
 
-    --card: 200 45% 8%;
-    --card-foreground: 195 30% 95%;
+    --card: 220 18% 11%;
+    --card-foreground: 210 15% 95%;
 
-    --popover: 200 45% 8%;
-    --popover-foreground: 195 30% 95%;
+    --popover: 220 18% 11%;
+    --popover-foreground: 210 15% 95%;
 
-    --primary: 195 85% 50%;
-    --primary-foreground: 200 50% 5%;
-    --primary-light: 195 50% 15%;
-    --primary-glow: 185 90% 60%;
+    --primary: 174 72% 48%;
+    --primary-foreground: 220 20% 8%;
+    --primary-light: 174 40% 18%;
+    --primary-glow: 174 80% 55%;
 
-    --secondary: 200 35% 12%;
-    --secondary-foreground: 185 100% 65%;
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 174 80% 60%;
 
-    --muted: 200 35% 10%;
-    --muted-foreground: 200 20% 55%;
+    --muted: 220 15% 14%;
+    --muted-foreground: 210 10% 55%;
 
-    --accent: 25 90% 52%;
+    --accent: 25 90% 50%;
     --accent-foreground: 25 95% 95%;
-    --accent-glow: 25 90% 58%;
+    --accent-glow: 25 90% 55%;
 
-    --cyan: 185 100% 55%;
-    --cyan-foreground: 185 100% 95%;
-    --cyan-glow: 185 100% 65%;
+    --cyan: 174 100% 50%;
+    --cyan-foreground: 174 100% 95%;
+    --cyan-glow: 174 100% 60%;
 
-    --destructive: 0 65% 50%;
+    --destructive: 0 65% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 35% 14%;
-    --input: 200 35% 12%;
-    --ring: 195 85% 50%;
+    --border: 220 15% 18%;
+    --input: 220 15% 15%;
+    --ring: 174 72% 48%;
 
-    --sidebar-background: 200 55% 4%;
-    --sidebar-foreground: 195 30% 95%;
-    --sidebar-primary: 185 100% 55%;
-    --sidebar-primary-foreground: 200 55% 4%;
-    --sidebar-accent: 200 45% 10%;
-    --sidebar-accent-foreground: 185 100% 65%;
-    --sidebar-border: 200 40% 10%;
-    --sidebar-ring: 185 100% 55%;
+    --sidebar-background: 220 22% 6%;
+    --sidebar-foreground: 210 15% 95%;
+    --sidebar-primary: 174 100% 50%;
+    --sidebar-primary-foreground: 220 22% 6%;
+    --sidebar-accent: 220 18% 12%;
+    --sidebar-accent-foreground: 174 100% 60%;
+    --sidebar-border: 220 18% 12%;
+    --sidebar-ring: 174 100% 50%;
 
     --success: 160 65% 48%;
     --success-foreground: 160 95% 10%;
