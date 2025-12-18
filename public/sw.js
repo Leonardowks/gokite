@@ -1,6 +1,6 @@
-const CACHE_NAME = 'gokite-crm-v1';
-const STATIC_CACHE = 'gokite-static-v1';
-const DYNAMIC_CACHE = 'gokite-dynamic-v1';
+const CACHE_NAME = 'gokite-crm-v2';
+const STATIC_CACHE = 'gokite-static-v2';
+const DYNAMIC_CACHE = 'gokite-dynamic-v2';
 
 // Assets to cache immediately on install
 const STATIC_ASSETS = [
@@ -40,7 +40,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - network first, fallback to cache
+// Fetch event - avoid caching Vite dev chunks to prevent mixed React instances
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -50,6 +50,16 @@ self.addEventListener('fetch', (event) => {
 
   // Skip chrome-extension and other non-http(s) requests
   if (!url.protocol.startsWith('http')) return;
+
+  // IMPORTANT: Never cache Vite dev/prebundled chunks (can mix old/new React)
+  if (
+    url.pathname.includes('/node_modules/.vite/') ||
+    url.pathname.includes('/@vite/') ||
+    url.searchParams.has('v')
+  ) {
+    event.respondWith(fetch(request, { cache: 'no-store' }));
+    return;
+  }
 
   // API requests - network first with cache fallback
   if (url.hostname.includes('supabase.co')) {
@@ -147,5 +157,11 @@ async function staleWhileRevalidate(request) {
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
+  }
+
+  if (event.data === 'clearCaches') {
+    event.waitUntil(
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+    );
   }
 });
