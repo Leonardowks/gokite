@@ -31,9 +31,9 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster />
-      <Sonner />
       <BrowserRouter>
+        <Toaster />
+        <Sonner />
         <Routes>
           {/* LOGIN - Loaded immediately for LCP */}
           <Route path="/login" element={<Login />} />
