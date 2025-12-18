@@ -8,7 +8,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { NavLink } from "@/components/NavLink";
 import { GlobalSearch } from "@/components/GlobalSearch";
-import { WhatsAppButton } from "@/components/WhatsAppButton";
 import gokiteLogo from "@/assets/gokite-logo.png";
 
 interface AdminLayoutProps {
@@ -211,9 +210,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </main>
       </div>
-
-      {/* WhatsApp Floating Button */}
-      <WhatsAppButton message="Olá! Preciso de suporte no CRM GoKite." />
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-premium border-t border-primary/10 safe-area-bottom">
