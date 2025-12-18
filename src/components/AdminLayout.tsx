@@ -7,7 +7,10 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { NavLink } from "@/components/NavLink";
-import { GlobalSearch } from "@/components/GlobalSearch";
+import { CommandPalette } from "@/components/CommandPalette";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { UserMenu } from "@/components/UserMenu";
+import { QuickStats } from "@/components/QuickStats";
 import gokiteLogo from "@/assets/gokite-logo.png";
 
 interface AdminLayoutProps {
@@ -173,32 +176,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Desktop Header */}
         <header className="sticky top-0 z-40 glass-premium border-b border-primary/10 hidden md:block">
           <div className="px-6 py-3 flex items-center gap-4">
-            {/* Global Search */}
+            {/* Command Palette Trigger */}
             <div className="flex-1">
-              <GlobalSearch />
+              <CommandPalette />
             </div>
             
             <div className="flex items-center gap-3">
+              <QuickStats />
               <ThemeToggle />
               <NotificationCenter />
-              <div className="flex items-center gap-2 pl-3 border-l border-primary/20">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-cyan/20 flex items-center justify-center border border-primary/20">
-                  <User className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-foreground">Admin</p>
-                  <p className="text-[10px] text-muted-foreground">{user?.email}</p>
-                </div>
+              <div className="pl-3 border-l border-primary/20">
+                <UserMenu />
               </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleLogout}
-                className="gap-1.5 text-muted-foreground hover:text-accent hover:bg-accent/10 min-h-[44px] rounded-xl text-xs"
-              >
-                <LogOut className="h-4 w-4" />
-                Sair
-              </Button>
             </div>
           </div>
         </header>
@@ -206,6 +195,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Main Content */}
         <main className="flex-1 pb-20 md:pb-0">
           <div className="px-4 py-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
+            <Breadcrumbs />
             {children}
           </div>
         </main>

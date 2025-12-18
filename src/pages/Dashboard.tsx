@@ -12,6 +12,7 @@ import { DailyRoutineWidget } from "@/components/DailyRoutineWidget";
 import { QuickActionsPanel } from "@/components/QuickActionsPanel";
 import { OnboardingTour } from "@/components/OnboardingTour";
 import { WindConditionsWidget } from "@/components/WindConditionsWidget";
+import { ActivityFeed } from "@/components/ActivityFeed";
 import { useNavigate } from "react-router-dom";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -300,9 +301,9 @@ export default function Dashboard() {
         </PremiumCard>
       </div>
 
-      {/* Charts Premium */}
-      <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
-        <PremiumCard>
+      {/* Charts + Activity Feed Premium */}
+      <div className="grid gap-4 sm:gap-5 lg:grid-cols-3">
+        <PremiumCard className="lg:col-span-2">
           <CardHeader className="p-4 sm:p-5 pb-0">
             <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -333,6 +334,11 @@ export default function Dashboard() {
           </CardContent>
         </PremiumCard>
 
+        <ActivityFeed />
+      </div>
+
+      {/* Status Chart */}
+      <div className="grid gap-4 sm:gap-5 lg:grid-cols-2">
         <PremiumCard>
           <CardHeader className="p-4 sm:p-5 pb-0">
             <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
