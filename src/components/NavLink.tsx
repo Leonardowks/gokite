@@ -1,5 +1,10 @@
-import { NavLink as RouterNavLink, NavLinkProps } from "react-router-dom";
-import { forwardRef } from "react";
+import {
+  NavLink as RouterNavLink,
+  type NavLinkProps,
+  useInRouterContext,
+  UNSAFE_NavigationContext,
+} from "react-router-dom";
+import { forwardRef, useContext } from "react";
 import { cn } from "@/lib/utils";
 
 interface NavLinkCompatProps extends Omit<NavLinkProps, "className"> {
@@ -10,6 +15,17 @@ interface NavLinkCompatProps extends Omit<NavLinkProps, "className"> {
 
 const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(
   ({ className, activeClassName, pendingClassName, to, ...props }, ref) => {
+    // Some runtime states can end up with partial router context; avoid crashing the whole app.
+    const inRouter = useInRouterContext();
+    const navigationCtx = useContext(UNSAFE_NavigationContext as any);
+
+    const hasFullRouterContext = inRouter && !!navigationCtx;
+
+    if (!hasFullRouterContext) {
+      const href = typeof to === "string" ? to : (to as any)?.pathname ?? "/";
+      return <a ref={ref} href={href} className={cn(className)} />;
+    }
+
     return (
       <RouterNavLink
         ref={ref}
@@ -20,7 +36,7 @@ const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(
         {...props}
       />
     );
-  },
+  }
 );
 
 NavLink.displayName = "NavLink";
