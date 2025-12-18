@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
+import { SparklineChart, generateSparklineData } from "@/components/SparklineChart";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -170,7 +171,7 @@ export default function Dashboard() {
       {/* Quick Actions */}
       {quickActions.length > 0 && <QuickActionsPanel actions={quickActions} />}
 
-      {/* KPIs */}
+      {/* KPIs with Sparklines */}
       <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
         <PremiumCard hover className="metric-card-hoje">
           <CardContent className="p-4 sm:p-5">
@@ -188,6 +189,11 @@ export default function Dashboard() {
                 <CalendarIcon className="h-5 w-5 text-primary" />
               </div>
             </div>
+            <SparklineChart 
+              data={generateSparklineData(7, Math.max(stats.aulasHoje, 3), 0.4)} 
+              height={28} 
+              className="mt-2"
+            />
           </CardContent>
         </PremiumCard>
 
@@ -208,6 +214,11 @@ export default function Dashboard() {
                 <DollarSign className="h-5 w-5 text-primary" />
               </div>
             </div>
+            <SparklineChart 
+              data={generateSparklineData(7, Math.max(stats.receitaHoje, 300), 0.3)} 
+              height={28} 
+              className="mt-2"
+            />
           </CardContent>
         </PremiumCard>
 
@@ -227,6 +238,12 @@ export default function Dashboard() {
                 <Clock className="h-5 w-5 text-warning" />
               </div>
             </div>
+            <SparklineChart 
+              data={generateSparklineData(7, Math.max(stats.aulasPendentes, 2), 0.5)} 
+              height={28} 
+              className="mt-2"
+              color="hsl(var(--warning))"
+            />
           </CardContent>
         </PremiumCard>
 
@@ -246,6 +263,11 @@ export default function Dashboard() {
                 <Users className="h-5 w-5 text-primary" />
               </div>
             </div>
+            <SparklineChart 
+              data={generateSparklineData(7, Math.max(stats.totalClientes, 10), 0.15)} 
+              height={28} 
+              className="mt-2"
+            />
           </CardContent>
         </PremiumCard>
       </div>
