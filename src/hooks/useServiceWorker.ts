@@ -19,7 +19,7 @@ export function useServiceWorker() {
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register('/sw.js', { updateViaCache: 'none' })
         .then((registration) => {
           console.log('[App] Service Worker registered');
           setStatus((prev) => ({ ...prev, isRegistered: true }));
