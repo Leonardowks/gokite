@@ -7,6 +7,8 @@ import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { NavLink } from "@/components/NavLink";
+import { GlobalSearch } from "@/components/GlobalSearch";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
 import gokiteLogo from "@/assets/gokite-logo.png";
 
 interface AdminLayoutProps {
@@ -171,27 +173,34 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
         {/* Desktop Header */}
         <header className="sticky top-0 z-40 glass-premium border-b border-primary/10 hidden md:block">
-          <div className="px-6 py-3 flex items-center justify-end gap-3">
-            <ThemeToggle />
-            <NotificationCenter />
-            <div className="flex items-center gap-2 pl-3 border-l border-primary/20">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-cyan/20 flex items-center justify-center border border-primary/20">
-                <User className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-foreground">Admin</p>
-                <p className="text-[10px] text-muted-foreground">{user?.email}</p>
-              </div>
+          <div className="px-6 py-3 flex items-center gap-4">
+            {/* Global Search */}
+            <div className="flex-1">
+              <GlobalSearch />
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleLogout}
-              className="gap-1.5 text-muted-foreground hover:text-accent hover:bg-accent/10 min-h-[44px] rounded-xl text-xs"
-            >
-              <LogOut className="h-4 w-4" />
-              Sair
-            </Button>
+            
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <NotificationCenter />
+              <div className="flex items-center gap-2 pl-3 border-l border-primary/20">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 to-cyan/20 flex items-center justify-center border border-primary/20">
+                  <User className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-foreground">Admin</p>
+                  <p className="text-[10px] text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleLogout}
+                className="gap-1.5 text-muted-foreground hover:text-accent hover:bg-accent/10 min-h-[44px] rounded-xl text-xs"
+              >
+                <LogOut className="h-4 w-4" />
+                Sair
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -202,6 +211,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* WhatsApp Floating Button */}
+      <WhatsAppButton message="Olá! Preciso de suporte no CRM GoKite." />
 
       {/* Mobile Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-premium border-t border-primary/10 safe-area-bottom">

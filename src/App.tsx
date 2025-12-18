@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Outlet, Navigate } from "react-router-dom";
 import { AdminLayout } from "./components/AdminLayout";
 import { LayoutSkeleton } from "./components/LayoutSkeleton";
-import { OfflineIndicator } from "./components/OfflineIndicator";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { localStorageService } from "./lib/localStorage";
@@ -32,7 +31,6 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <OfflineIndicator />
       <Toaster />
       <Sonner />
       <BrowserRouter>
