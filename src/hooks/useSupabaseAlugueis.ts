@@ -132,7 +132,7 @@ export function useAlugueisStats() {
 }
 
 /**
- * Hook para criar novo aluguel
+ * Hook para criar novo aluguel + transação automática
  */
 export function useCreateAluguel() {
   const queryClient = useQueryClient();
@@ -145,6 +145,15 @@ export function useCreateAluguel() {
       data_fim: string;
       valor: number;
     }) => {
+      // Get client and equipment info for transaction description
+      const [clienteRes, equipamentoRes] = await Promise.all([
+        supabase.from('clientes').select('nome').eq('id', aluguel.cliente_id).single(),
+        supabase.from('equipamentos').select('nome').eq('id', aluguel.equipamento_id).single(),
+      ]);
+
+      const clienteNome = clienteRes.data?.nome || 'Cliente';
+      const equipamentoNome = equipamentoRes.data?.nome || 'Equipamento';
+
       const { data, error } = await supabase
         .from('aluguel')
         .insert({ ...aluguel, status: 'ativo' })
@@ -159,6 +168,33 @@ export function useCreateAluguel() {
         .update({ status: 'alugado' })
         .eq('id', aluguel.equipamento_id);
 
+      // Criar transação automática
+      const { data: config } = await supabase
+        .from('config_financeiro')
+        .select('*')
+        .limit(1)
+        .single();
+
+      const taxaImposto = config?.taxa_imposto_padrao || 6;
+      const impostoProvisionado = (aluguel.valor * taxaImposto) / 100;
+      const lucroLiquido = aluguel.valor - impostoProvisionado;
+
+      await supabase.from('transacoes').insert({
+        tipo: 'receita',
+        origem: 'alugueis',
+        descricao: `Aluguel ${equipamentoNome} - ${clienteNome}`,
+        valor_bruto: aluguel.valor,
+        custo_produto: 0,
+        taxa_cartao_estimada: 0,
+        imposto_provisionado: impostoProvisionado,
+        lucro_liquido: lucroLiquido,
+        centro_de_custo: 'Escola',
+        forma_pagamento: 'pix',
+        cliente_id: aluguel.cliente_id,
+        equipamento_id: aluguel.equipamento_id,
+        referencia_id: data.id,
+      });
+
       return data;
     },
     onSuccess: () => {
@@ -167,6 +203,7 @@ export function useCreateAluguel() {
       queryClient.invalidateQueries({ queryKey: ['alugueis-stats'] });
       queryClient.invalidateQueries({ queryKey: ['equipamentos-listagem'] });
       queryClient.invalidateQueries({ queryKey: ['equipamentos-disponiveis'] });
+      queryClient.invalidateQueries({ queryKey: ['transacoes'] });
     },
   });
 }
