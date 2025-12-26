@@ -48,14 +48,15 @@ serve(async (req) => {
       const errorText = await response.text();
       console.error("ElevenLabs STT error:", response.status, errorText);
 
-      // ElevenLabs returns 401 for both invalid keys and missing permissions.
-      const missingSttPermission =
-        errorText.includes("missing_permissions") ||
-        errorText.toLowerCase().includes("speech_to_text");
-
-      const message = missingSttPermission
-        ? "Sua API key do ElevenLabs não tem a permissão speech_to_text (Speech-to-Text). Gere uma nova key com essa permissão e atualize o connector."
-        : "Chave da API ElevenLabs inválida/expirada. Verifique a configuração do connector.";
+      let message = "Erro na transcrição com ElevenLabs.";
+      
+      if (errorText.includes("quota_exceeded")) {
+        message = "Créditos do ElevenLabs esgotados. Adicione créditos em elevenlabs.io ou use o modo gratuito.";
+      } else if (errorText.includes("missing_permissions") || errorText.includes("speech_to_text")) {
+        message = "Sua API key do ElevenLabs não tem permissão speech_to_text.";
+      } else if (response.status === 401) {
+        message = "Chave da API ElevenLabs inválida ou expirada.";
+      }
 
       return new Response(
         JSON.stringify({ error: message, details: errorText }),
