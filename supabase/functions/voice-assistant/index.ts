@@ -63,6 +63,20 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "atualizar_custo_venda",
+      description: "Atualiza o custo de uma venda recente que estava pendente e recalcula o lucro líquido",
+      parameters: {
+        type: "object",
+        properties: {
+          custo_produto: { type: "number", description: "Custo do produto em reais" }
+        },
+        required: ["custo_produto"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "consultar_faturamento",
       description: "Consulta o faturamento (receitas de aulas e aluguéis) de um período",
       parameters: {
@@ -113,6 +127,71 @@ const tools = [
   {
     type: "function",
     function: {
+      name: "registrar_trade_in",
+      description: "Registra a entrada de um equipamento usado recebido em troca (trade-in)",
+      parameters: {
+        type: "object",
+        properties: {
+          equipamento_recebido: { type: "string", description: "Nome/modelo do equipamento usado recebido" },
+          valor_entrada: { type: "number", description: "Valor dado como entrada/abatimento" },
+          descricao: { type: "string", description: "Descrição do estado do equipamento" }
+        },
+        required: ["equipamento_recebido", "valor_entrada"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "vender_trade_in",
+      description: "Registra a venda de um equipamento usado que estava em estoque (do trade-in)",
+      parameters: {
+        type: "object",
+        properties: {
+          equipamento: { type: "string", description: "Nome do equipamento usado vendido" },
+          valor_venda: { type: "number", description: "Valor pelo qual foi vendido" }
+        },
+        required: ["equipamento", "valor_venda"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "registrar_conta_a_pagar",
+      description: "Registra uma nova conta a pagar (despesa futura)",
+      parameters: {
+        type: "object",
+        properties: {
+          descricao: { type: "string", description: "Descrição da conta" },
+          valor: { type: "number", description: "Valor da conta" },
+          data_vencimento: { type: "string", description: "Data de vencimento (formato: YYYY-MM-DD ou 'amanha', 'proxima semana', 'dia X')" },
+          categoria: { 
+            type: "string", 
+            enum: ["aluguel", "funcionarios", "impostos", "fornecedores", "manutencao", "marketing", "servicos", "outros"],
+            description: "Categoria da conta"
+          },
+          fornecedor: { type: "string", description: "Nome do fornecedor" }
+        },
+        required: ["descricao", "valor", "data_vencimento"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "consultar_contas_a_pagar",
+      description: "Consulta as contas a pagar pendentes",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "navegar",
       description: "Navega para uma página específica do sistema",
       parameters: {
@@ -120,7 +199,7 @@ const tools = [
         properties: {
           pagina: { 
             type: "string", 
-            enum: ["dashboard", "clientes", "aulas", "financeiro", "estoque", "vendas", "ecommerce", "relatorios", "configuracoes", "assistente"],
+            enum: ["dashboard", "clientes", "aulas", "financeiro", "estoque", "vendas", "ecommerce", "relatorios", "configuracoes", "assistente", "dre", "contas"],
             description: "Nome da página para navegar"
           }
         },
@@ -142,7 +221,9 @@ const pageRoutes: Record<string, string> = {
   ecommerce: "/ecommerce",
   relatorios: "/relatorios",
   configuracoes: "/configuracoes",
-  assistente: "/assistente"
+  assistente: "/assistente",
+  dre: "/financeiro/dre",
+  contas: "/financeiro/contas"
 };
 
 serve(async (req) => {
@@ -180,6 +261,10 @@ Diretrizes:
 - Use emojis ocasionalmente para ser mais expressivo
 - Quando perguntarem sobre navegação, use a ferramenta navegar
 - Responda sempre em português brasileiro
+
+IMPORTANTE - Captura de Custo:
+- Se a última mensagem do assistente perguntou "Qual foi o custo?" e o usuário responder com um número (ex: "3200", "foi 3200", "custou 3200 reais"), use a ferramenta atualizar_custo_venda
+- Interprete valores numéricos como resposta à pergunta de custo quando o contexto indicar isso
 
 Contexto atual:
 - Data: ${new Date().toLocaleDateString('pt-BR')}
@@ -244,6 +329,9 @@ Contexto atual:
         case "registrar_venda":
           result = await registrarVenda(supabase, args);
           break;
+        case "atualizar_custo_venda":
+          result = await atualizarCustoVenda(supabase, args);
+          break;
         case "consultar_faturamento":
           result = await consultarFaturamento(supabase, args);
           break;
@@ -252,6 +340,18 @@ Contexto atual:
           break;
         case "agendar_aula":
           result = await agendarAula(supabase, args);
+          break;
+        case "registrar_trade_in":
+          result = await registrarTradeIn(supabase, args);
+          break;
+        case "vender_trade_in":
+          result = await venderTradeIn(supabase, args);
+          break;
+        case "registrar_conta_a_pagar":
+          result = await registrarContaAPagar(supabase, args);
+          break;
+        case "consultar_contas_a_pagar":
+          result = await consultarContasAPagar(supabase);
           break;
         case "navegar":
           const route = pageRoutes[args.pagina?.toLowerCase()] || "/";
@@ -449,6 +549,53 @@ async function registrarVenda(supabase: any, data: any) {
   }
 }
 
+async function atualizarCustoVenda(supabase: any, data: any) {
+  const { custo_produto } = data;
+  
+  if (!custo_produto || isNaN(Number(custo_produto))) {
+    return { success: false, message: "Não consegui identificar o valor do custo 🤔" };
+  }
+
+  // Find the most recent transaction without cost from today
+  const hoje = new Date().toISOString().split("T")[0];
+  const { data: transacoes, error: fetchError } = await supabase
+    .from("transacoes")
+    .select("*")
+    .eq("tipo", "receita")
+    .eq("data_transacao", hoje)
+    .eq("custo_produto", 0)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (fetchError || !transacoes?.length) {
+    return { success: false, message: "Não encontrei uma venda recente para atualizar o custo." };
+  }
+
+  const transacao = transacoes[0];
+  const custoNum = Number(custo_produto);
+  const lucroLiquido = transacao.valor_bruto - custoNum - (transacao.taxa_cartao_estimada || 0) - (transacao.imposto_provisionado || 0);
+
+  const { error: updateError } = await supabase
+    .from("transacoes")
+    .update({
+      custo_produto: custoNum,
+      lucro_liquido: lucroLiquido,
+    })
+    .eq("id", transacao.id);
+
+  if (updateError) {
+    console.error("Erro ao atualizar custo:", updateError);
+    return { success: false, message: "Erro ao atualizar o custo" };
+  }
+
+  const margem = transacao.valor_bruto > 0 ? (lucroLiquido / transacao.valor_bruto) * 100 : 0;
+
+  return {
+    success: true,
+    message: `✅ Custo atualizado!\n\n💰 Venda: R$${transacao.valor_bruto.toLocaleString('pt-BR')}\n📦 Custo: R$${custoNum.toLocaleString('pt-BR')}\n✨ Lucro líquido: R$${lucroLiquido.toFixed(2)} (${margem.toFixed(0)}% margem)`,
+  };
+}
+
 async function consultarFaturamento(supabase: any, data: any) {
   const { periodo = "hoje" } = data;
   
@@ -572,4 +719,166 @@ async function agendarAula(supabase: any, data: any) {
     success: true,
     message: `📅 Aula agendada!\n\n👤 ${clientes[0].nome}\n🗓️ ${dataFormatted} às ${horaFormatted}\n📍 Praia Principal`,
   };
+}
+
+async function registrarTradeIn(supabase: any, data: any) {
+  const { equipamento_recebido, valor_entrada, descricao } = data;
+  
+  if (!equipamento_recebido || !valor_entrada) {
+    return { success: false, message: "Preciso do nome do equipamento e valor da entrada 🤔" };
+  }
+
+  const { error } = await supabase.from("trade_ins").insert({
+    equipamento_recebido,
+    valor_entrada: Number(valor_entrada),
+    descricao: descricao || null,
+    data_entrada: new Date().toISOString().split("T")[0],
+    status: "em_estoque",
+  });
+
+  if (error) {
+    console.error("Erro ao registrar trade-in:", error);
+    return { success: false, message: "Erro ao registrar o trade-in" };
+  }
+
+  return {
+    success: true,
+    message: `✅ Trade-in registrado!\n\n📦 ${equipamento_recebido}\n💰 Valor entrada: R$${Number(valor_entrada).toLocaleString('pt-BR')}\n📊 Status: Em estoque`,
+  };
+}
+
+async function venderTradeIn(supabase: any, data: any) {
+  const { equipamento, valor_venda } = data;
+  
+  if (!equipamento || !valor_venda) {
+    return { success: false, message: "Preciso do nome do equipamento e valor da venda 🤔" };
+  }
+
+  // Find the trade-in
+  const { data: tradeIns } = await supabase
+    .from("trade_ins")
+    .select("*")
+    .ilike("equipamento_recebido", `%${equipamento}%`)
+    .eq("status", "em_estoque")
+    .limit(1);
+
+  if (!tradeIns?.length) {
+    return { success: false, message: `Não encontrei "${equipamento}" em estoque.` };
+  }
+
+  const tradeIn = tradeIns[0];
+  const valorVendaNum = Number(valor_venda);
+  const lucro = valorVendaNum - tradeIn.valor_entrada;
+
+  const { error } = await supabase
+    .from("trade_ins")
+    .update({
+      valor_saida: valorVendaNum,
+      data_saida: new Date().toISOString().split("T")[0],
+      status: "vendido",
+    })
+    .eq("id", tradeIn.id);
+
+  if (error) {
+    console.error("Erro ao vender trade-in:", error);
+    return { success: false, message: "Erro ao registrar venda do usado" };
+  }
+
+  const lucroPct = tradeIn.valor_entrada > 0 ? (lucro / tradeIn.valor_entrada) * 100 : 0;
+
+  return {
+    success: true,
+    message: `✅ Usado vendido!\n\n📦 ${tradeIn.equipamento_recebido}\n💵 Entrada: R$${tradeIn.valor_entrada.toLocaleString('pt-BR')}\n💰 Venda: R$${valorVendaNum.toLocaleString('pt-BR')}\n${lucro >= 0 ? '📈' : '📉'} Lucro: R$${lucro.toFixed(2)} (${lucroPct.toFixed(0)}%)`,
+  };
+}
+
+async function registrarContaAPagar(supabase: any, data: any) {
+  const { descricao, valor, data_vencimento, categoria = "outros", fornecedor } = data;
+  
+  if (!descricao || !valor) {
+    return { success: false, message: "Preciso da descrição e valor da conta 🤔" };
+  }
+
+  // Parse date
+  let vencimento: string;
+  const today = new Date();
+  
+  if (data_vencimento.toLowerCase().includes("amanha") || data_vencimento.toLowerCase().includes("amanhã")) {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    vencimento = tomorrow.toISOString().split("T")[0];
+  } else if (data_vencimento.toLowerCase().includes("semana")) {
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    vencimento = nextWeek.toISOString().split("T")[0];
+  } else if (data_vencimento.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    vencimento = data_vencimento;
+  } else if (data_vencimento.match(/dia\s*(\d+)/i)) {
+    const match = data_vencimento.match(/dia\s*(\d+)/i);
+    const dia = parseInt(match![1]);
+    const novaData = new Date(today.getFullYear(), today.getMonth(), dia);
+    if (novaData < today) {
+      novaData.setMonth(novaData.getMonth() + 1);
+    }
+    vencimento = novaData.toISOString().split("T")[0];
+  } else {
+    vencimento = today.toISOString().split("T")[0];
+  }
+
+  const { error } = await supabase.from("contas_a_pagar").insert({
+    descricao,
+    valor: Number(valor),
+    data_vencimento: vencimento,
+    categoria,
+    fornecedor: fornecedor || null,
+    status: "pendente",
+  });
+
+  if (error) {
+    console.error("Erro ao registrar conta:", error);
+    return { success: false, message: "Erro ao registrar conta a pagar" };
+  }
+
+  return {
+    success: true,
+    message: `✅ Conta registrada!\n\n📝 ${descricao}\n💰 R$${Number(valor).toLocaleString('pt-BR')}\n📅 Vencimento: ${new Date(vencimento).toLocaleDateString('pt-BR')}`,
+  };
+}
+
+async function consultarContasAPagar(supabase: any) {
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const { data: contas, error } = await supabase
+    .from("contas_a_pagar")
+    .select("*")
+    .eq("status", "pendente")
+    .order("data_vencimento", { ascending: true })
+    .limit(5);
+
+  if (error) {
+    console.error("Erro ao consultar contas:", error);
+    return { success: false, message: "Erro ao consultar contas" };
+  }
+
+  if (!contas?.length) {
+    return { success: true, message: "🎉 Nenhuma conta a pagar pendente!" };
+  }
+
+  const total = contas.reduce((sum: number, c: any) => sum + Number(c.valor), 0);
+  const vencidas = contas.filter((c: any) => c.data_vencimento < hoje);
+
+  let msg = `📋 Próximas contas a pagar:\n\n`;
+  
+  contas.forEach((c: any) => {
+    const vencida = c.data_vencimento < hoje;
+    const dataFormatada = new Date(c.data_vencimento).toLocaleDateString('pt-BR');
+    msg += `${vencida ? '🔴' : '🟡'} ${c.descricao}: R$${Number(c.valor).toLocaleString('pt-BR')} (${dataFormatada})\n`;
+  });
+
+  msg += `\n💰 Total pendente: R$${total.toLocaleString('pt-BR')}`;
+  if (vencidas.length > 0) {
+    msg += `\n⚠️ ${vencidas.length} conta(s) vencida(s)!`;
+  }
+
+  return { success: true, message: msg };
 }
