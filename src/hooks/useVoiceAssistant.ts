@@ -1,9 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
+import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { VoiceAssistantState, VoiceCommandResult } from '@/types/voice';
 
 export function useVoiceAssistant() {
-  const [state, setState] = useState<VoiceAssistantState>({
+  const [state, setState] = React.useState<VoiceAssistantState>({
     isListening: false,
     isProcessing: false,
     transcript: '',
@@ -11,10 +11,10 @@ export function useVoiceAssistant() {
     error: null,
   });
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const chunksRef = React.useRef<Blob[]>([]);
 
-  const startListening = useCallback(async () => {
+  const startListening = React.useCallback(async () => {
     try {
       setState(prev => ({
         ...prev,
@@ -76,7 +76,7 @@ export function useVoiceAssistant() {
     }
   }, []);
 
-  const stopListening = useCallback(() => {
+  const stopListening = React.useCallback(() => {
     if (mediaRecorderRef.current?.state === 'recording') {
       mediaRecorderRef.current.stop();
       setState(prev => ({ ...prev, isListening: false }));
@@ -173,7 +173,7 @@ export function useVoiceAssistant() {
     }
   };
 
-  const reset = useCallback(() => {
+  const reset = React.useCallback(() => {
     setState({
       isListening: false,
       isProcessing: false,
