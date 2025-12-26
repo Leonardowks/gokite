@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.voice-assistant]
 verify_jwt = false
+
+[functions.openai-stt]
+verify_jwt = false
+
+[functions.openai-tts]
+verify_jwt = false

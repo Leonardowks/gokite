@@ -13,6 +13,7 @@ export function useVoiceAssistant() {
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
   const startListening = React.useCallback(async () => {
     try {
@@ -45,7 +46,6 @@ export function useVoiceAssistant() {
       };
 
       mediaRecorder.onstop = async () => {
-        // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
         
         if (chunksRef.current.length === 0) {
@@ -93,9 +93,9 @@ export function useVoiceAssistant() {
         new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
       );
 
-      // Step 1: Speech-to-Text with ElevenLabs
-      console.log('Sending audio to ElevenLabs STT...');
-      const { data: sttData, error: sttError } = await supabase.functions.invoke('elevenlabs-stt', {
+      // Step 1: Speech-to-Text with OpenAI Whisper
+      console.log('Sending audio to OpenAI Whisper...');
+      const { data: sttData, error: sttError } = await supabase.functions.invoke('openai-stt', {
         body: { audio: base64Audio },
       });
 
@@ -111,7 +111,7 @@ export function useVoiceAssistant() {
       console.log('Transcription:', transcript);
       setState(prev => ({ ...prev, transcript }));
 
-      // Step 2: Process command with Lovable AI
+      // Step 2: Process command with AI
       console.log('Processing command...');
       const { data: commandData, error: commandError } = await supabase.functions.invoke('voice-assistant', {
         body: { transcript },
@@ -129,34 +129,24 @@ export function useVoiceAssistant() {
         error: result.success ? null : result.message,
       }));
 
-      // Step 3: Text-to-Speech response with ElevenLabs
+      // Step 3: Text-to-Speech response with OpenAI
       if (result.message) {
         console.log('Generating TTS response...');
         try {
-          const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-              },
-              body: JSON.stringify({ text: result.message }),
-            }
-          );
+          const { data: ttsData, error: ttsError } = await supabase.functions.invoke('openai-tts', {
+            body: { text: result.message, voice: 'nova' },
+          });
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data.audioContent) {
-              const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
-              const audio = new Audio(audioUrl);
-              audio.play().catch(e => console.log('Audio playback error:', e));
+          if (!ttsError && ttsData?.audioContent) {
+            const audioUrl = `data:audio/mpeg;base64,${ttsData.audioContent}`;
+            if (audioRef.current) {
+              audioRef.current.pause();
             }
+            audioRef.current = new Audio(audioUrl);
+            audioRef.current.play().catch(e => console.log('Audio playback error:', e));
           }
         } catch (ttsError) {
           console.error('TTS error (non-critical):', ttsError);
-          // Continue without TTS - not critical
         }
       }
 
@@ -173,7 +163,15 @@ export function useVoiceAssistant() {
     }
   };
 
+  const stopAudio = React.useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+  }, []);
+
   const reset = React.useCallback(() => {
+    stopAudio();
     setState({
       isListening: false,
       isProcessing: false,
@@ -181,12 +179,13 @@ export function useVoiceAssistant() {
       lastResult: null,
       error: null,
     });
-  }, []);
+  }, [stopAudio]);
 
   return {
     ...state,
     startListening,
     stopListening,
+    stopAudio,
     reset,
     isSupported: typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
   };
