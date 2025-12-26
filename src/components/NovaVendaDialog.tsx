@@ -221,12 +221,12 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Cliente (opcional)</Label>
-              <Select value={clienteId} onValueChange={setClienteId}>
+              <Select value={clienteId} onValueChange={(v) => setClienteId(v === '_none' ? '' : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecionar cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="_none">Nenhum</SelectItem>
                   {clientes.map((cliente) => (
                     <SelectItem key={cliente.id} value={cliente.id}>
                       {cliente.nome}
