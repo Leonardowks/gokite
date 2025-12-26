@@ -6,21 +6,26 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { localStorageService, type Agendamento } from "@/lib/localStorage";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AulaDialog } from "@/components/AulaDialog";
+import { AulaDialogSupabase } from "@/components/AulaDialogSupabase";
 import { format } from "date-fns";
-import { Search, Calendar, Plus, Trash2, Edit, Clock, CheckCircle, XCircle, DollarSign } from "lucide-react";
+import { Search, Calendar, Plus, Trash2, Edit, Clock, CheckCircle, XCircle, DollarSign, Loader2 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
+import { useAulasListagem, useAulasStats, useDeleteAula } from "@/hooks/useSupabaseAulas";
 
 const traduzirTipoAula = (tipo: string) => {
   const tipos: Record<string, string> = {
     'iniciante': 'Iniciante',
     'intermediario': 'Intermediário',
     'avancado': 'Avançado',
-    'wing_foil': 'Wing Foil'
+    'wing_foil': 'Wing Foil',
+    'kitesurf_iniciante': 'Kitesurf Iniciante',
+    'kitesurf_intermediario': 'Kitesurf Intermediário',
+    'kitesurf_avancado': 'Kitesurf Avançado',
+    'foil': 'Foil',
+    'downwind': 'Downwind',
   };
   return tipos[tipo] || tipo;
 };
@@ -34,56 +39,49 @@ const traduzirLocalizacao = (local: string) => {
 };
 
 export default function Aulas() {
-  const [aulas, setAulas] = useState<Agendamento[]>([]);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
   const [filtroLocal, setFiltroLocal] = useState<string>("todos");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedAula, setSelectedAula] = useState<Agendamento | undefined>();
+  const [selectedAulaId, setSelectedAulaId] = useState<string | undefined>();
   const { toast } = useToast();
 
-  useEffect(() => { loadAulas(); }, []);
-
-  const loadAulas = () => {
-    try {
-      const agendamentos = localStorageService.listarAgendamentos();
-      agendamentos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-      setAulas(agendamentos);
-    } catch (error) {
-      console.error("Erro:", error);
-      toast({ title: "Erro", description: "Não foi possível carregar as aulas.", variant: "destructive" });
-    }
-  };
-
-  const aulasFiltradas = aulas.filter((aula) => {
-    const matchBusca = aula.cliente_nome.toLowerCase().includes(busca.toLowerCase());
-    const matchStatus = filtroStatus === 'todos' || aula.status === filtroStatus;
-    const matchLocal = filtroLocal === 'todos' || aula.localizacao === filtroLocal;
-    return matchBusca && matchStatus && matchLocal;
+  const { data: aulas = [], isLoading, refetch } = useAulasListagem({
+    status: filtroStatus,
+    local: filtroLocal,
+    searchTerm: busca,
   });
 
-  const deletarAula = (id: string) => {
-    if (localStorageService.deletarAgendamento(id)) {
+  const { data: stats } = useAulasStats();
+  const deleteAula = useDeleteAula();
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteAula.mutateAsync(id);
       toast({ title: "Aula deletada com sucesso!" });
-      loadAulas();
+    } catch (error) {
+      toast({ 
+        title: "Erro ao deletar", 
+        description: "Não foi possível deletar a aula.",
+        variant: "destructive" 
+      });
     }
   };
 
-  const handleEdit = (aula: Agendamento) => {
-    setSelectedAula(aula);
+  const handleEdit = (aulaId: string) => {
+    setSelectedAulaId(aulaId);
     setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
-    setSelectedAula(undefined);
+    setSelectedAulaId(undefined);
   };
 
-  // Stats
-  const pendentes = aulas.filter(a => a.status === 'pendente').length;
-  const confirmadas = aulas.filter(a => a.status === 'confirmada').length;
-  const canceladas = aulas.filter(a => a.status === 'cancelada').length;
-  const receitaTotal = aulas.filter(a => a.status === 'confirmada').reduce((acc, a) => acc + a.valor, 0);
+  const pendentes = stats?.pendentes ?? 0;
+  const confirmadas = stats?.confirmadas ?? 0;
+  const canceladas = stats?.canceladas ?? 0;
+  const receitaTotal = stats?.receitaConfirmada ?? 0;
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
@@ -92,7 +90,7 @@ export default function Aulas() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <PremiumBadge variant="default" size="sm" icon={Calendar}>
-              {aulas.length} aulas
+              {stats?.total ?? 0} aulas
             </PremiumBadge>
             {pendentes > 0 && (
               <PremiumBadge variant="warning" size="sm" pulse>
@@ -227,6 +225,7 @@ export default function Aulas() {
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="pendente">Pendentes</SelectItem>
+                <SelectItem value="agendada">Agendadas</SelectItem>
                 <SelectItem value="confirmada">Confirmadas</SelectItem>
                 <SelectItem value="cancelada">Canceladas</SelectItem>
               </SelectContent>
@@ -244,7 +243,11 @@ export default function Aulas() {
           </div>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0">
-          {aulasFiltradas.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : aulas.length === 0 ? (
             <div className="text-center py-10 sm:py-12">
               <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
                 <Calendar className="h-8 w-8 text-muted-foreground/50" />
@@ -273,21 +276,21 @@ export default function Aulas() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {aulasFiltradas.map((aula) => (
+                    {aulas.map((aula) => (
                       <TableRow key={aula.id} className="border-border/50 hover:bg-muted/30">
                         <TableCell className="font-medium">{format(new Date(aula.data), 'dd/MM/yyyy')}</TableCell>
-                        <TableCell className="font-medium">{aula.cliente_nome}</TableCell>
-                        <TableCell className="text-muted-foreground">{traduzirTipoAula(aula.tipo_aula)}</TableCell>
-                        <TableCell className="text-muted-foreground">{traduzirLocalizacao(aula.localizacao)}</TableCell>
-                        <TableCell className="text-muted-foreground">{aula.horario}</TableCell>
-                        <TableCell><StatusBadge status={aula.status} /></TableCell>
-                        <TableCell className="font-medium">R$ {aula.valor}</TableCell>
+                        <TableCell className="font-medium">{aula.cliente?.nome || 'N/A'}</TableCell>
+                        <TableCell className="text-muted-foreground">{traduzirTipoAula(aula.tipo)}</TableCell>
+                        <TableCell className="text-muted-foreground">{traduzirLocalizacao(aula.local)}</TableCell>
+                        <TableCell className="text-muted-foreground">{aula.hora}</TableCell>
+                        <TableCell><StatusBadge status={(aula.status || 'pendente') as 'pendente' | 'confirmada' | 'cancelada'} /></TableCell>
+                        <TableCell className="font-medium">R$ {aula.preco}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleEdit(aula)}
+                              onClick={() => handleEdit(aula.id)}
                               className="h-8 w-8 p-0"
                             >
                               <Edit className="h-4 w-4" />
@@ -295,7 +298,7 @@ export default function Aulas() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => deletarAula(aula.id)}
+                              onClick={() => handleDelete(aula.id)}
                               className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -310,17 +313,17 @@ export default function Aulas() {
 
               {/* Cards Mobile Premium */}
               <div className="lg:hidden space-y-3">
-                {aulasFiltradas.map((aula) => (
+                {aulas.map((aula) => (
                   <div 
                     key={aula.id} 
                     className="p-4 border border-border/50 rounded-xl bg-muted/20 hover:bg-muted/30 transition-all duration-200 space-y-3"
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-semibold">{aula.cliente_nome}</p>
-                        <p className="text-sm text-muted-foreground">{traduzirTipoAula(aula.tipo_aula)}</p>
+                        <p className="font-semibold">{aula.cliente?.nome || 'N/A'}</p>
+                        <p className="text-sm text-muted-foreground">{traduzirTipoAula(aula.tipo)}</p>
                       </div>
-                      <StatusBadge status={aula.status} />
+                      <StatusBadge status={(aula.status || 'pendente') as 'pendente' | 'confirmada' | 'cancelada'} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
@@ -329,26 +332,26 @@ export default function Aulas() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">Hora:</span>
-                        <span className="ml-1 font-medium">{aula.horario}</span>
+                        <span className="ml-1 font-medium">{aula.hora}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Local:</span>
-                        <span className="ml-1 font-medium">{traduzirLocalizacao(aula.localizacao)}</span>
+                        <span className="ml-1 font-medium">{traduzirLocalizacao(aula.local)}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Valor:</span>
-                        <span className="ml-1 font-medium text-primary">R$ {aula.valor}</span>
+                        <span className="ml-1 font-medium text-primary">R$ {aula.preco}</span>
                       </div>
                     </div>
                     <div className="flex gap-2 pt-2">
-                      <Button size="sm" variant="outline" onClick={() => handleEdit(aula)} className="flex-1 min-h-[44px]">
+                      <Button size="sm" variant="outline" onClick={() => handleEdit(aula.id)} className="flex-1 min-h-[44px]">
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
                       </Button>
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        onClick={() => deletarAula(aula.id)} 
+                        onClick={() => handleDelete(aula.id)} 
                         className="min-h-[44px] text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -362,14 +365,10 @@ export default function Aulas() {
         </CardContent>
       </PremiumCard>
 
-      <AulaDialog
+      <AulaDialogSupabase
         open={dialogOpen}
         onOpenChange={handleCloseDialog}
-        onSave={() => {
-          loadAulas();
-          handleCloseDialog();
-        }}
-        aula={selectedAula}
+        aulaId={selectedAulaId}
       />
     </div>
   );
