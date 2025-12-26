@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { 
   FileText, 
@@ -23,7 +23,10 @@ import {
   Target,
   AlertTriangle,
   CheckCircle2,
-  Lightbulb
+  Lightbulb,
+  User,
+  BookOpen,
+  Loader2
 } from "lucide-react";
 import { PremiumCard, PremiumCardContent, PremiumCardHeader, PremiumCardTitle, PremiumCardDescription } from "@/components/ui/premium-card";
 import { PremiumBadge } from "@/components/ui/premium-badge";
@@ -51,8 +54,12 @@ import {
   Legend
 } from "recharts";
 import { useTransacoes, useConfigFinanceiro, Transacao } from "@/hooks/useTransacoes";
+import { useAulasStatsByInstrutor, useAulasStatsByTipo, getTipoAulaLabel, getTipoAulaColor } from "@/hooks/useAulasStats";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 const chartConfig = {
   receitas: {
@@ -75,6 +82,16 @@ const CENTRO_CUSTO_CONFIG = {
   Administrativo: { icon: Briefcase, color: "hsl(var(--chart-3))" },
   Pousada: { icon: Home, color: "hsl(var(--chart-4))" },
 };
+
+const INSTRUTOR_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(var(--success))",
+  "hsl(var(--warning))",
+];
 
 interface DREData {
   receitaBruta: number;
@@ -102,6 +119,8 @@ interface DREData {
 
 export default function RelatorioDRE() {
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isExporting, setIsExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
   const { data: config } = useConfigFinanceiro();
 
   const startDate = format(startOfMonth(selectedDate), 'yyyy-MM-dd');
@@ -111,6 +130,10 @@ export default function RelatorioDRE() {
     startDate,
     endDate,
   });
+
+  // Stats by instrutor and tipo
+  const { data: statsByInstrutor = [] } = useAulasStatsByInstrutor(startDate, endDate);
+  const { data: statsByTipo = [] } = useAulasStatsByTipo(startDate, endDate);
 
   // Previous month for comparison
   const prevMonthStart = format(startOfMonth(subMonths(selectedDate, 1)), 'yyyy-MM-dd');
@@ -271,6 +294,21 @@ export default function RelatorioDRE() {
             name === 'dinheiro' ? 'hsl(var(--chart-3))' : 'hsl(var(--chart-4))',
     }));
 
+  // Instrutor chart data
+  const instrutorChartData = statsByInstrutor.map((stat, index) => ({
+    name: stat.instrutor,
+    receita: stat.receitaTotal,
+    aulas: stat.aulasConfirmadas,
+    fill: INSTRUTOR_COLORS[index % INSTRUTOR_COLORS.length],
+  }));
+
+  // Tipo aula chart data
+  const tipoAulaChartData = statsByTipo.map((stat) => ({
+    name: getTipoAulaLabel(stat.tipo),
+    value: stat.receitaTotal,
+    fill: getTipoAulaColor(stat.tipo),
+  }));
+
   const getInsightIcon = (tipo: string) => {
     switch (tipo) {
       case 'sucesso': return CheckCircle2;
@@ -279,8 +317,203 @@ export default function RelatorioDRE() {
     }
   };
 
+  // PDF Export function
+  const exportToPDF = async () => {
+    if (!reportRef.current) return;
+    
+    setIsExporting(true);
+    toast.info("Gerando PDF...");
+
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      let yPos = margin;
+
+      // Header
+      pdf.setFontSize(20);
+      pdf.setTextColor(40, 40, 40);
+      pdf.text("GoKite - Demonstrativo de Resultado (DRE)", margin, yPos);
+      yPos += 10;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Período: ${format(selectedDate, "MMMM 'de' yyyy", { locale: ptBR })}`, margin, yPos);
+      yPos += 8;
+      pdf.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, margin, yPos);
+      yPos += 15;
+
+      // Main DRE Section
+      pdf.setFontSize(14);
+      pdf.setTextColor(40, 40, 40);
+      pdf.text("RESULTADO DO EXERCÍCIO", margin, yPos);
+      yPos += 10;
+
+      // Table header
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, yPos, pageWidth - 2 * margin, 8, 'F');
+      pdf.setFontSize(10);
+      pdf.setTextColor(60, 60, 60);
+      pdf.text("Descrição", margin + 3, yPos + 5);
+      pdf.text("Valor", pageWidth - margin - 30, yPos + 5);
+      yPos += 10;
+
+      // Table rows
+      const dreRows = [
+        { desc: "RECEITA BRUTA", value: dreData.receitaBruta, bold: true, color: [34, 197, 94] },
+        { desc: "(-) Custo dos Produtos Vendidos", value: -dreData.custosProdutos, bold: false, color: [239, 68, 68] },
+        { desc: "(-) Taxas de Cartão", value: -dreData.taxasCartao, bold: false, color: [239, 68, 68] },
+        { desc: "(-) Impostos Provisionados", value: -dreData.impostosProvisionados, bold: false, color: [239, 68, 68] },
+        { desc: "LUCRO OPERACIONAL", value: dreData.lucroOperacional, bold: true, color: dreData.lucroOperacional >= 0 ? [34, 197, 94] : [239, 68, 68] },
+      ];
+
+      dreRows.forEach((row, index) => {
+        if (row.bold) {
+          pdf.setFillColor(240, 253, 244);
+          pdf.rect(margin, yPos - 4, pageWidth - 2 * margin, 8, 'F');
+        }
+        
+        pdf.setFontSize(10);
+        if (row.bold) {
+          pdf.setFont('helvetica', 'bold');
+        } else {
+          pdf.setFont('helvetica', 'normal');
+        }
+        pdf.setTextColor(60, 60, 60);
+        pdf.text(row.desc, margin + 3, yPos);
+        
+        pdf.setTextColor(row.color[0], row.color[1], row.color[2]);
+        pdf.text(formatCurrency(Math.abs(row.value)), pageWidth - margin - 30, yPos);
+        yPos += 8;
+      });
+
+      yPos += 10;
+
+      // KPIs
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor(40, 40, 40);
+      pdf.text("INDICADORES", margin, yPos);
+      yPos += 8;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.setTextColor(60, 60, 60);
+
+      const kpis = [
+        { label: "Margem Bruta", value: `${dreData.margemBruta.toFixed(1)}%` },
+        { label: "Margem Líquida", value: `${dreData.margemLiquida.toFixed(1)}%` },
+        { label: "Ticket Médio", value: formatCurrency(dreData.ticketMedio) },
+        { label: "Qtd. Transações", value: `${dreData.qtdTransacoes}` },
+      ];
+
+      kpis.forEach((kpi, index) => {
+        const xPos = margin + (index % 2) * 80;
+        if (index > 0 && index % 2 === 0) yPos += 7;
+        pdf.text(`${kpi.label}: ${kpi.value}`, xPos, yPos);
+      });
+      yPos += 15;
+
+      // Por Centro de Custo
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.text("POR CENTRO DE CUSTO", margin, yPos);
+      yPos += 8;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      
+      Object.entries(dreData.porCentroCusto)
+        .filter(([_, data]) => data.receitas > 0 || data.custos > 0)
+        .forEach(([centro, data]) => {
+          pdf.text(`${centro}: Receita ${formatCurrency(data.receitas)} | Lucro ${formatCurrency(data.lucro)}`, margin, yPos);
+          yPos += 6;
+        });
+
+      yPos += 10;
+
+      // Por Forma de Pagamento
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.text("POR FORMA DE PAGAMENTO", margin, yPos);
+      yPos += 8;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      
+      Object.entries(dreData.porFormaPagamento)
+        .filter(([_, value]) => value > 0)
+        .forEach(([forma, valor]) => {
+          pdf.text(`${getFormaPagamentoLabel(forma)}: ${formatCurrency(valor)}`, margin, yPos);
+          yPos += 6;
+        });
+
+      yPos += 10;
+
+      // Por Instrutor (if data exists)
+      if (statsByInstrutor.length > 0) {
+        if (yPos > pageHeight - 50) {
+          pdf.addPage();
+          yPos = margin;
+        }
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text("RECEITA POR INSTRUTOR", margin, yPos);
+        yPos += 8;
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        
+        statsByInstrutor.forEach((stat) => {
+          pdf.text(`${stat.instrutor}: ${stat.aulasConfirmadas} aulas | ${formatCurrency(stat.receitaTotal)}`, margin, yPos);
+          yPos += 6;
+        });
+
+        yPos += 10;
+      }
+
+      // Por Tipo de Aula (if data exists)
+      if (statsByTipo.length > 0) {
+        if (yPos > pageHeight - 50) {
+          pdf.addPage();
+          yPos = margin;
+        }
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(12);
+        pdf.text("RECEITA POR TIPO DE AULA", margin, yPos);
+        yPos += 8;
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        
+        statsByTipo.forEach((stat) => {
+          pdf.text(`${getTipoAulaLabel(stat.tipo)}: ${stat.aulasConfirmadas} aulas | ${formatCurrency(stat.receitaTotal)}`, margin, yPos);
+          yPos += 6;
+        });
+      }
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text("Relatório gerado automaticamente pelo sistema GoKite", margin, pageHeight - 10);
+
+      // Save
+      const fileName = `DRE_GoKite_${format(selectedDate, 'yyyy-MM')}.pdf`;
+      pdf.save(fileName);
+      toast.success(`PDF exportado: ${fileName}`);
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      toast.error("Erro ao gerar PDF. Tente novamente.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="space-y-6 sm:space-y-8" ref={reportRef}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1">
@@ -299,6 +532,19 @@ export default function RelatorioDRE() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={exportToPDF}
+            disabled={isExporting}
+            className="gap-2"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Exportar PDF
+          </Button>
           <Button
             variant="outline"
             size="icon"
@@ -475,14 +721,22 @@ export default function RelatorioDRE() {
 
       {/* Charts Section */}
       <Tabs defaultValue="centro-custo" className="space-y-4">
-        <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:flex bg-muted/50 p-1 rounded-xl">
+        <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-4 bg-muted/50 p-1 rounded-xl">
           <TabsTrigger value="centro-custo" className="text-xs sm:text-sm rounded-lg">
             <Building2 className="h-4 w-4 mr-2" />
-            Por Centro de Custo
+            Centro de Custo
           </TabsTrigger>
           <TabsTrigger value="pagamento" className="text-xs sm:text-sm rounded-lg">
             <CreditCard className="h-4 w-4 mr-2" />
-            Por Pagamento
+            Pagamento
+          </TabsTrigger>
+          <TabsTrigger value="instrutor" className="text-xs sm:text-sm rounded-lg">
+            <User className="h-4 w-4 mr-2" />
+            Instrutor
+          </TabsTrigger>
+          <TabsTrigger value="tipo-aula" className="text-xs sm:text-sm rounded-lg">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Tipo Aula
           </TabsTrigger>
         </TabsList>
 
@@ -646,6 +900,204 @@ export default function RelatorioDRE() {
                 )}
               </PremiumCardContent>
             </PremiumCard>
+          </div>
+        </TabsContent>
+
+        {/* Por Instrutor Tab */}
+        <TabsContent value="instrutor" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Chart */}
+            <PremiumCard>
+              <PremiumCardHeader>
+                <PremiumCardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Receita por Instrutor
+                </PremiumCardTitle>
+              </PremiumCardHeader>
+              <PremiumCardContent>
+                {instrutorChartData.length > 0 ? (
+                  <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <BarChart data={instrutorChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                      <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
+                      <YAxis className="text-xs fill-muted-foreground" tickFormatter={(v) => `R$${v}`} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="receita" name="Receita" radius={[4, 4, 0, 0]}>
+                        {instrutorChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <User className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p>Sem aulas confirmadas neste período</p>
+                    </div>
+                  </div>
+                )}
+              </PremiumCardContent>
+            </PremiumCard>
+
+            {/* Cards */}
+            <div className="space-y-3">
+              {statsByInstrutor.length > 0 ? (
+                statsByInstrutor.map((stat, index) => {
+                  const totalReceitaInstrutores = statsByInstrutor.reduce((sum, s) => sum + s.receitaTotal, 0);
+                  const percentual = totalReceitaInstrutores > 0 ? (stat.receitaTotal / totalReceitaInstrutores) * 100 : 0;
+                  
+                  return (
+                    <PremiumCard key={stat.instrutor} className="hover-lift">
+                      <PremiumCardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="p-2 rounded-xl"
+                              style={{ backgroundColor: `${INSTRUTOR_COLORS[index % INSTRUTOR_COLORS.length]}20` }}
+                            >
+                              <User className="h-5 w-5" style={{ color: INSTRUTOR_COLORS[index % INSTRUTOR_COLORS.length] }} />
+                            </div>
+                            <div>
+                              <p className="font-medium">{stat.instrutor}</p>
+                              <p className="text-xs text-muted-foreground">{stat.aulasConfirmadas} aulas confirmadas</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-success">
+                              {formatCurrency(stat.receitaTotal)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {percentual.toFixed(1)}% do total
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="p-2 rounded bg-muted text-center">
+                            <p className="text-muted-foreground">Ticket Médio</p>
+                            <p className="font-medium">{formatCurrency(stat.ticketMedio)}</p>
+                          </div>
+                          <div className="p-2 rounded bg-muted text-center">
+                            <p className="text-muted-foreground">Total Aulas</p>
+                            <p className="font-medium">{stat.totalAulas}</p>
+                          </div>
+                        </div>
+                      </PremiumCardContent>
+                    </PremiumCard>
+                  );
+                })
+              ) : (
+                <PremiumCard>
+                  <PremiumCardContent className="p-6 text-center text-muted-foreground">
+                    <User className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                    <p>Nenhuma aula registrada neste período.</p>
+                  </PremiumCardContent>
+                </PremiumCard>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Por Tipo de Aula Tab */}
+        <TabsContent value="tipo-aula" className="space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Pie Chart */}
+            <PremiumCard>
+              <PremiumCardHeader>
+                <PremiumCardTitle className="flex items-center gap-2">
+                  <PieChart className="h-5 w-5" />
+                  Distribuição por Tipo de Aula
+                </PremiumCardTitle>
+              </PremiumCardHeader>
+              <PremiumCardContent>
+                {tipoAulaChartData.length > 0 ? (
+                  <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                    <RechartsPie>
+                      <Pie
+                        data={tipoAulaChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {tipoAulaChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </RechartsPie>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <BookOpen className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p>Sem aulas confirmadas neste período</p>
+                    </div>
+                  </div>
+                )}
+              </PremiumCardContent>
+            </PremiumCard>
+
+            {/* Cards */}
+            <div className="space-y-3">
+              {statsByTipo.length > 0 ? (
+                statsByTipo.map((stat) => {
+                  const totalReceitaTipos = statsByTipo.reduce((sum, s) => sum + s.receitaTotal, 0);
+                  const percentual = totalReceitaTipos > 0 ? (stat.receitaTotal / totalReceitaTipos) * 100 : 0;
+                  
+                  return (
+                    <PremiumCard key={stat.tipo} className="hover-lift">
+                      <PremiumCardContent className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="p-2 rounded-xl"
+                              style={{ backgroundColor: `${getTipoAulaColor(stat.tipo)}20` }}
+                            >
+                              <BookOpen className="h-5 w-5" style={{ color: getTipoAulaColor(stat.tipo) }} />
+                            </div>
+                            <div>
+                              <p className="font-medium">{getTipoAulaLabel(stat.tipo)}</p>
+                              <p className="text-xs text-muted-foreground">{stat.aulasConfirmadas} aulas confirmadas</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-success">
+                              {formatCurrency(stat.receitaTotal)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {percentual.toFixed(1)}% do total
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="p-2 rounded bg-muted text-center">
+                            <p className="text-muted-foreground">Ticket Médio</p>
+                            <p className="font-medium">{formatCurrency(stat.ticketMedio)}</p>
+                          </div>
+                          <div className="p-2 rounded bg-muted text-center">
+                            <p className="text-muted-foreground">Total Aulas</p>
+                            <p className="font-medium">{stat.totalAulas}</p>
+                          </div>
+                        </div>
+                      </PremiumCardContent>
+                    </PremiumCard>
+                  );
+                })
+              ) : (
+                <PremiumCard>
+                  <PremiumCardContent className="p-6 text-center text-muted-foreground">
+                    <BookOpen className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                    <p>Nenhuma aula registrada neste período.</p>
+                  </PremiumCardContent>
+                </PremiumCard>
+              )}
+            </div>
           </div>
         </TabsContent>
       </Tabs>
