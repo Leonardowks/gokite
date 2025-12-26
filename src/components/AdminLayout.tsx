@@ -2,16 +2,16 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal } from "lucide-react";
+import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { NavLink } from "@/components/NavLink";
-import { CommandPalette } from "@/components/CommandPalette";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { UserMenu } from "@/components/UserMenu";
 import { QuickStats } from "@/components/QuickStats";
-import { VoiceAssistant } from "@/components/VoiceAssistant";
+import { VoiceAssistantBar } from "@/components/VoiceAssistantBar";
+import { VoiceAssistantSheet } from "@/components/VoiceAssistantSheet";
 import gokiteLogo from "@/assets/gokite-logo.png";
 
 interface AdminLayoutProps {
@@ -55,6 +55,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [voiceSheetOpen, setVoiceSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -177,10 +178,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Desktop Header */}
         <header className="sticky top-0 z-40 glass-premium border-b border-primary/10 hidden md:block">
           <div className="px-6 py-3 flex items-center gap-4">
-            {/* Command Palette Trigger */}
-            <div className="flex-1">
-              <CommandPalette />
-            </div>
+            {/* Voice Assistant Bar */}
+            <VoiceAssistantBar />
             
             <div className="flex items-center gap-3">
               <QuickStats />
@@ -229,6 +228,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </NavLink>
             );
           })}
+          {/* Voice Assistant Button - Central */}
+          <button
+            onClick={() => setVoiceSheetOpen(true)}
+            className="flex flex-col items-center justify-center flex-1 min-h-[48px] min-w-[48px] py-2 transition-all duration-200 relative"
+          >
+            <div className="absolute -top-4 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-cyan flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-background">
+              <Mic className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <span className="text-[10px] mt-6 font-medium text-primary">Assistente</span>
+          </button>
           {/* "Mais" Button */}
           <button
             onClick={() => setMoreMenuOpen(true)}
@@ -301,8 +310,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </SheetContent>
       </Sheet>
 
-      {/* Voice Assistant */}
-      <VoiceAssistant />
+      {/* Voice Assistant Sheet for Mobile */}
+      <VoiceAssistantSheet open={voiceSheetOpen} onOpenChange={setVoiceSheetOpen} />
     </div>
   );
 }
