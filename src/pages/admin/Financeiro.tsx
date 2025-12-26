@@ -22,7 +22,8 @@ import {
   Package,
   Receipt,
   ChevronRight,
-  Settings2
+  Settings2,
+  FileText
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -422,6 +423,11 @@ export default function Financeiro() {
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link to="/financeiro/dre">
+            <PremiumBadge variant="success" icon={FileText} className="cursor-pointer hover:scale-105 transition-transform">
+              Relatório DRE
+            </PremiumBadge>
+          </Link>
           <Link to="/financeiro/configuracoes">
             <PremiumBadge variant="neutral" icon={Settings2} className="cursor-pointer hover:scale-105 transition-transform">
               Configurar Taxas

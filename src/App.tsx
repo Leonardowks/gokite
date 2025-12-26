@@ -21,6 +21,7 @@ const Vendas = lazy(() => import("./pages/admin/Vendas"));
 const Estoque = lazy(() => import("./pages/admin/Estoque"));
 const Financeiro = lazy(() => import("./pages/admin/Financeiro"));
 const ConfiguracoesFinanceiras = lazy(() => import("./pages/admin/ConfiguracoesFinanceiras"));
+const RelatorioDRE = lazy(() => import("./pages/admin/RelatorioDRE"));
 const Assistente = lazy(() => import("./pages/Assistente"));
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ const App = () => {
             <Route path="/ecommerce" element={<Ecommerce />} />
             <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/financeiro/configuracoes" element={<ConfiguracoesFinanceiras />} />
+            <Route path="/financeiro/dre" element={<RelatorioDRE />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/assistente" element={<Assistente />} />
