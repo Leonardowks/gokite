@@ -8,16 +8,11 @@ interface AuthState {
 const AUTH_KEY = "gokite_admin_auth";
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>(() => {
-    const stored = localStorage.getItem(AUTH_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return { isAuthenticated: false, user: null };
-      }
-    }
-    return { isAuthenticated: false, user: null };
+  // TEMPORÁRIO: Bypass de autenticação para web scraping
+  // Para reverter, restaure o código original que verifica localStorage
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: true,
+    user: { email: "scraping@gokite.com" }
   });
 
   const login = (email: string, password: string): boolean => {
