@@ -1,11 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { VoiceAssistantState, VoiceCommandResult } from '@/types/voice';
-
-// Check if browser supports Web Speech API
-const isSpeechRecognitionSupported = () => {
-  return 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
-};
 
 export function useVoiceAssistant() {
   const [state, setState] = useState<VoiceAssistantState>({
@@ -16,101 +11,117 @@ export function useVoiceAssistant() {
     error: null,
   });
 
-  const recognitionRef = useRef<any>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
-  // Initialize speech recognition
-  useEffect(() => {
-    if (!isSpeechRecognitionSupported()) {
+  const startListening = useCallback(async () => {
+    try {
       setState(prev => ({
         ...prev,
-        error: 'Seu navegador não suporta reconhecimento de voz. Use Chrome ou Edge.',
+        error: null,
+        transcript: '',
+        lastResult: null,
       }));
-      return;
-    }
 
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
-    
-    const recognition = recognitionRef.current;
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = 'pt-BR';
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      console.log('Speech recognition started');
-      setState(prev => ({ ...prev, isListening: true, error: null, transcript: '' }));
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((result: any) => result[0].transcript)
-        .join('');
-      
-      console.log('Transcript:', transcript);
-      setState(prev => ({ ...prev, transcript }));
-
-      // If final result, process it
-      if (event.results[event.results.length - 1].isFinal) {
-        recognition.stop();
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      let errorMessage = 'Erro no reconhecimento de voz';
-      
-      switch (event.error) {
-        case 'no-speech':
-          errorMessage = 'Nenhuma fala detectada. Tente novamente.';
-          break;
-        case 'audio-capture':
-          errorMessage = 'Microfone não encontrado. Verifique as permissões.';
-          break;
-        case 'not-allowed':
-          errorMessage = 'Permissão de microfone negada.';
-          break;
-        case 'network':
-          errorMessage = 'Erro de rede. Verifique sua conexão.';
-          break;
-      }
-      
-      setState(prev => ({ ...prev, isListening: false, error: errorMessage }));
-    };
-
-    recognition.onend = () => {
-      console.log('Speech recognition ended');
-      setState(prev => {
-        // Only process if we have a transcript and aren't already processing
-        if (prev.transcript && !prev.isProcessing) {
-          processCommand(prev.transcript);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
         }
-        return { ...prev, isListening: false };
       });
-    };
 
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4',
+      });
+      
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+        
+        if (chunksRef.current.length === 0) {
+          setState(prev => ({ ...prev, isListening: false, error: 'Nenhum áudio gravado' }));
+          return;
+        }
+
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        await processAudio(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setState(prev => ({ ...prev, isListening: true }));
+
+      // Auto-stop after 15 seconds
+      setTimeout(() => {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          stopListening();
+        }
+      }, 15000);
+
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      setState(prev => ({
+        ...prev,
+        error: 'Não foi possível acessar o microfone. Verifique as permissões.',
+      }));
+    }
   }, []);
 
-  const processCommand = async (transcript: string) => {
-    setState(prev => ({ ...prev, isProcessing: true }));
+  const stopListening = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+      setState(prev => ({ ...prev, isListening: false }));
+    }
+  }, []);
+
+  const processAudio = async (audioBlob: Blob) => {
+    setState(prev => ({ ...prev, isProcessing: true, transcript: 'Transcrevendo...' }));
 
     try {
-      const { data, error } = await supabase.functions.invoke('voice-assistant', {
+      // Convert blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64Audio = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+
+      // Step 1: Speech-to-Text with ElevenLabs
+      console.log('Sending audio to ElevenLabs STT...');
+      const { data: sttData, error: sttError } = await supabase.functions.invoke('elevenlabs-stt', {
+        body: { audio: base64Audio },
+      });
+
+      if (sttError || sttData?.error) {
+        throw new Error(sttData?.error || sttError?.message || 'Erro na transcrição');
+      }
+
+      const transcript = sttData.text;
+      if (!transcript) {
+        throw new Error('Nenhum texto transcrito');
+      }
+
+      console.log('Transcription:', transcript);
+      setState(prev => ({ ...prev, transcript }));
+
+      // Step 2: Process command with Lovable AI
+      console.log('Processing command...');
+      const { data: commandData, error: commandError } = await supabase.functions.invoke('voice-assistant', {
         body: { transcript },
       });
 
-      if (error) throw error;
+      if (commandError || !commandData) {
+        throw new Error(commandError?.message || 'Erro ao processar comando');
+      }
 
-      const result: VoiceCommandResult = data;
+      const result: VoiceCommandResult = commandData;
       setState(prev => ({
         ...prev,
         isProcessing: false,
@@ -118,18 +129,41 @@ export function useVoiceAssistant() {
         error: result.success ? null : result.message,
       }));
 
-      // Speak the response
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(result.message);
-        utterance.lang = 'pt-BR';
-        utterance.rate = 1.1;
-        speechSynthesis.speak(utterance);
+      // Step 3: Text-to-Speech response with ElevenLabs
+      if (result.message) {
+        console.log('Generating TTS response...');
+        try {
+          const response = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              },
+              body: JSON.stringify({ text: result.message }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.audioContent) {
+              const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+              const audio = new Audio(audioUrl);
+              audio.play().catch(e => console.log('Audio playback error:', e));
+            }
+          }
+        } catch (ttsError) {
+          console.error('TTS error (non-critical):', ttsError);
+          // Continue without TTS - not critical
+        }
       }
 
       return result;
     } catch (error) {
-      console.error('Error processing command:', error);
-      const errorMessage = 'Erro ao processar comando. Tente novamente.';
+      console.error('Error processing audio:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao processar comando';
       setState(prev => ({
         ...prev,
         isProcessing: false,
@@ -138,45 +172,6 @@ export function useVoiceAssistant() {
       }));
     }
   };
-
-  const startListening = useCallback(() => {
-    if (!recognitionRef.current) {
-      setState(prev => ({
-        ...prev,
-        error: 'Reconhecimento de voz não disponível',
-      }));
-      return;
-    }
-
-    setState(prev => ({
-      ...prev,
-      error: null,
-      transcript: '',
-      lastResult: null,
-    }));
-
-    try {
-      recognitionRef.current.start();
-      
-      // Auto-stop after 10 seconds
-      timeoutRef.current = setTimeout(() => {
-        if (recognitionRef.current) {
-          recognitionRef.current.stop();
-        }
-      }, 10000);
-    } catch (error) {
-      console.error('Error starting recognition:', error);
-    }
-  }, []);
-
-  const stopListening = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-  }, []);
 
   const reset = useCallback(() => {
     setState({
@@ -193,6 +188,6 @@ export function useVoiceAssistant() {
     startListening,
     stopListening,
     reset,
-    isSupported: isSpeechRecognitionSupported(),
+    isSupported: typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
   };
 }
