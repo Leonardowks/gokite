@@ -200,6 +200,57 @@ export type Database = {
         }
         Relationships: []
       }
+      contas_a_pagar: {
+        Row: {
+          categoria: string
+          centro_de_custo: string
+          created_at: string
+          data_pagamento: string | null
+          data_vencimento: string
+          descricao: string
+          fornecedor: string | null
+          frequencia_recorrencia: string | null
+          id: string
+          notas: string | null
+          recorrente: boolean
+          status: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          categoria?: string
+          centro_de_custo?: string
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento: string
+          descricao: string
+          fornecedor?: string | null
+          frequencia_recorrencia?: string | null
+          id?: string
+          notas?: string | null
+          recorrente?: boolean
+          status?: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          categoria?: string
+          centro_de_custo?: string
+          created_at?: string
+          data_pagamento?: string | null
+          data_vencimento?: string
+          descricao?: string
+          fornecedor?: string | null
+          frequencia_recorrencia?: string | null
+          id?: string
+          notas?: string | null
+          recorrente?: boolean
+          status?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       despesas: {
         Row: {
           categoria: string
@@ -370,6 +421,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trade_ins: {
+        Row: {
+          comprador_id: string | null
+          created_at: string
+          data_entrada: string
+          data_saida: string | null
+          descricao: string | null
+          equipamento_id_entrada: string | null
+          equipamento_recebido: string
+          id: string
+          lucro_trade_in: number | null
+          notas: string | null
+          status: string
+          transacao_origem_id: string | null
+          updated_at: string
+          valor_entrada: number
+          valor_saida: number | null
+        }
+        Insert: {
+          comprador_id?: string | null
+          created_at?: string
+          data_entrada?: string
+          data_saida?: string | null
+          descricao?: string | null
+          equipamento_id_entrada?: string | null
+          equipamento_recebido: string
+          id?: string
+          lucro_trade_in?: number | null
+          notas?: string | null
+          status?: string
+          transacao_origem_id?: string | null
+          updated_at?: string
+          valor_entrada: number
+          valor_saida?: number | null
+        }
+        Update: {
+          comprador_id?: string | null
+          created_at?: string
+          data_entrada?: string
+          data_saida?: string | null
+          descricao?: string | null
+          equipamento_id_entrada?: string | null
+          equipamento_recebido?: string
+          id?: string
+          lucro_trade_in?: number | null
+          notas?: string | null
+          status?: string
+          transacao_origem_id?: string | null
+          updated_at?: string
+          valor_entrada?: number
+          valor_saida?: number | null
+        }
+        Relationships: []
       }
       transacoes: {
         Row: {
