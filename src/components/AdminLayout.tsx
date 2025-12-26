@@ -11,6 +11,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { UserMenu } from "@/components/UserMenu";
 import { QuickStats } from "@/components/QuickStats";
+import { VoiceAssistant } from "@/components/VoiceAssistant";
 import gokiteLogo from "@/assets/gokite-logo.png";
 
 interface AdminLayoutProps {
@@ -299,6 +300,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Voice Assistant */}
+      <VoiceAssistant />
     </div>
   );
 }
