@@ -23,7 +23,8 @@ import {
   Receipt,
   ChevronRight,
   Settings2,
-  FileText
+  FileText,
+  FileWarning
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +59,7 @@ import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay
 import { ptBR } from "date-fns/locale";
 import { useTransacoes, useTransacoesSummary, Transacao } from "@/hooks/useTransacoes";
 import { TransacaoDetalheDialog } from "@/components/TransacaoDetalheDialog";
+import { useContasAPagarSummary } from "@/hooks/useContasAPagar";
 
 interface FinanceiroStats {
   receitaTotal: number;
@@ -130,10 +132,38 @@ export default function Financeiro() {
   // Fetch transações from Supabase
   const { data: transacoes = [], isLoading: isLoadingTransacoes } = useTransacoes({ limit: 10 });
   const { data: transacoesSummary } = useTransacoesSummary('mes');
+  const { data: contasSummary } = useContasAPagarSummary();
 
   useEffect(() => {
     loadFinancialData();
   }, []);
+
+  // Add insight for overdue bills
+  useEffect(() => {
+    if (contasSummary?.qtdVencido && contasSummary.qtdVencido > 0) {
+      setInsights(prev => {
+        const hasContasInsight = prev.some(i => i.titulo.includes('conta(s) vencida'));
+        if (hasContasInsight) return prev;
+        return [{
+          tipo: 'alerta' as const,
+          titulo: `${contasSummary.qtdVencido} conta(s) vencida(s)`,
+          descricao: `R$ ${contasSummary.totalVencido.toLocaleString('pt-BR')} em contas atrasadas. Regularize para evitar multas!`,
+          acao: 'Ver contas',
+        }, ...prev];
+      });
+    } else if (contasSummary?.qtdVencendo7Dias && contasSummary.qtdVencendo7Dias > 0) {
+      setInsights(prev => {
+        const hasContasInsight = prev.some(i => i.titulo.includes('vencendo em 7 dias'));
+        if (hasContasInsight) return prev;
+        return [{
+          tipo: 'dica' as const,
+          titulo: `${contasSummary.qtdVencendo7Dias} conta(s) vencendo em 7 dias`,
+          descricao: `R$ ${contasSummary.totalVencendo7Dias.toLocaleString('pt-BR')} a pagar em breve. Programe-se!`,
+          acao: 'Ver contas',
+        }, ...prev];
+      });
+    }
+  }, [contasSummary]);
 
   const loadFinancialData = () => {
     setIsLoading(true);
@@ -422,10 +452,20 @@ export default function Financeiro() {
             Aqui está o resumo financeiro da sua escola
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           <Link to="/financeiro/dre">
             <PremiumBadge variant="success" icon={FileText} className="cursor-pointer hover:scale-105 transition-transform">
               Relatório DRE
+            </PremiumBadge>
+          </Link>
+          <Link to="/financeiro/contas">
+            <PremiumBadge 
+              variant={contasSummary?.qtdVencido ? "urgent" : "warning"} 
+              icon={FileWarning} 
+              className="cursor-pointer hover:scale-105 transition-transform"
+              pulse={contasSummary?.qtdVencido ? true : false}
+            >
+              Contas a Pagar {contasSummary?.qtdPendente ? `(${contasSummary.qtdPendente})` : ''}
             </PremiumBadge>
           </Link>
           <Link to="/financeiro/configuracoes">
@@ -440,7 +480,7 @@ export default function Financeiro() {
       </div>
 
       {/* KPIs Premium - Grid Responsivo */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
         {/* Receita do Mês - Destaque */}
         <PremiumCard featured gradient="primary" className="col-span-2 lg:col-span-1">
           <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
@@ -528,6 +568,49 @@ export default function Financeiro() {
             </p>
           </PremiumCardContent>
         </PremiumCard>
+
+        {/* Contas a Pagar */}
+        <Link to="/financeiro/contas" className="block">
+          <PremiumCard 
+            className={`h-full cursor-pointer hover:scale-[1.02] transition-all ${
+              contasSummary?.qtdVencido ? "border-destructive/40 animate-pulse-soft" : 
+              contasSummary?.qtdVencendo7Dias ? "border-warning/30" : ""
+            }`}
+          >
+            <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+              <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Contas a Pagar
+              </PremiumCardTitle>
+              <div className={`icon-container h-9 w-9 sm:h-10 sm:w-10 ${
+                contasSummary?.qtdVencido ? 'icon-container-destructive' : 'icon-container-warning'
+              }`}>
+                <FileWarning className="h-4 w-4 sm:h-5 sm:w-5" />
+              </div>
+            </PremiumCardHeader>
+            <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+              <div className={`number-display text-xl sm:text-2xl lg:text-3xl ${
+                contasSummary?.qtdVencido ? 'text-destructive' : 'text-foreground'
+              }`}>
+                <AnimatedNumber value={contasSummary?.totalPendente || 0} format="currency" />
+              </div>
+              <div className="flex items-center gap-1 mt-1">
+                {contasSummary?.qtdVencido ? (
+                  <PremiumBadge variant="urgent" size="sm">
+                    {contasSummary.qtdVencido} vencida(s)
+                  </PremiumBadge>
+                ) : contasSummary?.qtdVencendo7Dias ? (
+                  <PremiumBadge variant="warning" size="sm">
+                    {contasSummary.qtdVencendo7Dias} próx. 7 dias
+                  </PremiumBadge>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {contasSummary?.qtdPendente || 0} pendente(s)
+                  </p>
+                )}
+              </div>
+            </PremiumCardContent>
+          </PremiumCard>
+        </Link>
       </div>
 
       {/* Meta Mensal Premium */}
