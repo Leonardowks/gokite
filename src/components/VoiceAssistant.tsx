@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Mic, MicOff, X, Loader2, Check, AlertCircle, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
@@ -17,10 +17,10 @@ export function VoiceAssistant() {
     isSupported,
   } = useVoiceAssistant();
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   // Keyboard shortcut: Ctrl+J to activate
-  useEffect(() => {
+  React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 'j') {
         e.preventDefault();
