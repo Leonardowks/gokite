@@ -6,18 +6,112 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface VoiceCommand {
-  intent: string;
-  data: Record<string, any>;
-  confidence: number;
-}
+// Tool definitions for the AI
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "registrar_despesa",
+      description: "Registra uma nova despesa/gasto no sistema",
+      parameters: {
+        type: "object",
+        properties: {
+          valor: { type: "number", description: "Valor da despesa em reais" },
+          categoria: { 
+            type: "string", 
+            enum: ["combustivel", "manutencao", "equipamentos", "funcionarios", "alimentacao", "transporte", "outros"],
+            description: "Categoria da despesa"
+          },
+          descricao: { type: "string", description: "Descrição da despesa" }
+        },
+        required: ["valor"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "consultar_faturamento",
+      description: "Consulta o faturamento (receitas de aulas e aluguéis) de um período",
+      parameters: {
+        type: "object",
+        properties: {
+          periodo: { 
+            type: "string", 
+            enum: ["hoje", "semana", "mes"],
+            description: "Período para consultar"
+          }
+        },
+        required: ["periodo"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "cadastrar_cliente",
+      description: "Cadastra um novo cliente no sistema",
+      parameters: {
+        type: "object",
+        properties: {
+          nome: { type: "string", description: "Nome do cliente" },
+          telefone: { type: "string", description: "Telefone do cliente" },
+          email: { type: "string", description: "Email do cliente" }
+        },
+        required: ["nome"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "agendar_aula",
+      description: "Agenda uma nova aula de kitesurf para um cliente",
+      parameters: {
+        type: "object",
+        properties: {
+          cliente_nome: { type: "string", description: "Nome do cliente" },
+          data: { type: "string", description: "Data da aula (hoje, amanhã, ou data específica)" },
+          hora: { type: "string", description: "Horário da aula (ex: 10:00)" }
+        },
+        required: ["cliente_nome"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "navegar",
+      description: "Navega para uma página específica do sistema",
+      parameters: {
+        type: "object",
+        properties: {
+          pagina: { 
+            type: "string", 
+            enum: ["dashboard", "clientes", "aulas", "financeiro", "estoque", "vendas", "ecommerce", "relatorios", "configuracoes", "assistente"],
+            description: "Nome da página para navegar"
+          }
+        },
+        required: ["pagina"]
+      }
+    }
+  }
+];
 
-interface CommandResult {
-  success: boolean;
-  message: string;
-  data?: any;
-  intent?: string;
-}
+const pageRoutes: Record<string, string> = {
+  dashboard: "/",
+  home: "/",
+  inicio: "/",
+  clientes: "/clientes",
+  aulas: "/aulas",
+  financeiro: "/financeiro",
+  estoque: "/estoque",
+  vendas: "/vendas",
+  ecommerce: "/ecommerce",
+  relatorios: "/relatorios",
+  configuracoes: "/configuracoes",
+  assistente: "/assistente"
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -25,20 +119,45 @@ serve(async (req) => {
   }
 
   try {
-    const { transcript } = await req.json();
+    const { transcript, conversationHistory = [] } = await req.json();
     
     if (!transcript || typeof transcript !== "string") {
       throw new Error("Transcrição não fornecida");
     }
 
-    console.log("Processando comando de voz:", transcript);
+    console.log("Processando:", transcript);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY não configurada");
     }
 
-    // Process with Lovable AI to extract intent and data
+    // Build conversation messages
+    const messages = [
+      {
+        role: "system",
+        content: `Você é Jarvis, o assistente inteligente e amigável da GoKite, uma escola de kitesurf.
+
+Seu papel é ajudar o empresário a gerenciar o negócio de forma natural e conversacional.
+Você pode executar ações no sistema quando necessário, mas sempre confirme o que foi feito.
+
+Diretrizes:
+- Seja conciso, amigável e natural nas respostas
+- Quando executar uma ação, confirme brevemente o que foi feito
+- Se não entender algo, peça esclarecimentos de forma educada
+- Use emojis ocasionalmente para ser mais expressivo
+- Quando perguntarem sobre navegação, use a ferramenta navegar
+- Responda sempre em português brasileiro
+
+Contexto atual:
+- Data: ${new Date().toLocaleDateString('pt-BR')}
+- Hora: ${new Date().toLocaleTimeString('pt-BR')}`
+      },
+      ...conversationHistory.slice(-8),
+      { role: "user", content: transcript }
+    ];
+
+    // Call AI with tools
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -47,142 +166,93 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `Você é um assistente de voz para uma escola de kitesurf chamada GoKite. 
-Sua função é interpretar comandos de voz e extrair a intenção e os dados estruturados.
-
-Categorias de despesas válidas: combustivel, manutencao, equipamentos, funcionarios, alimentacao, transporte, outros
-
-Intents disponíveis:
-- registrar_despesa: quando o usuário quer registrar um gasto/despesa
-- consultar_faturamento: quando quer saber quanto faturou (hoje, semana, mês)
-- cadastrar_cliente: quando quer adicionar um novo cliente
-- agendar_aula: quando quer marcar uma aula
-- criar_aluguel: quando quer registrar um aluguel de equipamento
-- navegar: quando o usuário quer ir para uma página específica do sistema
-- consulta_geral: quando quer informações gerais
-
-Páginas disponíveis para navegação:
-- "/" ou "dashboard" ou "home" ou "início"
-- "/clientes" para clientes
-- "/aulas" para aulas ou agenda
-- "/financeiro" para financeiro ou finanças
-- "/estoque" para estoque ou equipamentos
-- "/vendas" para vendas
-- "/ecommerce" para e-commerce ou loja
-- "/relatorios" para relatórios
-- "/configuracoes" para configurações
-
-Responda APENAS com JSON válido no formato:
-{
-  "intent": "nome_do_intent",
-  "data": { dados extraídos },
-  "confidence": 0.0 a 1.0
-}
-
-Exemplos:
-- "gastei 200 de gasolina pro bote" -> {"intent": "registrar_despesa", "data": {"valor": 200, "categoria": "combustivel", "descricao": "gasolina pro bote"}, "confidence": 0.95}
-- "cadastra cliente Pedro telefone 11999999999" -> {"intent": "cadastrar_cliente", "data": {"nome": "Pedro", "telefone": "11999999999"}, "confidence": 0.9}
-- "agenda aula com Maria amanhã às 10" -> {"intent": "agendar_aula", "data": {"cliente_nome": "Maria", "data": "amanhã", "hora": "10:00"}, "confidence": 0.85}
-- "quanto faturei hoje" -> {"intent": "consultar_faturamento", "data": {"periodo": "hoje"}, "confidence": 0.95}
-- "ir para clientes" -> {"intent": "navegar", "data": {"route": "/clientes", "pagina": "clientes"}, "confidence": 0.95}
-- "abrir financeiro" -> {"intent": "navegar", "data": {"route": "/financeiro", "pagina": "financeiro"}, "confidence": 0.95}
-- "voltar pro dashboard" -> {"intent": "navegar", "data": {"route": "/", "pagina": "dashboard"}, "confidence": 0.95}`
-          },
-          {
-            role: "user",
-            content: transcript
-          }
-        ],
+        messages,
+        tools,
+        tool_choice: "auto"
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("Erro na API Lovable AI:", errorText);
-      throw new Error("Falha ao processar comando com IA");
+      console.error("Erro na API:", errorText);
+      throw new Error("Falha ao processar com IA");
     }
 
     const aiData = await aiResponse.json();
-    const aiContent = aiData.choices?.[0]?.message?.content;
-    
-    console.log("Resposta da IA:", aiContent);
+    const choice = aiData.choices?.[0];
+    const responseMessage = choice?.message;
 
-    let command: VoiceCommand;
-    try {
-      // Extract JSON from response (in case there's extra text)
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("JSON não encontrado na resposta");
+    console.log("Resposta da IA:", JSON.stringify(responseMessage));
+
+    // Initialize Supabase
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Check if there are tool calls
+    if (responseMessage?.tool_calls?.length > 0) {
+      const toolCall = responseMessage.tool_calls[0];
+      const functionName = toolCall.function.name;
+      let args: Record<string, any> = {};
+      
+      try {
+        args = JSON.parse(toolCall.function.arguments);
+      } catch {
+        args = {};
       }
-      command = JSON.parse(jsonMatch[0]);
-    } catch (parseError) {
-      console.error("Erro ao parsear resposta da IA:", parseError);
+
+      console.log(`Executando: ${functionName}`, args);
+
+      let result: { success: boolean; message: string; data?: any; navigation?: any; actionExecuted?: boolean };
+
+      switch (functionName) {
+        case "registrar_despesa":
+          result = await registrarDespesa(supabase, args);
+          break;
+        case "consultar_faturamento":
+          result = await consultarFaturamento(supabase, args);
+          break;
+        case "cadastrar_cliente":
+          result = await cadastrarCliente(supabase, args);
+          break;
+        case "agendar_aula":
+          result = await agendarAula(supabase, args);
+          break;
+        case "navegar":
+          const route = pageRoutes[args.pagina?.toLowerCase()] || "/";
+          result = {
+            success: true,
+            message: `Indo para ${args.pagina}! 🚀`,
+            navigation: { route, pagina: args.pagina }
+          };
+          break;
+        default:
+          result = { success: false, message: "Ação não reconhecida" };
+      }
+
       return new Response(
         JSON.stringify({
-          success: false,
-          message: "Não entendi o comando. Pode repetir?",
-          transcript,
+          ...result,
+          actionExecuted: result.success
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Execute the appropriate action based on intent
-    let result: CommandResult;
-
-    switch (command.intent) {
-      case "registrar_despesa":
-        result = await registrarDespesa(supabase, command.data);
-        break;
-      case "consultar_faturamento":
-        result = await consultarFaturamento(supabase, command.data);
-        break;
-      case "cadastrar_cliente":
-        result = await cadastrarCliente(supabase, command.data);
-        break;
-      case "agendar_aula":
-        result = await agendarAula(supabase, command.data);
-        break;
-      case "criar_aluguel":
-        result = await criarAluguel(supabase, command.data);
-        break;
-      case "navegar":
-        result = {
-          success: true,
-          message: `Navegando para ${command.data?.pagina || command.data?.route}`,
-          data: command.data,
-          intent: "navegar",
-        };
-        break;
-      default:
-        result = {
-          success: false,
-          message: `Não sei como executar: ${command.intent}. Tente novamente com outro comando.`,
-        };
-    }
-
-    console.log("Resultado da ação:", result);
-
+    // No tool calls - just a conversational response
+    const textResponse = responseMessage?.content || "Desculpe, não consegui processar isso.";
+    
     return new Response(
       JSON.stringify({
-        ...result,
-        intent: command.intent,
-        confidence: command.confidence,
-        transcript,
+        success: true,
+        message: textResponse,
+        actionExecuted: false
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Erro no voice-assistant:", error);
+    console.error("Erro:", error);
     return new Response(
       JSON.stringify({
         success: false,
@@ -197,11 +267,11 @@ Exemplos:
 });
 
 // Action handlers
-async function registrarDespesa(supabase: any, data: any): Promise<CommandResult> {
+async function registrarDespesa(supabase: any, data: any) {
   const { valor, categoria = "outros", descricao } = data;
   
   if (!valor || isNaN(Number(valor))) {
-    return { success: false, message: "Valor da despesa não identificado" };
+    return { success: false, message: "Não consegui identificar o valor da despesa 🤔" };
   }
 
   const { error } = await supabase.from("despesas").insert({
@@ -213,16 +283,16 @@ async function registrarDespesa(supabase: any, data: any): Promise<CommandResult
 
   if (error) {
     console.error("Erro ao inserir despesa:", error);
-    return { success: false, message: "Erro ao registrar despesa" };
+    return { success: false, message: "Ops, erro ao registrar a despesa" };
   }
 
   return {
     success: true,
-    message: `Despesa de R$${valor} em ${categoria} registrada com sucesso!`,
+    message: `✅ Pronto! Registrei R$${valor} em ${categoria}${descricao ? ` (${descricao})` : ''}`,
   };
 }
 
-async function consultarFaturamento(supabase: any, data: any): Promise<CommandResult> {
+async function consultarFaturamento(supabase: any, data: any) {
   const { periodo = "hoje" } = data;
   
   let startDate: string;
@@ -230,60 +300,50 @@ async function consultarFaturamento(supabase: any, data: any): Promise<CommandRe
   
   switch (periodo.toLowerCase()) {
     case "semana":
-    case "esta semana":
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - today.getDay());
       startDate = weekStart.toISOString().split("T")[0];
       break;
     case "mes":
-    case "este mes":
-    case "mês":
-    case "este mês":
       startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
       break;
-    default: // hoje
+    default:
       startDate = today.toISOString().split("T")[0];
   }
 
   const endDate = today.toISOString().split("T")[0];
 
-  // Get aulas revenue
-  const { data: aulas, error: aulasError } = await supabase
+  const { data: aulas } = await supabase
     .from("aulas")
     .select("preco")
     .gte("data", startDate)
     .lte("data", endDate)
     .eq("status", "concluida");
 
-  // Get aluguel revenue
-  const { data: alugueis, error: alugueisError } = await supabase
+  const { data: alugueis } = await supabase
     .from("aluguel")
     .select("valor")
     .gte("data_inicio", startDate)
     .lte("data_inicio", endDate);
 
-  if (aulasError || alugueisError) {
-    return { success: false, message: "Erro ao consultar faturamento" };
-  }
-
   const totalAulas = aulas?.reduce((acc: number, a: any) => acc + Number(a.preco), 0) || 0;
   const totalAlugueis = alugueis?.reduce((acc: number, a: any) => acc + Number(a.valor), 0) || 0;
   const total = totalAulas + totalAlugueis;
 
-  const periodoText = periodo === "hoje" ? "hoje" : `nesta ${periodo}`;
+  const periodoText = periodo === "hoje" ? "hoje" : periodo === "semana" ? "essa semana" : "esse mês";
 
   return {
     success: true,
-    message: `Faturamento ${periodoText}: R$${total.toFixed(2)}. Aulas: R$${totalAulas.toFixed(2)}, Aluguéis: R$${totalAlugueis.toFixed(2)}.`,
+    message: `💰 Faturamento ${periodoText}: R$${total.toFixed(2)}\n\n📚 Aulas: R$${totalAulas.toFixed(2)}\n🏄 Aluguéis: R$${totalAlugueis.toFixed(2)}`,
     data: { total, aulas: totalAulas, alugueis: totalAlugueis },
   };
 }
 
-async function cadastrarCliente(supabase: any, data: any): Promise<CommandResult> {
+async function cadastrarCliente(supabase: any, data: any) {
   const { nome, telefone, email } = data;
   
   if (!nome) {
-    return { success: false, message: "Nome do cliente não identificado" };
+    return { success: false, message: "Preciso do nome do cliente para cadastrar 😅" };
   }
 
   const { error } = await supabase.from("clientes").insert({
@@ -298,31 +358,29 @@ async function cadastrarCliente(supabase: any, data: any): Promise<CommandResult
     return { success: false, message: "Erro ao cadastrar cliente" };
   }
 
-  return {
-    success: true,
-    message: `Cliente ${nome} cadastrado com sucesso!`,
-  };
+  let msg = `✅ ${nome} cadastrado com sucesso!`;
+  if (telefone) msg += ` (Tel: ${telefone})`;
+
+  return { success: true, message: msg };
 }
 
-async function agendarAula(supabase: any, data: any): Promise<CommandResult> {
+async function agendarAula(supabase: any, data: any) {
   const { cliente_nome, data: dataAula, hora = "10:00" } = data;
   
   if (!cliente_nome) {
-    return { success: false, message: "Nome do cliente não identificado" };
+    return { success: false, message: "Com qual cliente devo agendar a aula?" };
   }
 
-  // Find client
-  const { data: clientes, error: clienteError } = await supabase
+  const { data: clientes } = await supabase
     .from("clientes")
     .select("id, nome")
     .ilike("nome", `%${cliente_nome}%`)
     .limit(1);
 
-  if (clienteError || !clientes?.length) {
-    return { success: false, message: `Cliente "${cliente_nome}" não encontrado` };
+  if (!clientes?.length) {
+    return { success: false, message: `Não encontrei cliente "${cliente_nome}". Quer que eu cadastre?` };
   }
 
-  // Parse date
   let aulaDate: string;
   const today = new Date();
   
@@ -330,13 +388,10 @@ async function agendarAula(supabase: any, data: any): Promise<CommandResult> {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
     aulaDate = tomorrow.toISOString().split("T")[0];
-  } else if (dataAula?.toLowerCase().includes("hoje")) {
-    aulaDate = today.toISOString().split("T")[0];
   } else {
-    aulaDate = today.toISOString().split("T")[0]; // default to today
+    aulaDate = today.toISOString().split("T")[0];
   }
 
-  // Format hora
   const horaFormatted = hora.includes(":") ? hora : `${hora}:00`;
 
   const { error } = await supabase.from("aulas").insert({
@@ -355,68 +410,9 @@ async function agendarAula(supabase: any, data: any): Promise<CommandResult> {
     return { success: false, message: "Erro ao agendar aula" };
   }
 
+  const dataFormatted = new Date(aulaDate).toLocaleDateString('pt-BR');
   return {
     success: true,
-    message: `Aula agendada para ${clientes[0].nome} em ${aulaDate} às ${horaFormatted}!`,
-  };
-}
-
-async function criarAluguel(supabase: any, data: any): Promise<CommandResult> {
-  const { cliente_nome, equipamento, dias = 1 } = data;
-  
-  if (!cliente_nome) {
-    return { success: false, message: "Nome do cliente não identificado" };
-  }
-
-  // Find client
-  const { data: clientes } = await supabase
-    .from("clientes")
-    .select("id")
-    .ilike("nome", `%${cliente_nome}%`)
-    .limit(1);
-
-  if (!clientes?.length) {
-    return { success: false, message: `Cliente "${cliente_nome}" não encontrado` };
-  }
-
-  // Find available equipment
-  const { data: equipamentos } = await supabase
-    .from("equipamentos")
-    .select("id, nome, preco_aluguel_dia")
-    .eq("status", "disponivel")
-    .limit(1);
-
-  if (!equipamentos?.length) {
-    return { success: false, message: "Nenhum equipamento disponível" };
-  }
-
-  const eq = equipamentos[0];
-  const dataInicio = new Date();
-  const dataFim = new Date();
-  dataFim.setDate(dataFim.getDate() + Number(dias));
-
-  const { error } = await supabase.from("aluguel").insert({
-    cliente_id: clientes[0].id,
-    equipamento_id: eq.id,
-    data_inicio: dataInicio.toISOString(),
-    data_fim: dataFim.toISOString(),
-    valor: eq.preco_aluguel_dia * Number(dias),
-    status: "ativo",
-  });
-
-  if (error) {
-    console.error("Erro ao criar aluguel:", error);
-    return { success: false, message: "Erro ao criar aluguel" };
-  }
-
-  // Update equipment status
-  await supabase
-    .from("equipamentos")
-    .update({ status: "alugado" })
-    .eq("id", eq.id);
-
-  return {
-    success: true,
-    message: `Aluguel de ${eq.nome} por ${dias} dia(s) criado com sucesso!`,
+    message: `📅 Aula agendada!\n\n👤 ${clientes[0].nome}\n🗓️ ${dataFormatted} às ${horaFormatted}\n📍 Praia Principal`,
   };
 }

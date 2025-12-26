@@ -6,55 +6,11 @@ import {
   Loader2, 
   Check, 
   X, 
-  ChevronDown,
-  Settings2,
-  History,
-  Home,
-  Users,
-  Calendar,
-  DollarSign,
-  Package,
-  BarChart3,
-  Settings,
-  TrendingUp,
-  ShoppingCart,
-  Volume2,
-  Trash2
+  Sparkles
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { useVoiceAssistant, OPENAI_VOICES, type OpenAIVoice } from "@/hooks/useVoiceAssistant";
+import { useVoiceAssistant } from "@/hooks/useVoiceAssistant";
 import { toast } from "sonner";
-
-const navigationCommands = [
-  { label: "Dashboard", icon: Home, route: "/", voice: "Ir para dashboard" },
-  { label: "Clientes", icon: Users, route: "/clientes", voice: "Abrir clientes" },
-  { label: "Aulas", icon: Calendar, route: "/aulas", voice: "Ver aulas" },
-  { label: "Financeiro", icon: DollarSign, route: "/financeiro", voice: "Abrir financeiro" },
-  { label: "Estoque", icon: Package, route: "/estoque", voice: "Ver estoque" },
-  { label: "Vendas", icon: TrendingUp, route: "/vendas", voice: "Ir para vendas" },
-  { label: "E-commerce", icon: ShoppingCart, route: "/ecommerce", voice: "Abrir ecommerce" },
-  { label: "Relatórios", icon: BarChart3, route: "/relatorios", voice: "Ver relatórios" },
-  { label: "Configurações", icon: Settings, route: "/configuracoes", voice: "Abrir configurações" },
-];
-
-const quickActions = [
-  { label: "Registrar despesa", voice: "Gastei 100 reais de gasolina" },
-  { label: "Cadastrar cliente", voice: "Cadastra cliente João telefone 11999999999" },
-  { label: "Agendar aula", voice: "Agenda aula com Maria amanhã às 10" },
-  { label: "Consultar faturamento", voice: "Quanto faturei hoje" },
-];
 
 export function VoiceAssistantBar() {
   const navigate = useNavigate();
@@ -64,17 +20,10 @@ export function VoiceAssistantBar() {
     transcript,
     lastResult,
     error,
-    selectedVoice,
-    commandHistory,
-    changeVoice,
-    clearHistory,
     startListening,
     stopListening,
-    reset,
     isSupported,
   } = useVoiceAssistant();
-
-  const [isOpen, setIsOpen] = useState(false);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -95,12 +44,9 @@ export function VoiceAssistantBar() {
 
   // Handle navigation from voice result
   useEffect(() => {
-    if (lastResult?.success && lastResult.intent === "navegar") {
-      const route = lastResult.data?.route;
-      if (route) {
-        navigate(route);
-        toast.success(`Navegando para ${route}`);
-      }
+    if (lastResult?.success && lastResult.navigation?.route) {
+      navigate(lastResult.navigation.route);
+      toast.success(`Navegando para ${lastResult.navigation.pagina}`);
     }
   }, [lastResult, navigate]);
 
@@ -128,16 +74,6 @@ export function VoiceAssistantBar() {
       "bg-gradient-to-br from-destructive to-red-400 shadow-lg shadow-destructive/30": orbState === "error",
     }
   );
-
-  const handleNavigation = (route: string) => {
-    navigate(route);
-    setIsOpen(false);
-  };
-
-  const handleQuickAction = (voice: string) => {
-    toast.info(`Diga: "${voice}"`);
-    setIsOpen(false);
-  };
 
   return (
     <div className="flex items-center gap-2 flex-1 max-w-xl">
@@ -183,12 +119,13 @@ export function VoiceAssistantBar() {
       {/* Transcription Area */}
       <div className="flex-1 min-w-0">
         <div 
+          onClick={() => navigate("/assistente")}
           className={cn(
-            "h-10 px-4 rounded-xl border transition-all duration-300 flex items-center gap-2",
+            "h-10 px-4 rounded-xl border transition-all duration-300 flex items-center gap-2 cursor-pointer",
             "bg-background/50 backdrop-blur-sm",
             isListening && "border-destructive/50 bg-destructive/5",
             isProcessing && "border-primary/50 bg-primary/5",
-            !isListening && !isProcessing && "border-border/50 hover:border-primary/30"
+            !isListening && !isProcessing && "border-border/50 hover:border-primary/30 hover:bg-primary/5"
           )}
         >
           {transcript ? (
@@ -203,134 +140,20 @@ export function VoiceAssistantBar() {
           ) : error ? (
             <p className="text-sm text-destructive truncate">{error}</p>
           ) : (
-            <p className="text-sm text-muted-foreground truncate">
-              {isListening ? "Ouvindo..." : "Fale um comando ou pressione Ctrl+J"}
+            <p className="text-sm text-muted-foreground truncate flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              {isListening ? "Ouvindo..." : "Fale com Jarvis ou clique aqui..."}
             </p>
           )}
         </div>
       </div>
 
-      {/* Dropdown Menu */}
-      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
-            <ChevronDown className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72">
-          {/* Navigation */}
-          <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Home className="h-3 w-3" />
-            Navegação
-          </DropdownMenuLabel>
-          <div className="grid grid-cols-3 gap-1 p-1">
-            {navigationCommands.slice(0, 6).map((cmd) => (
-              <DropdownMenuItem
-                key={cmd.route}
-                onClick={() => handleNavigation(cmd.route)}
-                className="flex flex-col items-center gap-1 h-16 justify-center cursor-pointer"
-              >
-                <cmd.icon className="h-4 w-4 text-primary" />
-                <span className="text-xs">{cmd.label}</span>
-              </DropdownMenuItem>
-            ))}
-          </div>
-          
-          <DropdownMenuSeparator />
-          
-          {/* Quick Actions */}
-          <DropdownMenuLabel className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Mic className="h-3 w-3" />
-            Comandos de Voz
-          </DropdownMenuLabel>
-          {quickActions.map((action) => (
-            <DropdownMenuItem
-              key={action.label}
-              onClick={() => handleQuickAction(action.voice)}
-              className="cursor-pointer"
-            >
-              <span className="text-sm">{action.label}</span>
-              <span className="ml-auto text-xs text-muted-foreground truncate max-w-[120px]">
-                "{action.voice.substring(0, 20)}..."
-              </span>
-            </DropdownMenuItem>
-          ))}
-          
-          <DropdownMenuSeparator />
-          
-          {/* History */}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="flex items-center gap-2">
-              <History className="h-4 w-4" />
-              Histórico
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-64">
-              {commandHistory.length === 0 ? (
-                <DropdownMenuItem disabled>
-                  Nenhum comando recente
-                </DropdownMenuItem>
-              ) : (
-                <>
-                  {commandHistory.slice(0, 5).map((item) => (
-                    <DropdownMenuItem key={item.id} className="flex flex-col items-start gap-1">
-                      <span className="text-sm truncate w-full">{item.transcript}</span>
-                      <span className={cn(
-                        "text-xs",
-                        item.success ? "text-success" : "text-destructive"
-                      )}>
-                        {item.success ? "✓" : "✗"} {item.message.substring(0, 30)}...
-                      </span>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={clearHistory} className="text-destructive cursor-pointer">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Limpar histórico
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          
-          {/* Voice Settings */}
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="flex items-center gap-2">
-              <Volume2 className="h-4 w-4" />
-              Voz: {OPENAI_VOICES.find(v => v.id === selectedVoice)?.name}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              {OPENAI_VOICES.map((voice) => (
-                <DropdownMenuItem
-                  key={voice.id}
-                  onClick={() => changeVoice(voice.id as OpenAIVoice)}
-                  className={cn(
-                    "cursor-pointer",
-                    selectedVoice === voice.id && "bg-primary/10"
-                  )}
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium">{voice.name}</span>
-                    <span className="text-xs text-muted-foreground">{voice.description}</span>
-                  </div>
-                  {selectedVoice === voice.id && (
-                    <Check className="h-4 w-4 ml-auto text-primary" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-          
-          <DropdownMenuSeparator />
-          
-          {/* Keyboard shortcut hint */}
-          <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center justify-center gap-1">
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Ctrl</kbd>
-            <span>+</span>
-            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">J</kbd>
-            <span className="ml-1">para ativar</span>
-          </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Keyboard shortcut hint */}
+      <div className="hidden lg:flex items-center gap-1 text-xs text-muted-foreground">
+        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Ctrl</kbd>
+        <span>+</span>
+        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">J</kbd>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,8 @@ export interface VoiceCommandResult {
   confidence?: number;
   transcript?: string;
   data?: Record<string, any>;
+  navigation?: { route: string; pagina: string };
+  actionExecuted?: boolean;
 }
 
 export interface VoiceAssistantState {
