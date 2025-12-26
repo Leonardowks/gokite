@@ -147,6 +147,15 @@ export const useVenderTradeIn = () => {
       valor_saida: number;
       comprador_id?: string;
     }) => {
+      // Get trade-in details first
+      const { data: tradeIn } = await supabase
+        .from("trade_ins")
+        .select("equipamento_recebido, valor_entrada")
+        .eq("id", id)
+        .single();
+
+      const lucroTradeIn = valor_saida - (tradeIn?.valor_entrada || 0);
+
       const { data, error } = await supabase
         .from("trade_ins")
         .update({
@@ -154,17 +163,57 @@ export const useVenderTradeIn = () => {
           comprador_id: comprador_id || null,
           data_saida: new Date().toISOString().split("T")[0],
           status: "vendido",
+          lucro_trade_in: lucroTradeIn,
         })
         .eq("id", id)
         .select()
         .single();
 
       if (error) throw error;
+
+      // Criar transação automática de venda
+      const { data: config } = await supabase
+        .from("config_financeiro")
+        .select("*")
+        .limit(1)
+        .single();
+
+      const taxaImposto = config?.taxa_imposto_padrao || 6;
+      const impostoProvisionado = (valor_saida * taxaImposto) / 100;
+      const lucroLiquido = valor_saida - (tradeIn?.valor_entrada || 0) - impostoProvisionado;
+
+      // Get buyer name if available
+      let compradorNome = 'Cliente';
+      if (comprador_id) {
+        const { data: comprador } = await supabase
+          .from("clientes")
+          .select("nome")
+          .eq("id", comprador_id)
+          .single();
+        compradorNome = comprador?.nome || 'Cliente';
+      }
+
+      await supabase.from("transacoes").insert({
+        tipo: "receita",
+        origem: "trade_in",
+        descricao: `Venda Trade-In: ${tradeIn?.equipamento_recebido || 'Equipamento'} - ${compradorNome}`,
+        valor_bruto: valor_saida,
+        custo_produto: tradeIn?.valor_entrada || 0,
+        taxa_cartao_estimada: 0,
+        imposto_provisionado: impostoProvisionado,
+        lucro_liquido: lucroLiquido,
+        centro_de_custo: "Loja",
+        forma_pagamento: "pix",
+        cliente_id: comprador_id || null,
+        referencia_id: id,
+      });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["trade-ins"] });
       queryClient.invalidateQueries({ queryKey: ["trade-ins-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["transacoes"] });
     },
   });
 };
