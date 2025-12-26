@@ -22,9 +22,41 @@ const tools = [
             enum: ["combustivel", "manutencao", "equipamentos", "funcionarios", "alimentacao", "transporte", "outros"],
             description: "Categoria da despesa"
           },
-          descricao: { type: "string", description: "Descrição da despesa" }
+          descricao: { type: "string", description: "Descrição da despesa" },
+          centro_de_custo: {
+            type: "string",
+            enum: ["Escola", "Loja", "Administrativo", "Pousada"],
+            description: "Centro de custo da despesa"
+          }
         },
         required: ["valor"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "registrar_venda",
+      description: "Registra uma venda de equipamento ou serviço com cálculo automático de taxas e impostos",
+      parameters: {
+        type: "object",
+        properties: {
+          produto: { type: "string", description: "Nome do produto ou equipamento vendido" },
+          valor_bruto: { type: "number", description: "Valor da venda em reais" },
+          forma_pagamento: { 
+            type: "string", 
+            enum: ["pix", "cartao_credito", "cartao_debito", "dinheiro", "trade_in"],
+            description: "Forma de pagamento"
+          },
+          parcelas: { type: "number", description: "Número de parcelas (se cartão)" },
+          centro_de_custo: {
+            type: "string",
+            enum: ["Escola", "Loja", "Administrativo", "Pousada"],
+            description: "Centro de custo da venda"
+          },
+          custo_produto: { type: "number", description: "Custo do produto (opcional, para cálculo de margem)" }
+        },
+        required: ["valor_bruto"]
       }
     }
   },
@@ -203,11 +235,14 @@ Contexto atual:
 
       console.log(`Executando: ${functionName}`, args);
 
-      let result: { success: boolean; message: string; data?: any; navigation?: any; actionExecuted?: boolean };
+      let result: { success: boolean; message: string; data?: any; navigation?: any; actionExecuted?: boolean; pendingCusto?: boolean; transacaoId?: string };
 
       switch (functionName) {
         case "registrar_despesa":
           result = await registrarDespesa(supabase, args);
+          break;
+        case "registrar_venda":
+          result = await registrarVenda(supabase, args);
           break;
         case "consultar_faturamento":
           result = await consultarFaturamento(supabase, args);
@@ -290,6 +325,128 @@ async function registrarDespesa(supabase: any, data: any) {
     success: true,
     message: `✅ Pronto! Registrei R$${valor} em ${categoria}${descricao ? ` (${descricao})` : ''}`,
   };
+}
+
+async function registrarVenda(supabase: any, data: any) {
+  const { 
+    produto, 
+    valor_bruto, 
+    forma_pagamento = "dinheiro", 
+    parcelas = 1, 
+    centro_de_custo = "Loja",
+    custo_produto 
+  } = data;
+  
+  if (!valor_bruto || isNaN(Number(valor_bruto))) {
+    return { success: false, message: "Não consegui identificar o valor da venda 🤔" };
+  }
+
+  // Fetch config for rates
+  const { data: config } = await supabase
+    .from("config_financeiro")
+    .select("*")
+    .limit(1)
+    .single();
+
+  const taxaCartao = config ? (
+    forma_pagamento === 'cartao_credito' ? config.taxa_cartao_credito :
+    forma_pagamento === 'cartao_debito' ? config.taxa_cartao_debito :
+    forma_pagamento === 'pix' ? config.taxa_pix : 0
+  ) : 4;
+
+  const taxaImposto = config?.taxa_imposto_padrao || 6;
+
+  // Calculate values
+  const valorBrutoNum = Number(valor_bruto);
+  const taxaCartaoEstimada = (valorBrutoNum * taxaCartao) / 100;
+  const impostoProvisionado = (valorBrutoNum * taxaImposto) / 100;
+  
+  // Try to find equipment in stock if product name provided
+  let custoReal = custo_produto ? Number(custo_produto) : 0;
+  let equipamentoId = null;
+  let needsCusto = false;
+
+  if (produto) {
+    const { data: equipamentos } = await supabase
+      .from("equipamentos")
+      .select("id, nome, preco_aluguel_dia")
+      .ilike("nome", `%${produto}%`)
+      .limit(1);
+
+    if (equipamentos?.length) {
+      equipamentoId = equipamentos[0].id;
+      // Use rental price as a proxy for cost if not provided
+      if (!custo_produto) {
+        needsCusto = true;
+      }
+    }
+  }
+
+  if (!custo_produto && !needsCusto) {
+    needsCusto = true;
+  }
+
+  const lucroLiquido = valorBrutoNum - custoReal - taxaCartaoEstimada - impostoProvisionado;
+
+  // Insert transacao
+  const { data: transacao, error } = await supabase.from("transacoes").insert({
+    tipo: "receita",
+    origem: "venda_equipamento",
+    descricao: produto || "Venda",
+    valor_bruto: valorBrutoNum,
+    custo_produto: custoReal,
+    taxa_cartao_estimada: taxaCartaoEstimada,
+    imposto_provisionado: impostoProvisionado,
+    lucro_liquido: lucroLiquido,
+    centro_de_custo: centro_de_custo,
+    forma_pagamento: forma_pagamento,
+    parcelas: parcelas || 1,
+    equipamento_id: equipamentoId,
+    data_transacao: new Date().toISOString().split("T")[0],
+  }).select().single();
+
+  if (error) {
+    console.error("Erro ao registrar venda:", error);
+    return { success: false, message: "Ops, erro ao registrar a venda" };
+  }
+
+  const formaPagamentoLabel: Record<string, string> = {
+    pix: 'PIX',
+    cartao_credito: 'Cartão de Crédito',
+    cartao_debito: 'Cartão de Débito',
+    dinheiro: 'Dinheiro',
+    trade_in: 'Trade-in',
+  };
+
+  let msg = `✅ Venda registrada!\n\n💰 Valor: R$${valorBrutoNum.toLocaleString('pt-BR')}\n💳 ${formaPagamentoLabel[forma_pagamento] || forma_pagamento}`;
+  
+  if (parcelas > 1) {
+    msg += ` em ${parcelas}x`;
+  }
+
+  if (taxaCartaoEstimada > 0) {
+    msg += `\n📉 Taxa cartão: -R$${taxaCartaoEstimada.toFixed(2)}`;
+  }
+  msg += `\n📊 Imposto provisionado: -R$${impostoProvisionado.toFixed(2)}`;
+
+  if (needsCusto && !custo_produto) {
+    msg += `\n\n❓ Qual foi o custo desse equipamento?`;
+    return { 
+      success: true, 
+      message: msg, 
+      pendingCusto: true,
+      transacaoId: transacao?.id,
+      data: { transacao }
+    };
+  } else {
+    const margem = valorBrutoNum > 0 ? (lucroLiquido / valorBrutoNum) * 100 : 0;
+    msg += `\n\n✨ Lucro líquido: R$${lucroLiquido.toFixed(2)} (${margem.toFixed(0)}% margem)`;
+    return { 
+      success: true, 
+      message: msg,
+      data: { transacao }
+    };
+  }
 }
 
 async function consultarFaturamento(supabase: any, data: any) {

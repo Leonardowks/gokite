@@ -167,6 +167,39 @@ export type Database = {
         }
         Relationships: []
       }
+      config_financeiro: {
+        Row: {
+          created_at: string
+          id: string
+          meta_mensal: number
+          taxa_cartao_credito: number
+          taxa_cartao_debito: number
+          taxa_imposto_padrao: number
+          taxa_pix: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meta_mensal?: number
+          taxa_cartao_credito?: number
+          taxa_cartao_debito?: number
+          taxa_imposto_padrao?: number
+          taxa_pix?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meta_mensal?: number
+          taxa_cartao_credito?: number
+          taxa_cartao_debito?: number
+          taxa_imposto_padrao?: number
+          taxa_pix?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       despesas: {
         Row: {
           categoria: string
@@ -334,6 +367,84 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transacoes: {
+        Row: {
+          centro_de_custo: string
+          cliente_id: string | null
+          created_at: string
+          custo_produto: number | null
+          data_transacao: string
+          descricao: string | null
+          equipamento_id: string | null
+          forma_pagamento: string
+          id: string
+          imposto_provisionado: number | null
+          lucro_liquido: number | null
+          origem: string
+          parcelas: number | null
+          referencia_id: string | null
+          taxa_cartao_estimada: number | null
+          tipo: string
+          updated_at: string
+          valor_bruto: number
+        }
+        Insert: {
+          centro_de_custo?: string
+          cliente_id?: string | null
+          created_at?: string
+          custo_produto?: number | null
+          data_transacao?: string
+          descricao?: string | null
+          equipamento_id?: string | null
+          forma_pagamento?: string
+          id?: string
+          imposto_provisionado?: number | null
+          lucro_liquido?: number | null
+          origem?: string
+          parcelas?: number | null
+          referencia_id?: string | null
+          taxa_cartao_estimada?: number | null
+          tipo: string
+          updated_at?: string
+          valor_bruto: number
+        }
+        Update: {
+          centro_de_custo?: string
+          cliente_id?: string | null
+          created_at?: string
+          custo_produto?: number | null
+          data_transacao?: string
+          descricao?: string | null
+          equipamento_id?: string | null
+          forma_pagamento?: string
+          id?: string
+          imposto_provisionado?: number | null
+          lucro_liquido?: number | null
+          origem?: string
+          parcelas?: number | null
+          referencia_id?: string | null
+          taxa_cartao_estimada?: number | null
+          tipo?: string
+          updated_at?: string
+          valor_bruto?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
             referencedColumns: ["id"]
           },
         ]

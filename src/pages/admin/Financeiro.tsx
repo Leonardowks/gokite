@@ -15,7 +15,12 @@ import {
   Wallet,
   Sparkles,
   Trophy,
-  Zap
+  Zap,
+  CreditCard,
+  Landmark,
+  Package,
+  Receipt,
+  ChevronRight
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +53,8 @@ import {
 import { localStorageService, Agendamento, Aluguel } from "@/lib/localStorage";
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useTransacoes, useTransacoesSummary, Transacao } from "@/hooks/useTransacoes";
+import { TransacaoDetalheDialog } from "@/components/TransacaoDetalheDialog";
 
 interface FinanceiroStats {
   receitaTotal: number;
@@ -114,6 +121,12 @@ export default function Financeiro() {
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [alugueis, setAlugueis] = useState<Aluguel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
+  const [isDetalheOpen, setIsDetalheOpen] = useState(false);
+
+  // Fetch transações from Supabase
+  const { data: transacoes = [], isLoading: isLoadingTransacoes } = useTransacoes({ limit: 10 });
+  const { data: transacoesSummary } = useTransacoesSummary('mes');
 
   useEffect(() => {
     loadFinancialData();
@@ -842,6 +855,150 @@ export default function Financeiro() {
           </PremiumCardContent>
         </PremiumCard>
       </div>
+
+      {/* Transações Recentes - From Supabase */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold font-display flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-accent" />
+            Transações Recentes
+          </h2>
+          {transacoesSummary && (
+            <div className="flex gap-3">
+              <PremiumBadge variant="success" size="sm">
+                Margem: {transacoesSummary.margemMedia.toFixed(0)}%
+              </PremiumBadge>
+              <PremiumBadge variant="warning" size="sm" icon={Landmark}>
+                Impostos: R${transacoesSummary.totalImpostos.toFixed(0)}
+              </PremiumBadge>
+            </div>
+          )}
+        </div>
+
+        {isLoadingTransacoes ? (
+          <PremiumCard>
+            <PremiumCardContent className="p-6 text-center text-muted-foreground">
+              Carregando transações...
+            </PremiumCardContent>
+          </PremiumCard>
+        ) : transacoes.length === 0 ? (
+          <PremiumCard>
+            <PremiumCardContent className="p-6 text-center text-muted-foreground">
+              <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p>Nenhuma transação registrada ainda.</p>
+              <p className="text-sm mt-1">Use o assistente de voz para registrar vendas!</p>
+            </PremiumCardContent>
+          </PremiumCard>
+        ) : (
+          <div className="space-y-2">
+            {transacoes.map((transacao) => {
+              const isReceita = transacao.tipo === 'receita';
+              return (
+                <PremiumCard 
+                  key={transacao.id}
+                  className="hover-lift cursor-pointer"
+                  onClick={() => {
+                    setSelectedTransacao(transacao);
+                    setIsDetalheOpen(true);
+                  }}
+                >
+                  <PremiumCardContent className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`p-2 rounded-xl ${isReceita ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+                          {isReceita ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">
+                            {transacao.descricao || transacao.origem}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{format(new Date(transacao.data_transacao), "dd/MM")}</span>
+                            <span>•</span>
+                            <Badge variant="outline" className="text-xs px-1.5 py-0">
+                              {transacao.centro_de_custo}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <p className={`font-bold ${isReceita ? 'text-success' : 'text-destructive'}`}>
+                            {isReceita ? '+' : '-'}R$ {transacao.valor_bruto.toLocaleString('pt-BR')}
+                          </p>
+                          {isReceita && transacao.lucro_liquido > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Lucro: R$ {transacao.lucro_liquido.toFixed(0)}
+                            </p>
+                          )}
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </PremiumCardContent>
+                </PremiumCard>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* KPIs Contábeis Extras */}
+      {transacoesSummary && (transacoesSummary.totalTaxasCartao > 0 || transacoesSummary.totalImpostos > 0) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <PremiumCard>
+            <PremiumCardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CreditCard className="h-4 w-4 text-blue-500" />
+                <span className="text-xs text-muted-foreground">Taxas de Cartão</span>
+              </div>
+              <p className="text-lg font-bold text-foreground">
+                R$ {transacoesSummary.totalTaxasCartao.toFixed(0)}
+              </p>
+            </PremiumCardContent>
+          </PremiumCard>
+          <PremiumCard>
+            <PremiumCardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Landmark className="h-4 w-4 text-purple-500" />
+                <span className="text-xs text-muted-foreground">Impostos Prov.</span>
+              </div>
+              <p className="text-lg font-bold text-foreground">
+                R$ {transacoesSummary.totalImpostos.toFixed(0)}
+              </p>
+            </PremiumCardContent>
+          </PremiumCard>
+          <PremiumCard>
+            <PremiumCardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-success" />
+                <span className="text-xs text-muted-foreground">Margem Média</span>
+              </div>
+              <p className="text-lg font-bold text-success">
+                {transacoesSummary.margemMedia.toFixed(1)}%
+              </p>
+            </PremiumCardContent>
+          </PremiumCard>
+          <PremiumCard>
+            <PremiumCardContent className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Wallet className="h-4 w-4 text-accent" />
+                <span className="text-xs text-muted-foreground">Lucro Líquido</span>
+              </div>
+              <p className={`text-lg font-bold ${transacoesSummary.lucroLiquido >= 0 ? 'text-success' : 'text-destructive'}`}>
+                R$ {transacoesSummary.lucroLiquido.toFixed(0)}
+              </p>
+            </PremiumCardContent>
+          </PremiumCard>
+        </div>
+      )}
+
+      {/* Transaction Detail Dialog */}
+      <TransacaoDetalheDialog 
+        transacao={selectedTransacao}
+        open={isDetalheOpen}
+        onOpenChange={setIsDetalheOpen}
+      />
     </div>
   );
 }
