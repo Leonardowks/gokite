@@ -15,7 +15,9 @@ export const OPENAI_VOICES: { id: OpenAIVoice; name: string; description: string
 
 const VOICE_STORAGE_KEY = 'gokite-voice-preference';
 const COMMAND_HISTORY_KEY = 'gokite-voice-history';
+const CONVERSATION_KEY = 'gokite-jarvis-conversation';
 const MAX_HISTORY_ITEMS = 10;
+const MAX_CONVERSATION_MESSAGES = 20;
 
 export interface CommandHistoryItem {
   id: string;
@@ -58,6 +60,37 @@ export function useVoiceAssistant() {
   const chunksRef = React.useRef<Blob[]>([]);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
 
+  // Adiciona ao histórico de conversa do Assistente (sincroniza header com página)
+  const addToConversation = React.useCallback((userMessage: string, assistantMessage: string, isAction?: boolean) => {
+    try {
+      const stored = localStorage.getItem(CONVERSATION_KEY);
+      const messages = stored ? JSON.parse(stored) : [];
+      
+      // Adiciona mensagem do usuário
+      messages.push({
+        id: crypto.randomUUID(),
+        role: 'user',
+        content: userMessage,
+        timestamp: Date.now(),
+      });
+      
+      // Adiciona resposta do assistente
+      messages.push({
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: assistantMessage,
+        timestamp: Date.now(),
+        isAction,
+      });
+      
+      // Mantém apenas últimas mensagens
+      const trimmed = messages.slice(-MAX_CONVERSATION_MESSAGES);
+      localStorage.setItem(CONVERSATION_KEY, JSON.stringify(trimmed));
+    } catch (e) {
+      console.error('Error saving conversation:', e);
+    }
+  }, []);
+
   const addToHistory = React.useCallback((item: Omit<CommandHistoryItem, 'id' | 'timestamp'>) => {
     const newItem: CommandHistoryItem = {
       ...item,
@@ -70,7 +103,10 @@ export function useVoiceAssistant() {
       localStorage.setItem(COMMAND_HISTORY_KEY, JSON.stringify(updated));
       return updated;
     });
-  }, []);
+
+    // Sincroniza com a página do Assistente
+    addToConversation(item.transcript, item.message, item.success);
+  }, [addToConversation]);
 
   const clearHistory = React.useCallback(() => {
     setCommandHistory([]);
