@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic } from "lucide-react";
+import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -21,6 +21,7 @@ interface AdminLayoutProps {
 // All menu items
 const allMenuItems = [
   { title: "Dashboard", url: "/", icon: Home },
+  { title: "Jarvis", url: "/assistente", icon: Sparkles, highlight: true },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Aulas", url: "/aulas", icon: Calendar },
   { title: "Vendas", url: "/vendas", icon: TrendingUp },
@@ -48,6 +49,7 @@ const moreMenuItems = [
   { title: "E-commerce", url: "/ecommerce", icon: ShoppingCart },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
+  { title: "Jarvis", url: "/assistente", icon: Sparkles },
 ];
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -100,6 +102,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="space-y-1">
             {allMenuItems.map((item) => {
               const active = isActive(item.url);
+              const isHighlight = 'highlight' in item && item.highlight;
               return (
                 <NavLink
                   key={item.title}
@@ -107,9 +110,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   end={item.url === '/'}
                   className={`
                     flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 min-h-[44px] group relative overflow-hidden
-                    ${active 
-                      ? 'bg-gradient-to-r from-sidebar-primary/90 to-cyan/80 text-sidebar-primary-foreground shadow-lg shadow-cyan/20' 
-                      : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60'
+                    ${isHighlight && !active
+                      ? 'bg-gradient-to-r from-primary/20 to-cyan/20 text-primary hover:from-primary/30 hover:to-cyan/30 border border-primary/20'
+                      : active 
+                        ? 'bg-gradient-to-r from-sidebar-primary/90 to-cyan/80 text-sidebar-primary-foreground shadow-lg shadow-cyan/20' 
+                        : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60'
                     }
                   `}
                   activeClassName=""
@@ -117,10 +122,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   {active && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
                   )}
-                  <item.icon className="h-5 w-5 flex-shrink-0 transition-all duration-200 group-hover:scale-110 group-hover:text-cyan" />
+                  <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-200 group-hover:scale-110 ${isHighlight ? 'text-primary' : 'group-hover:text-cyan'}`} />
                   <span className="text-sm font-medium">{item.title}</span>
                   {active && (
                     <Waves className="h-3.5 w-3.5 ml-auto opacity-70 animate-wave" />
+                  )}
+                  {isHighlight && !active && (
+                    <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full bg-primary/20 text-primary font-medium">AI</span>
                   )}
                 </NavLink>
               );
