@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -20,7 +21,8 @@ import {
   Landmark,
   Package,
   Receipt,
-  ChevronRight
+  ChevronRight,
+  Settings2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -419,9 +421,16 @@ export default function Financeiro() {
             Aqui está o resumo financeiro da sua escola
           </p>
         </div>
-        <PremiumBadge variant="info" icon={Calendar} className="self-start sm:self-auto">
-          {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
-        </PremiumBadge>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link to="/financeiro/configuracoes">
+            <PremiumBadge variant="neutral" icon={Settings2} className="cursor-pointer hover:scale-105 transition-transform">
+              Configurar Taxas
+            </PremiumBadge>
+          </Link>
+          <PremiumBadge variant="info" icon={Calendar}>
+            {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
+          </PremiumBadge>
+        </div>
       </div>
 
       {/* KPIs Premium - Grid Responsivo */}
