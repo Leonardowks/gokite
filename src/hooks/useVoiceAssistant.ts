@@ -2,6 +2,19 @@ import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { VoiceAssistantState, VoiceCommandResult } from '@/types/voice';
 
+export type OpenAIVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer';
+
+export const OPENAI_VOICES: { id: OpenAIVoice; name: string; description: string }[] = [
+  { id: 'nova', name: 'Nova', description: 'Feminina, amigável' },
+  { id: 'alloy', name: 'Alloy', description: 'Neutra, versátil' },
+  { id: 'echo', name: 'Echo', description: 'Masculina, clara' },
+  { id: 'fable', name: 'Fable', description: 'Expressiva, narrativa' },
+  { id: 'onyx', name: 'Onyx', description: 'Masculina, profunda' },
+  { id: 'shimmer', name: 'Shimmer', description: 'Feminina, suave' },
+];
+
+const VOICE_STORAGE_KEY = 'gokite-voice-preference';
+
 export function useVoiceAssistant() {
   const [state, setState] = React.useState<VoiceAssistantState>({
     isListening: false,
@@ -9,6 +22,13 @@ export function useVoiceAssistant() {
     transcript: '',
     lastResult: null,
     error: null,
+  });
+
+  const [selectedVoice, setSelectedVoice] = React.useState<OpenAIVoice>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem(VOICE_STORAGE_KEY) as OpenAIVoice) || 'nova';
+    }
+    return 'nova';
   });
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
@@ -131,10 +151,10 @@ export function useVoiceAssistant() {
 
       // Step 3: Text-to-Speech response with OpenAI
       if (result.message) {
-        console.log('Generating TTS response...');
+        console.log('Generating TTS response with voice:', selectedVoice);
         try {
           const { data: ttsData, error: ttsError } = await supabase.functions.invoke('openai-tts', {
-            body: { text: result.message, voice: 'nova' },
+            body: { text: result.message, voice: selectedVoice },
           });
 
           if (!ttsError && ttsData?.audioContent) {
@@ -170,6 +190,11 @@ export function useVoiceAssistant() {
     }
   }, []);
 
+  const changeVoice = React.useCallback((voice: OpenAIVoice) => {
+    setSelectedVoice(voice);
+    localStorage.setItem(VOICE_STORAGE_KEY, voice);
+  }, []);
+
   const reset = React.useCallback(() => {
     stopAudio();
     setState({
@@ -183,6 +208,8 @@ export function useVoiceAssistant() {
 
   return {
     ...state,
+    selectedVoice,
+    changeVoice,
     startListening,
     stopListening,
     stopAudio,
