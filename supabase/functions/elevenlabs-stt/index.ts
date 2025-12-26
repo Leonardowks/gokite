@@ -21,7 +21,9 @@ serve(async (req) => {
     if (!ELEVENLABS_API_KEY) {
       throw new Error("ELEVENLABS_API_KEY não configurada");
     }
-
+    
+    // Log key prefix for debugging (safe - only shows first chars)
+    console.log("API Key prefix:", ELEVENLABS_API_KEY.substring(0, 8) + "...");
     console.log("Iniciando transcrição com ElevenLabs Scribe...");
 
     // Decode base64 audio
@@ -45,7 +47,11 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("ElevenLabs STT error:", response.status, errorText);
-      throw new Error(`Erro na transcrição: ${response.status}`);
+      
+      if (response.status === 401) {
+        throw new Error("Chave da API ElevenLabs inválida ou expirada. Verifique a configuração.");
+      }
+      throw new Error(`Erro na transcrição: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
