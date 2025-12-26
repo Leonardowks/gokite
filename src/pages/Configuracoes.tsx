@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Bell, Mail, Phone, MapPin, DollarSign, Building2, Globe, Award, Ship } from "lucide-react";
+import { Settings, Bell, Mail, Phone, MapPin, DollarSign, Building2, Globe, Award, Ship, Plug } from "lucide-react";
 import { PremiumCard, PremiumCardContent, PremiumCardHeader, PremiumCardTitle, PremiumCardDescription } from "@/components/ui/premium-card";
 import { PremiumBadge } from "@/components/ui/premium-badge";
+import { NuvemshopIntegration } from "@/components/NuvemshopIntegration";
 
 export default function Configuracoes() {
   const { toast } = useToast();
@@ -108,6 +110,20 @@ export default function Configuracoes() {
           <p className="text-sm sm:text-base text-muted-foreground">Gerencie as configurações da GoKite</p>
         </div>
       </div>
+
+      <Tabs defaultValue="geral" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+          <TabsTrigger value="geral" className="gap-2">
+            <Settings className="h-4 w-4" />
+            Geral
+          </TabsTrigger>
+          <TabsTrigger value="integracoes" className="gap-2">
+            <Plug className="h-4 w-4" />
+            Integrações
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="geral" className="space-y-4 sm:space-y-6 mt-6">
 
       {/* Informações da Empresa */}
       <PremiumCard>
@@ -460,6 +476,12 @@ export default function Configuracoes() {
           Restaurar Padrões
         </Button>
       </div>
+        </TabsContent>
+
+        <TabsContent value="integracoes" className="space-y-4 sm:space-y-6 mt-6">
+          <NuvemshopIntegration />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
