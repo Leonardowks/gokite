@@ -16,6 +16,7 @@ interface CommandResult {
   success: boolean;
   message: string;
   data?: any;
+  intent?: string;
 }
 
 serve(async (req) => {
@@ -60,7 +61,19 @@ Intents disponíveis:
 - cadastrar_cliente: quando quer adicionar um novo cliente
 - agendar_aula: quando quer marcar uma aula
 - criar_aluguel: quando quer registrar um aluguel de equipamento
+- navegar: quando o usuário quer ir para uma página específica do sistema
 - consulta_geral: quando quer informações gerais
+
+Páginas disponíveis para navegação:
+- "/" ou "dashboard" ou "home" ou "início"
+- "/clientes" para clientes
+- "/aulas" para aulas ou agenda
+- "/financeiro" para financeiro ou finanças
+- "/estoque" para estoque ou equipamentos
+- "/vendas" para vendas
+- "/ecommerce" para e-commerce ou loja
+- "/relatorios" para relatórios
+- "/configuracoes" para configurações
 
 Responda APENAS com JSON válido no formato:
 {
@@ -73,7 +86,10 @@ Exemplos:
 - "gastei 200 de gasolina pro bote" -> {"intent": "registrar_despesa", "data": {"valor": 200, "categoria": "combustivel", "descricao": "gasolina pro bote"}, "confidence": 0.95}
 - "cadastra cliente Pedro telefone 11999999999" -> {"intent": "cadastrar_cliente", "data": {"nome": "Pedro", "telefone": "11999999999"}, "confidence": 0.9}
 - "agenda aula com Maria amanhã às 10" -> {"intent": "agendar_aula", "data": {"cliente_nome": "Maria", "data": "amanhã", "hora": "10:00"}, "confidence": 0.85}
-- "quanto faturei hoje" -> {"intent": "consultar_faturamento", "data": {"periodo": "hoje"}, "confidence": 0.95}`
+- "quanto faturei hoje" -> {"intent": "consultar_faturamento", "data": {"periodo": "hoje"}, "confidence": 0.95}
+- "ir para clientes" -> {"intent": "navegar", "data": {"route": "/clientes", "pagina": "clientes"}, "confidence": 0.95}
+- "abrir financeiro" -> {"intent": "navegar", "data": {"route": "/financeiro", "pagina": "financeiro"}, "confidence": 0.95}
+- "voltar pro dashboard" -> {"intent": "navegar", "data": {"route": "/", "pagina": "dashboard"}, "confidence": 0.95}`
           },
           {
             role: "user",
@@ -137,6 +153,14 @@ Exemplos:
         break;
       case "criar_aluguel":
         result = await criarAluguel(supabase, command.data);
+        break;
+      case "navegar":
+        result = {
+          success: true,
+          message: `Navegando para ${command.data?.pagina || command.data?.route}`,
+          data: command.data,
+          intent: "navegar",
+        };
         break;
       default:
         result = {

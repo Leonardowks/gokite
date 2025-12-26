@@ -14,6 +14,17 @@ export const OPENAI_VOICES: { id: OpenAIVoice; name: string; description: string
 ];
 
 const VOICE_STORAGE_KEY = 'gokite-voice-preference';
+const COMMAND_HISTORY_KEY = 'gokite-voice-history';
+const MAX_HISTORY_ITEMS = 10;
+
+export interface CommandHistoryItem {
+  id: string;
+  transcript: string;
+  intent: string;
+  message: string;
+  success: boolean;
+  timestamp: number;
+}
 
 export function useVoiceAssistant() {
   const [state, setState] = React.useState<VoiceAssistantState>({
@@ -31,9 +42,40 @@ export function useVoiceAssistant() {
     return 'nova';
   });
 
+  const [commandHistory, setCommandHistory] = React.useState<CommandHistoryItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(COMMAND_HISTORY_KEY);
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
+
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const chunksRef = React.useRef<Blob[]>([]);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
+
+  const addToHistory = React.useCallback((item: Omit<CommandHistoryItem, 'id' | 'timestamp'>) => {
+    const newItem: CommandHistoryItem = {
+      ...item,
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+    };
+    
+    setCommandHistory(prev => {
+      const updated = [newItem, ...prev].slice(0, MAX_HISTORY_ITEMS);
+      localStorage.setItem(COMMAND_HISTORY_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const clearHistory = React.useCallback(() => {
+    setCommandHistory([]);
+    localStorage.removeItem(COMMAND_HISTORY_KEY);
+  }, []);
 
   const startListening = React.useCallback(async () => {
     try {
@@ -149,6 +191,14 @@ export function useVoiceAssistant() {
         error: result.success ? null : result.message,
       }));
 
+      // Add to history
+      addToHistory({
+        transcript,
+        intent: result.intent || 'unknown',
+        message: result.message,
+        success: result.success,
+      });
+
       // Step 3: Text-to-Speech response with OpenAI
       if (result.message) {
         console.log('Generating TTS response with voice:', selectedVoice);
@@ -209,7 +259,9 @@ export function useVoiceAssistant() {
   return {
     ...state,
     selectedVoice,
+    commandHistory,
     changeVoice,
+    clearHistory,
     startListening,
     stopListening,
     stopAudio,
