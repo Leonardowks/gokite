@@ -1,114 +1,239 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Phone, Mail, Tag, Search, TrendingUp, Users, Target, Flame } from "lucide-react";
-import { localStorageService, type Lead } from "@/lib/localStorage";
+import { 
+  ShoppingCart, 
+  Search, 
+  Plus, 
+  DollarSign, 
+  TrendingUp, 
+  Package, 
+  GraduationCap,
+  Repeat,
+  Loader2,
+  Filter,
+  Calendar,
+  CreditCard,
+  Banknote,
+  Smartphone
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
+import { useTransacoes, useTransacoesSummary, type Transacao } from "@/hooks/useTransacoes";
+import { NovaVendaDialog } from "@/components/NovaVendaDialog";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type FiltroOrigem = 'todos' | 'aula' | 'aluguel' | 'venda_produto' | 'trade_in' | 'manual';
+type FiltroPagamento = 'todos' | 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'trade_in';
 
 export default function Vendas() {
   const { toast } = useToast();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [filtroScore, setFiltroScore] = useState<'todos' | 'urgente' | 'quente' | 'morno'>('todos');
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [busca, setBusca] = useState('');
+  const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigem>('todos');
+  const [filtroPagamento, setFiltroPagamento] = useState<FiltroPagamento>('todos');
+  const [periodoSummary, setPeriodoSummary] = useState<'hoje' | 'semana' | 'mes'>('mes');
 
-  useEffect(() => {
-    carregarLeads();
-  }, []);
-
-  const carregarLeads = () => {
-    const todosLeads = localStorageService.listarLeads();
-    setLeads(todosLeads);
-  };
-
-  const leadsFiltrados = leads.filter(lead => {
-    const matchScore = filtroScore === 'todos' || lead.score === filtroScore;
-    const matchBusca = lead.nome.toLowerCase().includes(busca.toLowerCase()) ||
-                       lead.email.toLowerCase().includes(busca.toLowerCase());
-    return matchScore && matchBusca && lead.status !== 'convertido';
+  // Buscar transações
+  const { data: transacoes = [], isLoading } = useTransacoes({ 
+    tipo: 'receita',
+    limit: 100 
   });
+  const { data: summary, isLoading: isLoadingSummary } = useTransacoesSummary(periodoSummary);
 
-  const contatarWhatsApp = (lead: Lead) => {
-    const mensagem = `Olá ${lead.nome}! Vimos que você está interessado em ${lead.interesse}. Podemos ajudar?`;
-    window.open(`https://wa.me/${lead.whatsapp}?text=${encodeURIComponent(mensagem)}`, '_blank');
-    
-    localStorageService.atualizarLead(lead.id, { status: 'contatado' });
-    carregarLeads();
-    
-    toast({
-      title: "WhatsApp enviado!",
-      description: `Mensagem enviada para ${lead.nome}`,
+  // Filtrar transações
+  const transacoesFiltradas = useMemo(() => {
+    return transacoes.filter(t => {
+      const matchBusca = !busca || 
+        t.descricao?.toLowerCase().includes(busca.toLowerCase()) ||
+        t.origem.toLowerCase().includes(busca.toLowerCase());
+      const matchOrigem = filtroOrigem === 'todos' || t.origem === filtroOrigem;
+      const matchPagamento = filtroPagamento === 'todos' || t.forma_pagamento === filtroPagamento;
+      return matchBusca && matchOrigem && matchPagamento;
     });
-  };
+  }, [transacoes, busca, filtroOrigem, filtroPagamento]);
 
-  const aplicarDesconto = (lead: Lead) => {
-    toast({
-      title: "Cupom gerado!",
-      description: `Cupom 15OFF enviado para ${lead.email}`,
-    });
-    
-    localStorageService.atualizarLead(lead.id, { status: 'contatado' });
-    carregarLeads();
-  };
+  // Estatísticas por categoria
+  const estatsPorCategoria = useMemo(() => {
+    const aulas = transacoes.filter(t => t.origem === 'aula');
+    const produtos = transacoes.filter(t => t.origem === 'venda_produto');
+    const alugueis = transacoes.filter(t => t.origem === 'aluguel');
+    const tradeIns = transacoes.filter(t => t.origem === 'trade_in');
 
-  const getScoreBadge = (score: Lead['score']) => {
-    const configs = {
-      urgente: { variant: 'urgent' as const, label: 'URGENTE', desc: 'Visitou 3x + últimos 2 dias' },
-      quente: { variant: 'warning' as const, label: 'QUENTE', desc: 'Visitou 2-3x esta semana' },
-      morno: { variant: 'neutral' as const, label: 'MORNO', desc: 'Visitou 1x semana passada' },
+    return {
+      aulas: {
+        total: aulas.reduce((sum, t) => sum + t.valor_bruto, 0),
+        count: aulas.length
+      },
+      produtos: {
+        total: produtos.reduce((sum, t) => sum + t.valor_bruto, 0),
+        count: produtos.length
+      },
+      alugueis: {
+        total: alugueis.reduce((sum, t) => sum + t.valor_bruto, 0),
+        count: alugueis.length
+      },
+      tradeIns: {
+        total: tradeIns.reduce((sum, t) => sum + t.valor_bruto, 0),
+        count: tradeIns.length
+      }
     };
-    return configs[score];
+  }, [transacoes]);
+
+  const getOrigemLabel = (origem: string) => {
+    const labels: Record<string, string> = {
+      aula: 'Aula',
+      aluguel: 'Aluguel',
+      venda_produto: 'Produto',
+      trade_in: 'Trade-In',
+      manual: 'Manual'
+    };
+    return labels[origem] || origem;
   };
 
-  const leadsUrgentes = leads.filter(l => l.score === 'urgente' && l.status !== 'convertido').length;
-  const leadsQuentes = leads.filter(l => l.score === 'quente' && l.status !== 'convertido').length;
-  const leadsMornos = leads.filter(l => l.score === 'morno' && l.status !== 'convertido').length;
-  const totalLeads = leadsUrgentes + leadsQuentes + leadsMornos;
+  const getOrigemIcon = (origem: string) => {
+    switch (origem) {
+      case 'aula': return <GraduationCap className="h-4 w-4" />;
+      case 'aluguel': return <Calendar className="h-4 w-4" />;
+      case 'venda_produto': return <Package className="h-4 w-4" />;
+      case 'trade_in': return <Repeat className="h-4 w-4" />;
+      default: return <ShoppingCart className="h-4 w-4" />;
+    }
+  };
+
+  const getPagamentoIcon = (forma: string) => {
+    switch (forma) {
+      case 'pix': return <Smartphone className="h-4 w-4 text-success" />;
+      case 'cartao_credito': 
+      case 'cartao_debito': return <CreditCard className="h-4 w-4 text-primary" />;
+      case 'dinheiro': return <Banknote className="h-4 w-4 text-warning" />;
+      default: return <DollarSign className="h-4 w-4" />;
+    }
+  };
+
+  const getPagamentoLabel = (forma: string) => {
+    const labels: Record<string, string> = {
+      pix: 'PIX',
+      cartao_credito: 'Crédito',
+      cartao_debito: 'Débito',
+      dinheiro: 'Dinheiro',
+      trade_in: 'Trade-In'
+    };
+    return labels[forma] || forma;
+  };
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
-      {/* Header Premium */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <PremiumBadge variant="default" size="sm" icon={Users}>
-              {totalLeads} leads
+            <PremiumBadge variant="success" size="sm" icon={DollarSign}>
+              ERP Comercial
             </PremiumBadge>
-            {leadsUrgentes > 0 && (
-              <PremiumBadge variant="urgent" size="sm" pulse icon={Flame}>
-                {leadsUrgentes} urgentes
-              </PremiumBadge>
-            )}
           </div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground tracking-tight">
-            Gestão de Vendas
+            Central de Vendas
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Leads filtrados por prioridade - não perca oportunidades
+            Gerencie todas as transações comerciais da GoKite
           </p>
         </div>
+        <Button onClick={() => setDialogOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Nova Venda
+        </Button>
       </div>
 
-      {/* KPIs Premium */}
+      {/* Período Toggle */}
+      <div className="flex gap-2">
+        <Button
+          variant={periodoSummary === 'hoje' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setPeriodoSummary('hoje')}
+        >
+          Hoje
+        </Button>
+        <Button
+          variant={periodoSummary === 'semana' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setPeriodoSummary('semana')}
+        >
+          Semana
+        </Button>
+        <Button
+          variant={periodoSummary === 'mes' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setPeriodoSummary('mes')}
+        >
+          Mês
+        </Button>
+      </div>
+
+      {/* KPIs Principais */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <PremiumCard hover glow>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
+                  Receita Total
+                </p>
+                {isLoadingSummary ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                ) : (
+                  <AnimatedNumber 
+                    value={summary?.totalReceitas || 0} 
+                    className="text-2xl sm:text-3xl font-bold text-success"
+                    prefix="R$ "
+                  />
+                )}
+              </div>
+              <div className="icon-container bg-success/10 shrink-0">
+                <DollarSign className="h-5 w-5 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+
         <PremiumCard hover>
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
-                  Total Leads
+                  Lucro Líquido
                 </p>
-                <AnimatedNumber 
-                  value={totalLeads} 
-                  className="text-2xl sm:text-3xl font-bold text-foreground"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Aguardando contato</p>
+                {isLoadingSummary ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                ) : (
+                  <AnimatedNumber 
+                    value={summary?.lucroLiquido || 0} 
+                    className="text-2xl sm:text-3xl font-bold text-foreground"
+                    prefix="R$ "
+                  />
+                )}
               </div>
               <div className="icon-container shrink-0">
-                <Users className="h-5 w-5 text-primary" />
+                <TrendingUp className="h-5 w-5 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -119,16 +244,19 @@ export default function Vendas() {
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
-                  Urgentes
+                  Transações
                 </p>
-                <AnimatedNumber 
-                  value={leadsUrgentes} 
-                  className="text-2xl sm:text-3xl font-bold text-destructive"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Prioridade máxima</p>
+                {isLoadingSummary ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                ) : (
+                  <AnimatedNumber 
+                    value={summary?.qtdTransacoes || 0} 
+                    className="text-2xl sm:text-3xl font-bold text-foreground"
+                  />
+                )}
               </div>
-              <div className="icon-container bg-destructive/10 shrink-0">
-                <Target className="h-5 w-5 text-destructive" />
+              <div className="icon-container shrink-0">
+                <ShoppingCart className="h-5 w-5 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -139,33 +267,18 @@ export default function Vendas() {
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
-                  Quentes
+                  Margem Média
                 </p>
-                <AnimatedNumber 
-                  value={leadsQuentes} 
-                  className="text-2xl sm:text-3xl font-bold text-warning"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Boa chance conversão</p>
-              </div>
-              <div className="icon-container bg-warning/10 shrink-0">
-                <Flame className="h-5 w-5 text-warning" />
-              </div>
-            </div>
-          </CardContent>
-        </PremiumCard>
-
-        <PremiumCard hover>
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1.5">
-                  Mornos
-                </p>
-                <AnimatedNumber 
-                  value={leadsMornos} 
-                  className="text-2xl sm:text-3xl font-bold text-foreground"
-                />
-                <p className="text-xs text-muted-foreground mt-1">Requer aquecimento</p>
+                {isLoadingSummary ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                ) : (
+                  <AnimatedNumber 
+                    value={summary?.margemMedia || 0} 
+                    className="text-2xl sm:text-3xl font-bold text-foreground"
+                    suffix="%"
+                    decimals={1}
+                  />
+                )}
               </div>
               <div className="icon-container shrink-0">
                 <TrendingUp className="h-5 w-5 text-primary" />
@@ -175,15 +288,78 @@ export default function Vendas() {
         </PremiumCard>
       </div>
 
-      {/* Filtros Premium */}
+      {/* KPIs por Categoria */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <PremiumCard className="border-l-4 border-l-blue-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <GraduationCap className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Aulas</p>
+                <p className="text-lg font-bold">R$ {estatsPorCategoria.aulas.total.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground">{estatsPorCategoria.aulas.count} vendas</p>
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+
+        <PremiumCard className="border-l-4 border-l-purple-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <Package className="h-5 w-5 text-purple-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Produtos</p>
+                <p className="text-lg font-bold">R$ {estatsPorCategoria.produtos.total.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground">{estatsPorCategoria.produtos.count} vendas</p>
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+
+        <PremiumCard className="border-l-4 border-l-amber-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Aluguéis</p>
+                <p className="text-lg font-bold">R$ {estatsPorCategoria.alugueis.total.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground">{estatsPorCategoria.alugueis.count} vendas</p>
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+
+        <PremiumCard className="border-l-4 border-l-emerald-500">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <Repeat className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Trade-Ins</p>
+                <p className="text-lg font-bold">R$ {estatsPorCategoria.tradeIns.total.toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground">{estatsPorCategoria.tradeIns.count} vendas</p>
+              </div>
+            </div>
+          </CardContent>
+        </PremiumCard>
+      </div>
+
+      {/* Filtros e Lista */}
       <PremiumCard>
         <CardHeader className="p-4 sm:p-5">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nome ou email..."
+                  placeholder="Buscar por descrição..."
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                   className="pl-10 min-h-[44px] bg-muted/30 border-border/50 focus:bg-background"
@@ -192,152 +368,113 @@ export default function Vendas() {
             </div>
             
             <div className="flex gap-2 flex-wrap">
-              <Button
-                variant={filtroScore === 'todos' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltroScore('todos')}
-                className="min-h-[40px]"
-              >
-                Todos
-              </Button>
-              <Button
-                variant={filtroScore === 'urgente' ? 'destructive' : 'outline'}
-                size="sm"
-                onClick={() => setFiltroScore('urgente')}
-                className="min-h-[40px]"
-              >
-                🔴 Urgente
-              </Button>
-              <Button
-                variant={filtroScore === 'quente' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFiltroScore('quente')}
-                className={`min-h-[40px] ${filtroScore === 'quente' ? 'bg-warning hover:bg-warning/90 text-warning-foreground' : ''}`}
-              >
-                🟠 Quente
-              </Button>
-              <Button
-                variant={filtroScore === 'morno' ? 'secondary' : 'outline'}
-                size="sm"
-                onClick={() => setFiltroScore('morno')}
-                className="min-h-[40px]"
-              >
-                🟡 Morno
-              </Button>
+              <Select value={filtroOrigem} onValueChange={(v) => setFiltroOrigem(v as FiltroOrigem)}>
+                <SelectTrigger className="w-[140px] min-h-[44px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="aula">Aulas</SelectItem>
+                  <SelectItem value="venda_produto">Produtos</SelectItem>
+                  <SelectItem value="aluguel">Aluguéis</SelectItem>
+                  <SelectItem value="trade_in">Trade-Ins</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filtroPagamento} onValueChange={(v) => setFiltroPagamento(v as FiltroPagamento)}>
+                <SelectTrigger className="w-[140px] min-h-[44px]">
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Pagamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="cartao_credito">Crédito</SelectItem>
+                  <SelectItem value="cartao_debito">Débito</SelectItem>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
+
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : transacoesFiltradas.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                <ShoppingCart className="h-8 w-8 text-muted-foreground/50" />
+              </div>
+              <p className="font-medium text-foreground">Nenhuma venda encontrada</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Clique em "Nova Venda" para registrar uma transação
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Pagamento</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead className="text-right">Lucro</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transacoesFiltradas.map((transacao) => (
+                    <TableRow key={transacao.id}>
+                      <TableCell className="whitespace-nowrap">
+                        {format(new Date(transacao.data_transacao), "dd/MM/yyyy", { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getOrigemIcon(transacao.origem)}
+                          <span>{getOrigemLabel(transacao.origem)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {transacao.descricao || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getPagamentoIcon(transacao.forma_pagamento)}
+                          <span>{getPagamentoLabel(transacao.forma_pagamento)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        R$ {transacao.valor_bruto.toLocaleString('pt-BR')}
+                      </TableCell>
+                      <TableCell className={`text-right font-medium ${transacao.lucro_liquido >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        R$ {transacao.lucro_liquido.toLocaleString('pt-BR')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
       </PremiumCard>
 
-      {/* Lista de Leads Premium */}
-      <div className="space-y-4">
-        {leadsFiltrados.map((lead) => {
-          const scoreBadge = getScoreBadge(lead.score);
-          const diasDesdeVisita = Math.floor((Date.now() - new Date(lead.ultima_visita).getTime()) / 86400000);
-          
-          return (
-            <PremiumCard 
-              key={lead.id} 
-              hover
-              className={
-                lead.score === 'urgente' ? 'border-destructive/30' : 
-                lead.score === 'quente' ? 'border-warning/30' : 
-                ''
-              }
-            >
-              <CardHeader className="p-4 sm:p-5">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <CardTitle className="text-lg sm:text-xl font-display">{lead.nome}</CardTitle>
-                      <PremiumBadge 
-                        variant={scoreBadge.variant} 
-                        size="sm"
-                        pulse={lead.score === 'urgente'}
-                      >
-                        {scoreBadge.label}
-                      </PremiumBadge>
-                      {lead.status === 'contatado' && (
-                        <PremiumBadge variant="success" size="sm">
-                          ✓ Contatado
-                        </PremiumBadge>
-                      )}
-                    </div>
-                    
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Mail className="h-4 w-4" />
-                        {lead.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Phone className="h-4 w-4" />
-                        {lead.whatsapp}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <TrendingUp className="h-4 w-4 text-primary" />
-                        <span className="font-medium text-foreground">{lead.interesse}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right space-y-1">
-                    <p className="text-xs text-muted-foreground">{scoreBadge.desc}</p>
-                    <p className="text-sm font-medium">
-                      {lead.visitas} visitas • última há {diasDesdeVisita}d
-                    </p>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="p-4 sm:p-5 pt-0">
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <Button 
-                    className="flex-1 gap-2 bg-success hover:bg-success/90 text-success-foreground min-h-[44px]"
-                    onClick={() => contatarWhatsApp(lead)}
-                  >
-                    <Phone className="h-4 w-4" />
-                    WhatsApp
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 gap-2 min-h-[44px]"
-                    onClick={() => aplicarDesconto(lead)}
-                  >
-                    <Tag className="h-4 w-4" />
-                    Aplicar 15% Desconto
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="gap-2 min-h-[44px]"
-                    onClick={() => window.open(`mailto:${lead.email}`, '_blank')}
-                  >
-                    <Mail className="h-4 w-4" />
-                    Email
-                  </Button>
-                </div>
-              </CardContent>
-            </PremiumCard>
-          );
-        })}
-      </div>
-
-      {leadsFiltrados.length === 0 && (
-        <PremiumCard>
-          <div className="p-12 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
-              <Users className="h-8 w-8 text-muted-foreground/50" />
-            </div>
-            <p className="font-medium text-foreground">Nenhum lead pendente</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {filtroScore === 'todos' 
-                ? 'Todos os leads foram contatados!' 
-                : `Nenhum lead ${filtroScore} encontrado.`}
-            </p>
-          </div>
-        </PremiumCard>
-      )}
+      <NovaVendaDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen}
+        onSuccess={() => {
+          setDialogOpen(false);
+          toast({
+            title: "Venda registrada!",
+            description: "A transação foi salva com sucesso."
+          });
+        }}
+      />
     </div>
   );
 }
