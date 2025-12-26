@@ -25,8 +25,13 @@ export function VoiceAssistantBar() {
     isSupported,
   } = useVoiceAssistant();
 
+  // Early return MUST come after all hooks
+  const shouldRender = isSupported;
+
   // Keyboard shortcut
   useEffect(() => {
+    if (!shouldRender) return;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "j") {
         e.preventDefault();
@@ -40,17 +45,19 @@ export function VoiceAssistantBar() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isListening, isProcessing, startListening, stopListening]);
+  }, [shouldRender, isListening, isProcessing, startListening, stopListening]);
 
   // Handle navigation from voice result
   useEffect(() => {
+    if (!shouldRender) return;
+    
     if (lastResult?.success && lastResult.navigation?.route) {
       navigate(lastResult.navigation.route);
       toast.success(`Navegando para ${lastResult.navigation.pagina}`);
     }
-  }, [lastResult, navigate]);
+  }, [shouldRender, lastResult, navigate]);
 
-  if (!isSupported) {
+  if (!shouldRender) {
     return null;
   }
 
