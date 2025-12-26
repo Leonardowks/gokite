@@ -1,7 +1,7 @@
 import * as React from 'react';
-import { Mic, MicOff, X, Loader2, Check, AlertCircle, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { Mic, MicOff, X, Loader2, Check, AlertCircle, Sparkles, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useVoiceAssistant } from '@/hooks/useVoiceAssistant';
+import { useVoiceAssistant, OPENAI_VOICES, type OpenAIVoice } from '@/hooks/useVoiceAssistant';
 import { cn } from '@/lib/utils';
 
 export function VoiceAssistant() {
@@ -11,6 +11,8 @@ export function VoiceAssistant() {
     transcript,
     lastResult,
     error,
+    selectedVoice,
+    changeVoice,
     startListening,
     stopListening,
     stopAudio,
@@ -19,6 +21,7 @@ export function VoiceAssistant() {
   } = useVoiceAssistant();
 
   const [isOpen, setIsOpen] = React.useState(false);
+  const [showSettings, setShowSettings] = React.useState(false);
 
   // Keyboard shortcut: Ctrl+J to activate
   React.useEffect(() => {
@@ -114,15 +117,54 @@ export function VoiceAssistant() {
                   {isListening ? 'Ouvindo...' : isProcessing ? 'Processando...' : 'Assistente GoKite'}
                 </span>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 rounded-full hover:bg-muted/50"
-                onClick={handleClose}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={cn(
+                    "h-8 w-8 rounded-full hover:bg-muted/50",
+                    showSettings && "bg-muted"
+                  )}
+                  onClick={() => setShowSettings(!showSettings)}
+                  title="Configurações de voz"
+                >
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 rounded-full hover:bg-muted/50"
+                  onClick={handleClose}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
+
+            {/* Voice Settings Panel */}
+            {showSettings && (
+              <div className="px-6 py-4 border-b border-border/30 bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-3">Escolha a voz do assistente:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {OPENAI_VOICES.map((voice) => (
+                    <button
+                      key={voice.id}
+                      onClick={() => changeVoice(voice.id)}
+                      className={cn(
+                        "flex flex-col items-start px-3 py-2 rounded-xl text-left transition-all",
+                        "border hover:border-primary/50",
+                        selectedVoice === voice.id
+                          ? "bg-primary/10 border-primary text-primary"
+                          : "bg-background/50 border-border/50"
+                      )}
+                    >
+                      <span className="text-sm font-medium">{voice.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{voice.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Main Content */}
             <div className="p-6 flex flex-col items-center">
