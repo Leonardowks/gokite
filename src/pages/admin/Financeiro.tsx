@@ -24,7 +24,12 @@ import {
   ChevronRight,
   Settings2,
   FileText,
-  FileWarning
+  FileWarning,
+  Percent,
+  BarChart3,
+  GraduationCap,
+  Home,
+  ShoppingBag
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -480,7 +485,7 @@ export default function Financeiro() {
       </div>
 
       {/* KPIs Premium - Grid Responsivo */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
         {/* Receita do Mês - Destaque */}
         <PremiumCard featured gradient="primary" className="col-span-2 lg:col-span-1">
           <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
@@ -493,7 +498,7 @@ export default function Financeiro() {
           </PremiumCardHeader>
           <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             <div className="number-display text-2xl sm:text-3xl lg:text-4xl text-foreground">
-              <AnimatedNumber value={stats.receitaMes} format="currency" />
+              <AnimatedNumber value={transacoesSummary?.totalReceitas || stats.receitaMes} format="currency" />
             </div>
             <div className="flex items-center gap-2 mt-2">
               {stats.crescimentoMes >= 0 ? (
@@ -509,22 +514,88 @@ export default function Financeiro() {
           </PremiumCardContent>
         </PremiumCard>
 
-        {/* Receita Hoje */}
-        <PremiumCard>
+        {/* Margem Bruta */}
+        <PremiumCard className={transacoesSummary?.margemBruta && transacoesSummary.margemBruta >= 50 ? "border-success/30" : ""}>
           <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
             <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              Hoje
+              Margem Bruta
             </PremiumCardTitle>
-            <div className="icon-container icon-container-accent h-9 w-9 sm:h-10 sm:w-10">
-              <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
+            <div className={`icon-container h-9 w-9 sm:h-10 sm:w-10 ${
+              transacoesSummary?.margemBruta && transacoesSummary.margemBruta >= 50 
+                ? 'icon-container-success' 
+                : transacoesSummary?.margemBruta && transacoesSummary.margemBruta >= 30 
+                  ? 'icon-container-warning' 
+                  : 'icon-container-destructive'
+            }`}>
+              <Percent className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
           </PremiumCardHeader>
           <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            <div className="number-display text-xl sm:text-2xl lg:text-3xl text-foreground">
-              <AnimatedNumber value={stats.receitaHoje} format="currency" />
+            <div className={`number-display text-xl sm:text-2xl lg:text-3xl ${
+              transacoesSummary?.margemBruta && transacoesSummary.margemBruta >= 50 
+                ? 'text-success' 
+                : transacoesSummary?.margemBruta && transacoesSummary.margemBruta >= 30 
+                  ? 'text-warning' 
+                  : 'text-destructive'
+            }`}>
+              {(transacoesSummary?.margemBruta || 0).toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.transacoesHoje} transação(ões)
+              Receita - Custos
+            </p>
+          </PremiumCardContent>
+        </PremiumCard>
+
+        {/* Margem Líquida */}
+        <PremiumCard className={transacoesSummary?.margemLiquida && transacoesSummary.margemLiquida >= 20 ? "border-success/30" : ""}>
+          <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Margem Líquida
+            </PremiumCardTitle>
+            <div className={`icon-container h-9 w-9 sm:h-10 sm:w-10 ${
+              transacoesSummary?.margemLiquida && transacoesSummary.margemLiquida >= 20 
+                ? 'icon-container-success' 
+                : transacoesSummary?.margemLiquida && transacoesSummary.margemLiquida >= 10 
+                  ? 'icon-container-warning' 
+                  : 'icon-container-destructive'
+            }`}>
+              <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className={`number-display text-xl sm:text-2xl lg:text-3xl ${
+              transacoesSummary?.margemLiquida && transacoesSummary.margemLiquida >= 20 
+                ? 'text-success' 
+                : transacoesSummary?.margemLiquida && transacoesSummary.margemLiquida >= 10 
+                  ? 'text-warning' 
+                  : 'text-destructive'
+            }`}>
+              {(transacoesSummary?.margemLiquida || 0).toFixed(1)}%
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Após taxas e impostos
+            </p>
+          </PremiumCardContent>
+        </PremiumCard>
+
+        {/* Lucro Líquido */}
+        <PremiumCard>
+          <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
+            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+              Lucro Líquido
+            </PremiumCardTitle>
+            <div className="icon-container icon-container-accent h-9 w-9 sm:h-10 sm:w-10">
+              <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className={`number-display text-xl sm:text-2xl lg:text-3xl ${
+              (transacoesSummary?.lucroLiquido || 0) >= 0 ? 'text-foreground' : 'text-destructive'
+            }`}>
+              <AnimatedNumber value={transacoesSummary?.lucroLiquido || 0} format="currency" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Este mês
             </p>
           </PremiumCardContent>
         </PremiumCard>
@@ -545,26 +616,6 @@ export default function Financeiro() {
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Por transação
-            </p>
-          </PremiumCardContent>
-        </PremiumCard>
-
-        {/* A Receber */}
-        <PremiumCard className={stats.aReceber > 0 ? "border-warning/30" : ""}>
-          <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">
-            <PremiumCardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-              A Receber
-            </PremiumCardTitle>
-            <div className="icon-container icon-container-warning h-9 w-9 sm:h-10 sm:w-10">
-              <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-          </PremiumCardHeader>
-          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            <div className={`number-display text-xl sm:text-2xl lg:text-3xl ${stats.aReceber > 0 ? 'text-warning' : 'text-foreground'}`}>
-              <AnimatedNumber value={stats.aReceber} format="currency" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Pendentes
             </p>
           </PremiumCardContent>
         </PremiumCard>
@@ -612,6 +663,113 @@ export default function Financeiro() {
           </PremiumCard>
         </Link>
       </div>
+
+      {/* Rentabilidade por Categoria */}
+      {transacoesSummary?.porOrigem && Object.keys(transacoesSummary.porOrigem).some(k => transacoesSummary.porOrigem[k].receita > 0) && (
+        <PremiumCard>
+          <PremiumCardHeader className="p-4 sm:p-6">
+            <div className="flex items-center gap-3">
+              <div className="icon-container icon-container-primary h-10 w-10 sm:h-12 sm:w-12">
+                <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <div>
+                <PremiumCardTitle className="text-base sm:text-lg">
+                  Rentabilidade por Categoria
+                </PremiumCardTitle>
+                <PremiumCardDescription className="text-sm">
+                  Onde você está lucrando mais?
+                </PremiumCardDescription>
+              </div>
+            </div>
+          </PremiumCardHeader>
+          <PremiumCardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Categoria</th>
+                    <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Receita</th>
+                    <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Margem</th>
+                    <th className="text-right py-3 px-2 text-xs font-medium text-muted-foreground uppercase tracking-wide hidden sm:table-cell">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(transacoesSummary.porOrigem)
+                    .filter(([, data]) => data.receita > 0)
+                    .sort((a, b) => b[1].receita - a[1].receita)
+                    .map(([origem, data]) => {
+                      const getCategoryIcon = (cat: string) => {
+                        switch (cat) {
+                          case 'aula': return GraduationCap;
+                          case 'aluguel': return Home;
+                          case 'venda_produto': return ShoppingBag;
+                          case 'ecommerce': return ShoppingBag;
+                          case 'trade_in': return Package;
+                          case 'pacote': return Package;
+                          default: return Receipt;
+                        }
+                      };
+                      const getCategoryLabel = (cat: string) => {
+                        switch (cat) {
+                          case 'aula': return 'Aulas';
+                          case 'aluguel': return 'Aluguel';
+                          case 'venda_produto': return 'Loja';
+                          case 'ecommerce': return 'E-commerce';
+                          case 'trade_in': return 'Trade-in';
+                          case 'pacote': return 'Pacotes';
+                          default: return 'Outros';
+                        }
+                      };
+                      const Icon = getCategoryIcon(origem);
+                      const margemStatus = data.margem >= 50 ? 'excelente' : data.margem >= 30 ? 'boa' : 'atenção';
+                      
+                      return (
+                        <tr key={origem} className="border-b border-border/30 last:border-0 hover:bg-muted/30 transition-colors">
+                          <td className="py-3 px-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`icon-container h-8 w-8 ${
+                                margemStatus === 'excelente' ? 'icon-container-success' :
+                                margemStatus === 'boa' ? 'icon-container-warning' :
+                                'icon-container-destructive'
+                              }`}>
+                                <Icon className="h-4 w-4" />
+                              </div>
+                              <span className="font-medium text-sm">{getCategoryLabel(origem)}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <span className="font-semibold text-foreground">
+                              R$ {data.receita.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <span className={`font-bold ${
+                              margemStatus === 'excelente' ? 'text-success' :
+                              margemStatus === 'boa' ? 'text-warning' :
+                              'text-destructive'
+                            }`}>
+                              {data.margem.toFixed(0)}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-right hidden sm:table-cell">
+                            <PremiumBadge 
+                              variant={margemStatus === 'excelente' ? 'success' : margemStatus === 'boa' ? 'warning' : 'urgent'}
+                              size="sm"
+                            >
+                              {margemStatus === 'excelente' ? 'Seu melhor produto' :
+                               margemStatus === 'boa' ? 'Margem saudável' :
+                               'Revisar markup'}
+                            </PremiumBadge>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </PremiumCardContent>
+        </PremiumCard>
+      )}
 
       {/* Meta Mensal Premium */}
       <PremiumCard featured={stats.progressoMeta >= 100}>
