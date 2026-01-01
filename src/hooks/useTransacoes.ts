@@ -294,14 +294,47 @@ export function useTransacoesSummary(periodo?: 'hoje' | 'semana' | 'mes') {
       const receitas = transacoes.filter(t => t.tipo === 'receita');
       const despesas = transacoes.filter(t => t.tipo === 'despesa');
 
+      // Totais base
+      const totalReceitas = receitas.reduce((sum, t) => sum + t.valor_bruto, 0);
+      const totalDespesas = despesas.reduce((sum, t) => sum + t.valor_bruto, 0);
+      const totalCustosProdutos = receitas.reduce((sum, t) => sum + t.custo_produto, 0);
+      const totalTaxasCartao = receitas.reduce((sum, t) => sum + t.taxa_cartao_estimada, 0);
+      const totalImpostos = receitas.reduce((sum, t) => sum + t.imposto_provisionado, 0);
+      const lucroLiquido = transacoes.reduce((sum, t) => sum + t.lucro_liquido, 0);
+
+      // Lucro Bruto = Receita - Custo dos Produtos
+      const lucroBruto = totalReceitas - totalCustosProdutos;
+
+      // Margens percentuais
+      const margemBruta = totalReceitas > 0 ? (lucroBruto / totalReceitas) * 100 : 0;
+      const margemLiquida = totalReceitas > 0 ? (lucroLiquido / totalReceitas) * 100 : 0;
+
+      // Breakdown por origem (tipo de transação: aula, aluguel, venda_produto, etc.)
+      const origens = ['aula', 'aluguel', 'venda_produto', 'trade_in', 'pacote', 'ecommerce', 'outro'];
+      const porOrigem = origens.reduce((acc, origem) => {
+        const transacoesOrigem = receitas.filter(t => t.origem === origem);
+        const receita = transacoesOrigem.reduce((sum, t) => sum + t.valor_bruto, 0);
+        const custo = transacoesOrigem.reduce((sum, t) => sum + t.custo_produto, 0);
+        const lucro = transacoesOrigem.reduce((sum, t) => sum + t.lucro_liquido, 0);
+        const quantidade = transacoesOrigem.length;
+        const margem = receita > 0 ? ((receita - custo) / receita) * 100 : 0;
+
+        acc[origem] = { receita, custo, lucro, quantidade, margem };
+        return acc;
+      }, {} as Record<string, { receita: number; custo: number; lucro: number; quantidade: number; margem: number }>);
+
       return {
-        totalReceitas: receitas.reduce((sum, t) => sum + t.valor_bruto, 0),
-        totalDespesas: despesas.reduce((sum, t) => sum + t.valor_bruto, 0),
-        lucroLiquido: transacoes.reduce((sum, t) => sum + t.lucro_liquido, 0),
-        totalTaxasCartao: receitas.reduce((sum, t) => sum + t.taxa_cartao_estimada, 0),
-        totalImpostos: receitas.reduce((sum, t) => sum + t.imposto_provisionado, 0),
+        totalReceitas,
+        totalDespesas,
+        lucroLiquido,
+        lucroBruto,
+        totalCustosProdutos,
+        totalTaxasCartao,
+        totalImpostos,
+        margemBruta,
+        margemLiquida,
         margemMedia: receitas.length > 0 
-          ? (receitas.reduce((sum, t) => sum + (t.lucro_liquido / t.valor_bruto * 100), 0) / receitas.length)
+          ? (receitas.reduce((sum, t) => sum + (t.valor_bruto > 0 ? (t.lucro_liquido / t.valor_bruto * 100) : 0), 0) / receitas.length)
           : 0,
         porCentroCusto: {
           Escola: transacoes.filter(t => t.centro_de_custo === 'Escola').reduce((sum, t) => sum + t.lucro_liquido, 0),
@@ -309,6 +342,7 @@ export function useTransacoesSummary(periodo?: 'hoje' | 'semana' | 'mes') {
           Administrativo: transacoes.filter(t => t.centro_de_custo === 'Administrativo').reduce((sum, t) => sum + t.lucro_liquido, 0),
           Pousada: transacoes.filter(t => t.centro_de_custo === 'Pousada').reduce((sum, t) => sum + t.lucro_liquido, 0),
         },
+        porOrigem,
         qtdTransacoes: transacoes.length,
       };
     },
