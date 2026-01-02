@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { StatusBadge } from "@/components/StatusBadge";
 import { AulaDialogSupabase } from "@/components/AulaDialogSupabase";
+import { ConfirmarAulaDialog } from "@/components/ConfirmarAulaDialog";
 import { format } from "date-fns";
 import { Search, Calendar, Plus, Trash2, Edit, Clock, CheckCircle, XCircle, DollarSign, Loader2 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
-import { useAulasListagem, useAulasStats, useDeleteAula } from "@/hooks/useSupabaseAulas";
+import { useAulasListagem, useAulasStats, useDeleteAula, type AulaSupabase } from "@/hooks/useSupabaseAulas";
 
 const traduzirTipoAula = (tipo: string) => {
   const tipos: Record<string, string> = {
@@ -44,6 +45,8 @@ export default function Aulas() {
   const [filtroLocal, setFiltroLocal] = useState<string>("todos");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedAulaId, setSelectedAulaId] = useState<string | undefined>();
+  const [confirmarDialogOpen, setConfirmarDialogOpen] = useState(false);
+  const [aulaParaConfirmar, setAulaParaConfirmar] = useState<AulaSupabase | null>(null);
   const { toast } = useToast();
 
   const { data: aulas = [], isLoading, refetch } = useAulasListagem({
@@ -76,6 +79,11 @@ export default function Aulas() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setSelectedAulaId(undefined);
+  };
+
+  const handleConfirmar = (aula: AulaSupabase) => {
+    setAulaParaConfirmar(aula);
+    setConfirmarDialogOpen(true);
   };
 
   const pendentes = stats?.pendentes ?? 0;
@@ -287,6 +295,17 @@ export default function Aulas() {
                         <TableCell className="font-medium">R$ {aula.preco}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            {(aula.status === 'pendente' || aula.status === 'agendada') && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleConfirmar(aula)}
+                                className="h-8 gap-1 text-xs"
+                              >
+                                <CheckCircle className="h-3 w-3" />
+                                Confirmar
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="ghost"
@@ -344,6 +363,12 @@ export default function Aulas() {
                       </div>
                     </div>
                     <div className="flex gap-2 pt-2">
+                      {(aula.status === 'pendente' || aula.status === 'agendada') && (
+                        <Button size="sm" onClick={() => handleConfirmar(aula)} className="flex-1 min-h-[44px] gap-2">
+                          <CheckCircle className="h-4 w-4" />
+                          Confirmar
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => handleEdit(aula.id)} className="flex-1 min-h-[44px]">
                         <Edit className="h-4 w-4 mr-2" />
                         Editar
@@ -369,6 +394,12 @@ export default function Aulas() {
         open={dialogOpen}
         onOpenChange={handleCloseDialog}
         aulaId={selectedAulaId}
+      />
+
+      <ConfirmarAulaDialog
+        open={confirmarDialogOpen}
+        onOpenChange={setConfirmarDialogOpen}
+        aula={aulaParaConfirmar}
       />
     </div>
   );
