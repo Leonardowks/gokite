@@ -23,9 +23,10 @@ import {
   Calendar, 
   Repeat,
   Loader2,
-  ShoppingCart
+  ShoppingCart,
+  UserPlus
 } from "lucide-react";
-import { useCreateTransacao, type TransacaoInsert } from "@/hooks/useTransacoes";
+import { useTransacaoAutomatica, getCentroCustoPorOrigem } from "@/hooks/useTransacaoAutomatica";
 import { useClientesListagem } from "@/hooks/useSupabaseClientes";
 
 interface NovaVendaDialogProps {
@@ -47,26 +48,36 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
   const [parcelas, setParcelas] = useState('1');
   const [clienteId, setClienteId] = useState('');
   const [centroCusto, setCentroCusto] = useState<CentroCusto>('Escola');
+  
+  // Campos para criar cliente novo
+  const [criarNovoCliente, setCriarNovoCliente] = useState(false);
+  const [novoClienteNome, setNovoClienteNome] = useState('');
+  const [novoClienteEmail, setNovoClienteEmail] = useState('');
+  const [novoClienteTelefone, setNovoClienteTelefone] = useState('');
 
-  const createMutation = useCreateTransacao();
+  const { criarTransacaoCompleta, isPending } = useTransacaoAutomatica();
   const { data: clientes = [] } = useClientesListagem();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const transacao: TransacaoInsert = {
+    await criarTransacaoCompleta({
       tipo: 'receita',
-      origem: tipoVenda,
+      origem: tipoVenda === 'manual' ? 'manual' : tipoVenda as any,
       descricao,
       valor_bruto: parseFloat(valorBruto) || 0,
       custo_produto: parseFloat(custoProduto) || 0,
       forma_pagamento: formaPagamento,
       parcelas: parseInt(parcelas) || 1,
-      cliente_id: clienteId || undefined,
       centro_de_custo: centroCusto,
-    };
-
-    await createMutation.mutateAsync(transacao);
+      // Cliente existente ou novo
+      cliente_id: !criarNovoCliente && clienteId ? clienteId : undefined,
+      cliente: criarNovoCliente && novoClienteNome && novoClienteEmail ? {
+        nome: novoClienteNome,
+        email: novoClienteEmail,
+        telefone: novoClienteTelefone || undefined,
+      } : undefined,
+    });
     
     // Reset form
     setTipoVenda('manual');
@@ -77,7 +88,12 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
     setParcelas('1');
     setClienteId('');
     setCentroCusto('Escola');
+    setCriarNovoCliente(false);
+    setNovoClienteNome('');
+    setNovoClienteEmail('');
+    setNovoClienteTelefone('');
 
+    onOpenChange(false);
     onSuccess?.();
   };
 
@@ -217,13 +233,48 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
             )}
           </div>
 
-          {/* Cliente e Centro de Custo */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Cliente (opcional)</Label>
+          {/* Cliente */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Cliente</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setCriarNovoCliente(!criarNovoCliente)}
+                className="gap-1 text-xs h-7"
+              >
+                <UserPlus className="h-3 w-3" />
+                {criarNovoCliente ? 'Selecionar existente' : 'Criar novo'}
+              </Button>
+            </div>
+            
+            {criarNovoCliente ? (
+              <div className="space-y-3 p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+                <Input
+                  placeholder="Nome do cliente"
+                  value={novoClienteNome}
+                  onChange={(e) => setNovoClienteNome(e.target.value)}
+                />
+                <Input
+                  type="email"
+                  placeholder="Email do cliente"
+                  value={novoClienteEmail}
+                  onChange={(e) => setNovoClienteEmail(e.target.value)}
+                />
+                <Input
+                  placeholder="Telefone (opcional)"
+                  value={novoClienteTelefone}
+                  onChange={(e) => setNovoClienteTelefone(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  ✓ Cliente será criado automaticamente ao registrar a venda
+                </p>
+              </div>
+            ) : (
               <Select value={clienteId} onValueChange={(v) => setClienteId(v === '_none' ? '' : v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecionar cliente" />
+                  <SelectValue placeholder="Selecionar cliente (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="_none">Nenhum</SelectItem>
@@ -234,22 +285,23 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            )}
+          </div>
             
-            <div className="space-y-2">
-              <Label>Centro de Custo</Label>
-              <Select value={centroCusto} onValueChange={(v) => setCentroCusto(v as CentroCusto)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Escola">Escola</SelectItem>
-                  <SelectItem value="Loja">Loja</SelectItem>
-                  <SelectItem value="Administrativo">Administrativo</SelectItem>
-                  <SelectItem value="Pousada">Pousada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Centro de Custo */}
+          <div className="space-y-2">
+            <Label>Centro de Custo</Label>
+            <Select value={centroCusto} onValueChange={(v) => setCentroCusto(v as CentroCusto)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Escola">Escola</SelectItem>
+                <SelectItem value="Loja">Loja</SelectItem>
+                <SelectItem value="Administrativo">Administrativo</SelectItem>
+                <SelectItem value="Pousada">Pousada</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Resumo de cálculo */}
@@ -285,10 +337,10 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending || !valorBruto}
+              disabled={isPending || !valorBruto || (criarNovoCliente && (!novoClienteNome || !novoClienteEmail))}
               className="flex-1 gap-2"
             >
-              {createMutation.isPending ? (
+              {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ShoppingCart className="h-4 w-4" />

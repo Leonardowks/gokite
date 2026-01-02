@@ -17,8 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { agendamentoSchema, type AgendamentoFormData } from "@/lib/validations";
-import { localStorageService } from "@/lib/localStorage";
-import { calcularPreco, traduzirTipoAula, traduzirLocalizacao, formatarWhatsApp } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { calcularPreco, traduzirTipoAula, traduzirLocalizacao } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export default function AgendarAula() {
@@ -49,33 +49,66 @@ export default function AgendarAula() {
     try {
       console.log('[GoKite-Agendamento] Nova aula:', data);
 
-      const agendamento = localStorageService.salvarAgendamento({
-        tipo_aula: data.tipo_aula,
-        localizacao: data.localizacao,
-        data: data.data.toISOString(),
-        horario: data.horario,
-        cliente_nome: data.nome,
-        cliente_email: data.email,
-        cliente_whatsapp: data.whatsapp,
-        experiencia: data.experiencia,
-        status: 'pendente',
-        valor: calcularPreco(data.tipo_aula),
-      });
+      // 1. Buscar ou criar cliente no Supabase
+      const { data: clienteExistente } = await supabase
+        .from('clientes')
+        .select('id')
+        .or(`email.eq.${data.email},telefone.eq.${data.whatsapp}`)
+        .maybeSingle();
 
-      setAgendamentoId(agendamento.id);
+      let clienteId: string;
+
+      if (clienteExistente) {
+        clienteId = clienteExistente.id;
+      } else {
+        const { data: novoCliente, error: erroCliente } = await supabase
+          .from('clientes')
+          .insert({
+            nome: data.nome,
+            email: data.email,
+            telefone: data.whatsapp,
+            status: 'lead',
+            tags: [data.tipo_aula.includes('kitesurf') ? 'kitesurf' : data.tipo_aula],
+          })
+          .select('id')
+          .single();
+
+        if (erroCliente) throw erroCliente;
+        clienteId = novoCliente.id;
+      }
+
+      // 2. Criar aula no Supabase com status pendente
+      const { data: aulaData, error: erroAula } = await supabase
+        .from('aulas')
+        .insert({
+          cliente_id: clienteId,
+          tipo: data.tipo_aula,
+          local: data.localizacao,
+          data: format(data.data, 'yyyy-MM-dd'),
+          hora: data.horario,
+          preco: calcularPreco(data.tipo_aula),
+          status: 'pendente',
+          instrutor: 'A definir',
+        })
+        .select('id')
+        .single();
+
+      if (erroAula) throw erroAula;
+
+      setAgendamentoId(aulaData.id.slice(0, 8).toUpperCase());
       setShowSuccessDialog(true);
 
       toast({
         title: "✅ Aula Agendada com Sucesso!",
         description: (
           <div className="space-y-2 mt-2">
-            <p>Pedido #{agendamento.id}</p>
+            <p>Pedido #{aulaData.id.slice(0, 8).toUpperCase()}</p>
             <Button
               size="sm"
               variant="outline"
               className="w-full gap-2 mt-2"
               onClick={() => window.open(
-                `https://wa.me/554891541618?text=Olá! Acabei de agendar a aula ${agendamento.id}.`,
+                `https://wa.me/554891541618?text=Olá! Acabei de agendar uma aula. ID: ${aulaData.id.slice(0, 8).toUpperCase()}`,
                 '_blank'
               )}
             >
