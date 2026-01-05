@@ -34,6 +34,8 @@ import {
   Phone,
   Mail,
   RefreshCw,
+  MessageSquare,
+  BarChart3,
 } from 'lucide-react';
 import {
   useContatosInteligencia,
@@ -42,8 +44,10 @@ import {
   ContatoFiltros,
 } from '@/hooks/useContatosInteligencia';
 import { ImportarContatosDialog } from '@/components/ImportarContatosDialog';
+import { ImportarConversasDialog } from '@/components/ImportarConversasDialog';
 import { CampanhaDialog } from '@/components/CampanhaDialog';
 import { AnimatedNumber } from '@/components/ui/animated-number';
+import { useEstatisticasConversas, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
 
 const statusLabels: Record<string, string> = {
   nao_classificado: 'Não Classificado',
@@ -95,6 +99,7 @@ const campanhaLabels: Record<string, string> = {
 
 export default function Inteligencia() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importConversasOpen, setImportConversasOpen] = useState(false);
   const [campanhaDialogOpen, setCampanhaDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filtros, setFiltros] = useState<ContatoFiltros>({});
@@ -106,7 +111,9 @@ export default function Inteligencia() {
 
   const { data: contatos = [], isLoading, refetch } = useContatosInteligencia(filtros);
   const { data: stats, refetch: refetchStats } = useEstatisticasContatos();
+  const { data: statsConversas } = useEstatisticasConversas();
   const classificarMutation = useClassificarContatos();
+  const analisarMutation = useAnalisarConversas();
 
   const contatosSelecionados = useMemo(() => {
     if (selectedIds.length === 0) return contatos;
@@ -200,7 +207,7 @@ export default function Inteligencia() {
       />
 
       {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
         <PremiumCard className="p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -258,6 +265,21 @@ export default function Inteligencia() {
               </p>
             </div>
             <Sparkles className="h-8 w-8 text-muted-foreground/50" />
+          </div>
+        </PremiumCard>
+
+        <PremiumCard className="p-4 bg-gradient-to-br from-primary/10 to-primary/5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Conversas</p>
+              <p className="text-2xl font-bold text-primary">
+                <AnimatedNumber value={statsConversas?.totalConversas || 0} />
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {statsConversas?.contatosComConversas || 0} contatos
+              </p>
+            </div>
+            <MessageSquare className="h-8 w-8 text-primary/50" />
           </div>
         </PremiumCard>
       </div>
@@ -338,6 +360,14 @@ export default function Inteligencia() {
             <Button onClick={() => setImportDialogOpen(true)} disabled={isClassificandoTodos}>
               <Upload className="h-4 w-4 mr-2" />
               Importar Contatos
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setImportConversasOpen(true)} 
+              disabled={isClassificandoTodos}
+            >
+              <MessageSquare className="h-4 w-4 mr-2" />
+              Importar Conversas
             </Button>
             <Button
               variant="outline"
@@ -549,6 +579,11 @@ export default function Inteligencia() {
       <ImportarContatosDialog
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
+      />
+
+      <ImportarConversasDialog
+        open={importConversasOpen}
+        onOpenChange={setImportConversasOpen}
       />
 
       <CampanhaDialog

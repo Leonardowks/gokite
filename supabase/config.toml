@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.processar-importacao]
 verify_jwt = false
+
+[functions.analisar-conversas]
+verify_jwt = false
