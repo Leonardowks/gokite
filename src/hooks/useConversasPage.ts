@@ -203,9 +203,23 @@ export const useEnviarMensagem = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ contatoId, mensagem }: { contatoId: string; mensagem: string }) => {
+    mutationFn: async ({ 
+      contatoId, 
+      mensagem,
+      mediaUrl,
+      mediaType,
+      fileName,
+      caption,
+    }: { 
+      contatoId: string; 
+      mensagem?: string;
+      mediaUrl?: string;
+      mediaType?: 'image' | 'audio' | 'video' | 'document';
+      fileName?: string;
+      caption?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke('send-whatsapp', {
-        body: { contatoId, mensagem },
+        body: { contatoId, mensagem, mediaUrl, mediaType, fileName, caption },
       });
 
       if (error) throw error;
@@ -221,6 +235,46 @@ export const useEnviarMensagem = () => {
     onError: (error: Error) => {
       console.error('[useEnviarMensagem] Erro:', error);
       toast.error(error.message || 'Erro ao enviar mensagem');
+    },
+  });
+};
+
+// Hook para upload de mídia para o bucket
+export const useUploadMedia = () => {
+  return useMutation({
+    mutationFn: async ({ file, contatoId }: { file: File; contatoId: string }) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${contatoId}/${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('whatsapp-media')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) throw error;
+
+      // Obter URL pública
+      const { data: urlData } = supabase.storage
+        .from('whatsapp-media')
+        .getPublicUrl(data.path);
+
+      // Determinar tipo de mídia
+      let mediaType: 'image' | 'audio' | 'video' | 'document' = 'document';
+      if (file.type.startsWith('image/')) mediaType = 'image';
+      else if (file.type.startsWith('audio/')) mediaType = 'audio';
+      else if (file.type.startsWith('video/')) mediaType = 'video';
+
+      return {
+        url: urlData.publicUrl,
+        mediaType,
+        fileName: file.name,
+      };
+    },
+    onError: (error: Error) => {
+      console.error('[useUploadMedia] Erro:', error);
+      toast.error('Erro ao fazer upload do arquivo');
     },
   });
 };

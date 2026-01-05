@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import {
   MessageSquare,
   Brain,
@@ -17,11 +18,13 @@ import {
   Video,
   Check,
   CheckCheck,
+  Paperclip,
+  X,
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem } from '@/hooks/useConversasPage';
+import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem, useUploadMedia } from '@/hooks/useConversasPage';
 import { toast } from 'sonner';
 
 interface ChatViewProps {
@@ -36,31 +39,92 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [novaMensagem, setNovaMensagem] = useState('');
+  const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   
   const enviarMensagem = useEnviarMensagem();
+  const uploadMedia = useUploadMedia();
 
   // Auto scroll para baixo quando novas mensagens chegam
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens]);
 
+  // Limpar preview ao desselecionar arquivo
+  useEffect(() => {
+    if (arquivoSelecionado && arquivoSelecionado.type.startsWith('image/')) {
+      const url = URL.createObjectURL(arquivoSelecionado);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [arquivoSelecionado]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validar tamanho (max 16MB para WhatsApp)
+      if (file.size > 16 * 1024 * 1024) {
+        toast.error('Arquivo muito grande. Máximo 16MB.');
+        return;
+      }
+      setArquivoSelecionado(file);
+    }
+    // Reset input para permitir selecionar o mesmo arquivo novamente
+    e.target.value = '';
+  };
+
+  const handleRemoverArquivo = () => {
+    setArquivoSelecionado(null);
+    setPreviewUrl(null);
+  };
+
   const handleEnviar = async () => {
-    if (!contato || !novaMensagem.trim() || enviarMensagem.isPending) return;
+    if (!contato || enviarMensagem.isPending || uploadMedia.isPending) return;
+    if (!novaMensagem.trim() && !arquivoSelecionado) return;
 
     const mensagemTexto = novaMensagem.trim();
-    setNovaMensagem(''); // Limpa o input imediatamente
+    const arquivo = arquivoSelecionado;
+    
+    // Limpar inputs imediatamente
+    setNovaMensagem('');
+    setArquivoSelecionado(null);
+    setPreviewUrl(null);
 
     try {
-      await enviarMensagem.mutateAsync({
-        contatoId: contato.id,
-        mensagem: mensagemTexto,
-      });
-      toast.success('Mensagem enviada!');
+      if (arquivo) {
+        // Upload do arquivo primeiro
+        const uploadResult = await uploadMedia.mutateAsync({
+          file: arquivo,
+          contatoId: contato.id,
+        });
+
+        // Enviar mensagem com mídia
+        await enviarMensagem.mutateAsync({
+          contatoId: contato.id,
+          mediaUrl: uploadResult.url,
+          mediaType: uploadResult.mediaType,
+          fileName: uploadResult.fileName,
+          caption: mensagemTexto || undefined,
+        });
+        toast.success('Mídia enviada!');
+      } else {
+        // Enviar só texto
+        await enviarMensagem.mutateAsync({
+          contatoId: contato.id,
+          mensagem: mensagemTexto,
+        });
+        toast.success('Mensagem enviada!');
+      }
       textareaRef.current?.focus();
     } catch (error) {
-      // Erro já tratado no hook
-      setNovaMensagem(mensagemTexto); // Restaura a mensagem em caso de erro
+      // Erro já tratado nos hooks
+      // Restaurar estado em caso de erro
+      if (mensagemTexto) setNovaMensagem(mensagemTexto);
+      if (arquivo) setArquivoSelecionado(arquivo);
     }
   };
 
@@ -278,33 +342,94 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
       </ScrollArea>
 
       {/* Input de mensagem */}
-      <div className="p-3 border-t bg-card/80 backdrop-blur-sm">
+      <div className="p-3 border-t bg-card/80 backdrop-blur-sm space-y-2">
+        {/* Preview do arquivo selecionado */}
+        {arquivoSelecionado && (
+          <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+            {previewUrl ? (
+              <img 
+                src={previewUrl} 
+                alt="Preview" 
+                className="h-12 w-12 object-cover rounded"
+              />
+            ) : (
+              <div className="h-12 w-12 bg-muted rounded flex items-center justify-center">
+                {arquivoSelecionado.type.startsWith('video/') && <Video className="h-5 w-5 text-muted-foreground" />}
+                {arquivoSelecionado.type.startsWith('audio/') && <Mic className="h-5 w-5 text-muted-foreground" />}
+                {!arquivoSelecionado.type.startsWith('video/') && 
+                 !arquivoSelecionado.type.startsWith('audio/') && 
+                 !arquivoSelecionado.type.startsWith('image/') && (
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{arquivoSelecionado.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {(arquivoSelecionado.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={handleRemoverArquivo}
+              className="h-8 w-8 shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Input e botões */}
         <div className="flex items-end gap-2">
+          {/* Input de arquivo oculto */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          {/* Botão anexar */}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={enviarMensagem.isPending || uploadMedia.isPending}
+            className="h-11 w-11 shrink-0"
+            title="Anexar arquivo"
+          >
+            <Paperclip className="h-5 w-5" />
+          </Button>
+
           <Textarea
             ref={textareaRef}
-            placeholder="Digite sua mensagem..."
+            placeholder={arquivoSelecionado ? "Adicione uma legenda (opcional)..." : "Digite sua mensagem..."}
             value={novaMensagem}
             onChange={(e) => setNovaMensagem(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={enviarMensagem.isPending}
+            disabled={enviarMensagem.isPending || uploadMedia.isPending}
             className="min-h-[44px] max-h-32 resize-none flex-1"
             rows={1}
           />
+          
           <Button
             size="icon"
             onClick={handleEnviar}
-            disabled={!novaMensagem.trim() || enviarMensagem.isPending}
+            disabled={(!novaMensagem.trim() && !arquivoSelecionado) || enviarMensagem.isPending || uploadMedia.isPending}
             className="h-11 w-11 shrink-0"
           >
-            {enviarMensagem.isPending ? (
+            {(enviarMensagem.isPending || uploadMedia.isPending) ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Send className="h-5 w-5" />
             )}
           </Button>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
-          Enter para enviar • Shift+Enter para nova linha
+        
+        <p className="text-[10px] text-muted-foreground text-center">
+          Enter para enviar • Shift+Enter para nova linha • Clique em 📎 para anexar
         </p>
       </div>
     </div>
