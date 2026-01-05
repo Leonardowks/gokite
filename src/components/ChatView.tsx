@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import {
   MessageSquare,
   Brain,
@@ -21,15 +20,27 @@ import {
   CheckCheck,
   Paperclip,
   X,
-  Play,
   Download,
   User,
+  Building2,
+  Star,
+  MoreVertical,
+  Tag,
+  Phone,
 } from 'lucide-react';
-import { format, isSameDay, parseISO } from 'date-fns';
+import { format, isSameDay, parseISO, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem, useUploadMedia } from '@/hooks/useConversasPage';
 import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ChatViewProps {
   contato: ContatoComUltimaMensagem | null;
@@ -71,14 +82,12 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validar tamanho (max 16MB para WhatsApp)
       if (file.size > 16 * 1024 * 1024) {
         toast.error('Arquivo muito grande. Máximo 16MB.');
         return;
       }
       setArquivoSelecionado(file);
     }
-    // Reset input para permitir selecionar o mesmo arquivo novamente
     e.target.value = '';
   };
 
@@ -94,20 +103,17 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     const mensagemTexto = novaMensagem.trim();
     const arquivo = arquivoSelecionado;
     
-    // Limpar inputs imediatamente
     setNovaMensagem('');
     setArquivoSelecionado(null);
     setPreviewUrl(null);
 
     try {
       if (arquivo) {
-        // Upload do arquivo primeiro
         const uploadResult = await uploadMedia.mutateAsync({
           file: arquivo,
           contatoId: contato.id,
         });
 
-        // Enviar mensagem com mídia
         await enviarMensagem.mutateAsync({
           contatoId: contato.id,
           mediaUrl: uploadResult.url,
@@ -117,7 +123,6 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         });
         toast.success('Mídia enviada!');
       } else {
-        // Enviar só texto
         await enviarMensagem.mutateAsync({
           contatoId: contato.id,
           mensagem: mensagemTexto,
@@ -126,15 +131,12 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
       }
       textareaRef.current?.focus();
     } catch (error) {
-      // Erro já tratado nos hooks
-      // Restaurar estado em caso de erro
       if (mensagemTexto) setNovaMensagem(mensagemTexto);
       if (arquivo) setArquivoSelecionado(arquivo);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enviar com Enter (sem Shift)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleEnviar();
@@ -162,7 +164,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     switch (status) {
       case 'DELIVERY_ACK':
       case 'READ':
-        return <CheckCheck className="h-3.5 w-3.5 text-cyan" />;
+        return <CheckCheck className="h-3.5 w-3.5 text-cyan-500" />;
       case 'SERVER_ACK':
         return <Check className="h-3.5 w-3.5 text-muted-foreground" />;
       default:
@@ -170,13 +172,13 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     }
   };
 
-  // Estado vazio - nenhum contato selecionado
+  // Estado vazio
   if (!contato) {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-muted/20 text-muted-foreground">
         <div className="relative">
           <MessageSquare className="h-20 w-20 opacity-20" />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-cyan/20 blur-3xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-cyan-500/20 blur-3xl" />
         </div>
         <p className="mt-6 text-lg font-medium">Selecione uma conversa</p>
         <p className="text-sm">Escolha um contato na lista ao lado</p>
@@ -184,16 +186,19 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     );
   }
 
-  // Prioridade: nome WhatsApp > nome cadastrado > telefone
   const displayName = contato.whatsapp_profile_name || contato.nome || contato.telefone;
+  const isPriority = contato.prioridade === 'alta' || contato.prioridade === 'urgente';
 
   // Loading
   if (isLoading) {
     return (
       <div className="h-full flex flex-col">
         <div className="p-4 border-b flex items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
         </div>
         <div className="flex-1 p-4 space-y-4">
           {[1, 2, 3, 4].map((i) => (
@@ -218,54 +223,122 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-muted/10 to-muted/5">
-      {/* Header */}
-      <div className="p-4 border-b bg-card/80 backdrop-blur-sm flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary">
-              {displayName.slice(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <h2 className="font-semibold truncate">{displayName}</h2>
-            <p className="text-xs text-muted-foreground">{contato.telefone}</p>
+      {/* Header Enriquecido */}
+      <div className="px-4 py-3 border-b bg-card/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-4">
+          {/* Info do contato */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative">
+              <Avatar className="h-11 w-11">
+                <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                  {displayName.slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {isPriority && (
+                <div className="absolute -top-0.5 -right-0.5">
+                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <h2 className="font-semibold truncate text-sm">{displayName}</h2>
+                {contato.is_business && (
+                  <Building2 className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{contato.telefone}</span>
+                {contato.status && contato.status !== 'nao_classificado' && (
+                  <>
+                    <span>•</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-[10px] h-4 px-1',
+                        contato.status === 'lead' && 'border-blue-500/50 text-blue-600',
+                        contato.status === 'lead_quente' && 'border-orange-500/50 text-orange-600',
+                        contato.status === 'cliente_ativo' && 'border-green-500/50 text-green-600',
+                      )}
+                    >
+                      {contato.status === 'lead' && 'Lead'}
+                      {contato.status === 'lead_quente' && 'Lead Quente'}
+                      {contato.status === 'cliente_ativo' && 'Cliente'}
+                      {contato.status === 'cliente_inativo' && 'Inativo'}
+                    </Badge>
+                  </>
+                )}
+                {contato.score_interesse && contato.score_interesse > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className={cn(
+                      contato.score_interesse > 70 ? 'text-green-600' : 
+                      contato.score_interesse > 40 ? 'text-amber-600' : 'text-muted-foreground'
+                    )}>
+                      {contato.score_interesse}% interesse
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onAnalisar}
-            disabled={isAnalisando || mensagens.length === 0}
-            className="gap-2"
-          >
-            <Brain className={cn('h-4 w-4', isAnalisando && 'animate-pulse')} />
-            <span className="hidden sm:inline">Analisar com IA</span>
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => navigate('/admin/inteligencia')}
-            title="Ver na Central de Inteligência"
-          >
-            <User className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            asChild
-          >
-            <a
-              href={`https://wa.me/${contato.telefone.replace(/\D/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Abrir no WhatsApp"
+          {/* Ações */}
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onAnalisar}
+              disabled={isAnalisando || mensagens.length === 0}
+              className="gap-1.5 h-8"
             >
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          </Button>
+              <Brain className={cn('h-3.5 w-3.5', isAnalisando && 'animate-pulse')} />
+              <span className="hidden sm:inline text-xs">Analisar IA</span>
+            </Button>
+            
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={() => navigate('/admin/inteligencia')}
+              title="Ver na Central de Inteligência"
+            >
+              <User className="h-4 w-4" />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-8 w-8">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel className="text-xs">Ações</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/admin/inteligencia')}>
+                  <User className="h-4 w-4 mr-2" />
+                  Ver perfil completo
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a
+                    href={`https://wa.me/${contato.telefone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Abrir no WhatsApp
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <a href={`tel:${contato.telefone}`}>
+                    <Phone className="h-4 w-4 mr-2" />
+                    Ligar
+                  </a>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
@@ -296,26 +369,20 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
                   {/* Mensagens do dia */}
                   <div className="space-y-2">
-                    {msgs.map((msg, index) => {
+                    {msgs.map((msg) => {
                       const isFromMe = msg.is_from_me || msg.remetente === 'empresa';
-                      const midiaIcon = getTipoMidiaIcon(msg.tipo_midia);
                       const isImagem = msg.tipo_midia === 'imagem' || msg.tipo_midia === 'image';
                       const isVideo = msg.tipo_midia === 'video';
                       const isAudio = msg.tipo_midia === 'audio';
                       const isDocumento = msg.tipo_midia === 'documento' || msg.tipo_midia === 'document';
                       const hasMedia = msg.media_url && (isImagem || isVideo || isAudio || isDocumento);
-
-                      // Verificar se conteúdo é apenas placeholder de mídia
                       const isMediaPlaceholder = ['[Imagem]', '[Vídeo]', '[Áudio]', '[Documento]'].includes(msg.conteudo);
                       const showTextContent = msg.conteudo && !isMediaPlaceholder;
 
                       return (
                         <div
                           key={msg.id}
-                          className={cn(
-                            'flex',
-                            isFromMe ? 'justify-end' : 'justify-start'
-                          )}
+                          className={cn('flex', isFromMe ? 'justify-end' : 'justify-start')}
                         >
                           <div
                             className={cn(
@@ -326,10 +393,9 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                               hasMedia ? 'p-1' : 'px-4 py-2.5'
                             )}
                           >
-                            {/* Renderizar mídia */}
+                            {/* Mídia */}
                             {hasMedia && (
                               <div className="mb-1">
-                                {/* Imagem */}
                                 {isImagem && (
                                   <a 
                                     href={msg.media_url!} 
@@ -342,24 +408,19 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                                       alt="Imagem"
                                       className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                       loading="lazy"
-                                      decoding="async"
                                     />
                                   </a>
                                 )}
 
-                                {/* Vídeo */}
                                 {isVideo && (
-                                  <div className="relative">
-                                    <video
-                                      src={msg.media_url!}
-                                      controls
-                                      className="rounded-xl max-w-full max-h-64"
-                                      preload="metadata"
-                                    />
-                                  </div>
+                                  <video
+                                    src={msg.media_url!}
+                                    controls
+                                    className="rounded-xl max-w-full max-h-64"
+                                    preload="metadata"
+                                  />
                                 )}
 
-                                {/* Áudio */}
                                 {isAudio && (
                                   <div className="px-3 py-2">
                                     <audio
@@ -371,7 +432,6 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                                   </div>
                                 )}
 
-                                {/* Documento */}
                                 {isDocumento && (
                                   <a
                                     href={msg.media_url!}
@@ -410,7 +470,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                               </div>
                             )}
 
-                            {/* Legenda/Conteúdo de texto */}
+                            {/* Texto */}
                             {showTextContent && (
                               <p className={cn(
                                 "text-sm whitespace-pre-wrap break-words",
@@ -426,9 +486,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                               isFromMe ? 'text-primary-foreground/60' : 'text-muted-foreground',
                               hasMedia ? 'px-3 py-1' : 'mt-1'
                             )}>
-                              <span>
-                                {format(parseISO(msg.data_mensagem), 'HH:mm')}
-                              </span>
+                              <span>{format(parseISO(msg.data_mensagem), 'HH:mm')}</span>
                               {isFromMe && getStatusIcon(msg.message_status)}
                             </div>
                           </div>
@@ -444,95 +502,78 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         )}
       </ScrollArea>
 
-      {/* Input de mensagem */}
+      {/* Input */}
       <div className="p-3 border-t bg-card/80 backdrop-blur-sm space-y-2">
-        {/* Preview do arquivo selecionado */}
+        {/* Preview do arquivo */}
         {arquivoSelecionado && (
           <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
             {previewUrl ? (
-              <img 
-                src={previewUrl} 
-                alt="Preview" 
-                className="h-12 w-12 object-cover rounded"
-              />
+              <img src={previewUrl} alt="Preview" className="h-12 w-12 object-cover rounded" />
             ) : (
-              <div className="h-12 w-12 bg-muted rounded flex items-center justify-center">
-                {arquivoSelecionado.type.startsWith('video/') && <Video className="h-5 w-5 text-muted-foreground" />}
-                {arquivoSelecionado.type.startsWith('audio/') && <Mic className="h-5 w-5 text-muted-foreground" />}
-                {!arquivoSelecionado.type.startsWith('video/') && 
-                 !arquivoSelecionado.type.startsWith('audio/') && 
-                 !arquivoSelecionado.type.startsWith('image/') && (
-                  <FileText className="h-5 w-5 text-muted-foreground" />
-                )}
+              <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
+                <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{arquivoSelecionado.name}</p>
               <p className="text-xs text-muted-foreground">
-                {(arquivoSelecionado.size / 1024).toFixed(1)} KB
+                {(arquivoSelecionado.size / 1024).toFixed(0)} KB
               </p>
             </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={handleRemoverArquivo}
-              className="h-8 w-8 shrink-0"
-            >
+            <Button size="icon" variant="ghost" onClick={handleRemoverArquivo}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         )}
 
-        {/* Input e botões */}
+        {/* Input de mensagem */}
         <div className="flex items-end gap-2">
-          {/* Input de arquivo oculto */}
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
             onChange={handleFileSelect}
             className="hidden"
           />
           
-          {/* Botão anexar */}
           <Button
+            type="button"
             size="icon"
             variant="ghost"
             onClick={() => fileInputRef.current?.click()}
             disabled={enviarMensagem.isPending || uploadMedia.isPending}
-            className="h-11 w-11 shrink-0"
-            title="Anexar arquivo"
+            className="h-10 w-10 flex-shrink-0"
           >
             <Paperclip className="h-5 w-5" />
           </Button>
 
           <Textarea
             ref={textareaRef}
-            placeholder={arquivoSelecionado ? "Adicione uma legenda (opcional)..." : "Digite sua mensagem..."}
             value={novaMensagem}
             onChange={(e) => setNovaMensagem(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={enviarMensagem.isPending || uploadMedia.isPending}
-            className="min-h-[44px] max-h-32 resize-none flex-1"
+            placeholder={`Mensagem para ${displayName}...`}
+            className="min-h-10 max-h-32 resize-none flex-1"
             rows={1}
+            disabled={enviarMensagem.isPending || uploadMedia.isPending}
           />
-          
+
           <Button
-            size="icon"
             onClick={handleEnviar}
+            size="icon"
             disabled={(!novaMensagem.trim() && !arquivoSelecionado) || enviarMensagem.isPending || uploadMedia.isPending}
-            className="h-11 w-11 shrink-0"
+            className="h-10 w-10 flex-shrink-0"
           >
-            {(enviarMensagem.isPending || uploadMedia.isPending) ? (
+            {enviarMensagem.isPending || uploadMedia.isPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Send className="h-5 w-5" />
             )}
           </Button>
         </div>
-        
+
         <p className="text-[10px] text-muted-foreground text-center">
-          Enter para enviar • Shift+Enter para nova linha • Clique em 📎 para anexar
+          Enter para enviar • Shift + Enter para nova linha
         </p>
       </div>
     </div>
