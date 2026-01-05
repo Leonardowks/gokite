@@ -374,6 +374,22 @@ export default function Inteligencia() {
                 Criar Campanha ({contatosSelecionados.length})
               </Button>
             )}
+            {/* Botão rápido para campanha com leads */}
+            {(stats?.por_status?.lead || 0) > 0 && selectedIds.length === 0 && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setFiltros({ ...filtros, status: 'lead' });
+                  setTimeout(() => {
+                    setSelectedIds(contatos.filter(c => c.status === 'lead').map(c => c.id));
+                  }, 100);
+                }}
+                disabled={isClassificandoTodos}
+              >
+                <Target className="h-4 w-4 mr-2" />
+                Campanha Leads ({stats?.por_status?.lead})
+              </Button>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2 items-center">
