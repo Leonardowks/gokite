@@ -126,9 +126,9 @@ export default function Inteligencia() {
 
   const handleClassificar = () => {
     if (selectedIds.length > 0) {
-      classificarMutation.mutate(selectedIds);
+      classificarMutation.mutate({ contatoIds: selectedIds });
     } else {
-      classificarMutation.mutate(undefined);
+      classificarMutation.mutate({ batchSize: 500 });
     }
     setSelectedIds([]);
   };

@@ -183,20 +183,35 @@ export function useClassificarContatos() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (contatoIds?: string[]) => {
+    mutationFn: async (options?: { contatoIds?: string[]; batchSize?: number }) => {
       const { data, error } = await supabase.functions.invoke('classificar-contatos', {
-        body: { contatoIds },
+        body: { 
+          contatoIds: options?.contatoIds,
+          batchSize: options?.batchSize || 500
+        },
       });
 
       if (error) throw error;
-      return data;
+      return data as { 
+        message: string; 
+        processed: number; 
+        total: number; 
+        remaining: number;
+        error?: string;
+      };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['contatos-inteligencia'] });
       queryClient.invalidateQueries({ queryKey: ['contatos-estatisticas'] });
+      
+      const remaining = data.remaining || 0;
+      const description = remaining > 0 
+        ? `${data.message}. Restam ${remaining} contatos para classificar.`
+        : data.message;
+      
       toast({
         title: 'Classificação concluída',
-        description: data.message,
+        description,
       });
     },
     onError: (error: Error) => {
