@@ -1,15 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import {
   MessageSquare,
   Brain,
   ExternalLink,
-  Phone,
-  ChevronDown,
+  Send,
+  Loader2,
   Image,
   FileText,
   Mic,
@@ -20,7 +21,8 @@ import {
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { MensagemChat, ContatoComUltimaMensagem } from '@/hooks/useConversasPage';
+import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem } from '@/hooks/useConversasPage';
+import { toast } from 'sonner';
 
 interface ChatViewProps {
   contato: ContatoComUltimaMensagem | null;
@@ -33,20 +35,53 @@ interface ChatViewProps {
 export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisando }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [novaMensagem, setNovaMensagem] = useState('');
+  
+  const enviarMensagem = useEnviarMensagem();
 
   // Auto scroll para baixo quando novas mensagens chegam
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens]);
 
+  const handleEnviar = async () => {
+    if (!contato || !novaMensagem.trim() || enviarMensagem.isPending) return;
+
+    const mensagemTexto = novaMensagem.trim();
+    setNovaMensagem(''); // Limpa o input imediatamente
+
+    try {
+      await enviarMensagem.mutateAsync({
+        contatoId: contato.id,
+        mensagem: mensagemTexto,
+      });
+      toast.success('Mensagem enviada!');
+      textareaRef.current?.focus();
+    } catch (error) {
+      // Erro já tratado no hook
+      setNovaMensagem(mensagemTexto); // Restaura a mensagem em caso de erro
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enviar com Enter (sem Shift)
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleEnviar();
+    }
+  };
+
   const getTipoMidiaIcon = (tipo: string | null) => {
     switch (tipo) {
+      case 'imagem':
       case 'image':
         return <Image className="h-4 w-4" />;
       case 'audio':
         return <Mic className="h-4 w-4" />;
       case 'video':
         return <Video className="h-4 w-4" />;
+      case 'documento':
       case 'document':
         return <FileText className="h-4 w-4" />;
       default:
@@ -148,6 +183,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
               href={`https://wa.me/${contato.telefone.replace(/\D/g, '')}`}
               target="_blank"
               rel="noopener noreferrer"
+              title="Abrir no WhatsApp"
             >
               <ExternalLink className="h-4 w-4" />
             </a>
@@ -241,23 +277,35 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         )}
       </ScrollArea>
 
-      {/* Footer com ação rápida */}
+      {/* Input de mensagem */}
       <div className="p-3 border-t bg-card/80 backdrop-blur-sm">
-        <Button
-          variant="outline"
-          className="w-full gap-2"
-          asChild
-        >
-          <a
-            href={`https://wa.me/${contato.telefone.replace(/\D/g, '')}`}
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex items-end gap-2">
+          <Textarea
+            ref={textareaRef}
+            placeholder="Digite sua mensagem..."
+            value={novaMensagem}
+            onChange={(e) => setNovaMensagem(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={enviarMensagem.isPending}
+            className="min-h-[44px] max-h-32 resize-none flex-1"
+            rows={1}
+          />
+          <Button
+            size="icon"
+            onClick={handleEnviar}
+            disabled={!novaMensagem.trim() || enviarMensagem.isPending}
+            className="h-11 w-11 shrink-0"
           >
-            <Phone className="h-4 w-4" />
-            Responder no WhatsApp
-            <ExternalLink className="h-3.5 w-3.5 ml-auto opacity-50" />
-          </a>
-        </Button>
+            {enviarMensagem.isPending ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
+          </Button>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-1.5 text-center">
+          Enter para enviar • Shift+Enter para nova linha
+        </p>
       </div>
     </div>
   );

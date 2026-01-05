@@ -197,3 +197,30 @@ export const useContatoById = (contatoId: string | null) => {
     enabled: !!contatoId,
   });
 };
+
+// Hook para enviar mensagem via Evolution API
+export const useEnviarMensagem = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contatoId, mensagem }: { contatoId: string; mensagem: string }) => {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp', {
+        body: { contatoId, mensagem },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidar queries para atualizar a UI
+      queryClient.invalidateQueries({ queryKey: ['mensagens-chat', variables.contatoId] });
+      queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+    },
+    onError: (error: Error) => {
+      console.error('[useEnviarMensagem] Erro:', error);
+      toast.error(error.message || 'Erro ao enviar mensagem');
+    },
+  });
+};
