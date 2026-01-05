@@ -71,6 +71,47 @@ export type Database = {
           },
         ]
       }
+      analise_queue: {
+        Row: {
+          contato_id: string | null
+          created_at: string | null
+          erro: string | null
+          id: string
+          prioridade: number | null
+          processed_at: string | null
+          status: string | null
+          tentativas: number | null
+        }
+        Insert: {
+          contato_id?: string | null
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          prioridade?: number | null
+          processed_at?: string | null
+          status?: string | null
+          tentativas?: number | null
+        }
+        Update: {
+          contato_id?: string | null
+          created_at?: string | null
+          erro?: string | null
+          id?: string
+          prioridade?: number | null
+          processed_at?: string | null
+          status?: string | null
+          tentativas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analise_queue_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos_inteligencia"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aulas: {
         Row: {
           cliente_id: string
@@ -289,6 +330,7 @@ export type Database = {
       }
       contatos_inteligencia: {
         Row: {
+          business_name: string | null
           campanha_sugerida: string | null
           classificado_em: string | null
           cliente_id: string | null
@@ -298,9 +340,11 @@ export type Database = {
           dores_identificadas: string[] | null
           email: string | null
           engajamento_score: number | null
+          evolution_contact_id: string | null
           gatilhos: string[] | null
           id: string
           interesse_principal: string | null
+          is_business: boolean | null
           mensagem_personalizada: string | null
           nome: string | null
           objecoes: string[] | null
@@ -316,8 +360,11 @@ export type Database = {
           ultima_mensagem: string | null
           ultimo_contato: string | null
           updated_at: string | null
+          whatsapp_profile_name: string | null
+          whatsapp_profile_picture: string | null
         }
         Insert: {
+          business_name?: string | null
           campanha_sugerida?: string | null
           classificado_em?: string | null
           cliente_id?: string | null
@@ -327,9 +374,11 @@ export type Database = {
           dores_identificadas?: string[] | null
           email?: string | null
           engajamento_score?: number | null
+          evolution_contact_id?: string | null
           gatilhos?: string[] | null
           id?: string
           interesse_principal?: string | null
+          is_business?: boolean | null
           mensagem_personalizada?: string | null
           nome?: string | null
           objecoes?: string[] | null
@@ -345,8 +394,11 @@ export type Database = {
           ultima_mensagem?: string | null
           ultimo_contato?: string | null
           updated_at?: string | null
+          whatsapp_profile_name?: string | null
+          whatsapp_profile_picture?: string | null
         }
         Update: {
+          business_name?: string | null
           campanha_sugerida?: string | null
           classificado_em?: string | null
           cliente_id?: string | null
@@ -356,9 +408,11 @@ export type Database = {
           dores_identificadas?: string[] | null
           email?: string | null
           engajamento_score?: number | null
+          evolution_contact_id?: string | null
           gatilhos?: string[] | null
           id?: string
           interesse_principal?: string | null
+          is_business?: boolean | null
           mensagem_personalizada?: string | null
           nome?: string | null
           objecoes?: string[] | null
@@ -374,6 +428,8 @@ export type Database = {
           ultima_mensagem?: string | null
           ultimo_contato?: string | null
           updated_at?: string | null
+          whatsapp_profile_name?: string | null
+          whatsapp_profile_picture?: string | null
         }
         Relationships: [
           {
@@ -394,8 +450,16 @@ export type Database = {
           dados_extraidos: Json | null
           data_mensagem: string
           id: string
+          instance_name: string | null
           intencao: string | null
+          is_from_me: boolean | null
+          media_mimetype: string | null
+          media_url: string | null
+          message_id: string | null
+          message_status: string | null
           palavras_chave: string[] | null
+          push_name: string | null
+          quoted_message_id: string | null
           remetente: string
           sentimento: string | null
           telefone: string
@@ -409,8 +473,16 @@ export type Database = {
           dados_extraidos?: Json | null
           data_mensagem: string
           id?: string
+          instance_name?: string | null
           intencao?: string | null
+          is_from_me?: boolean | null
+          media_mimetype?: string | null
+          media_url?: string | null
+          message_id?: string | null
+          message_status?: string | null
           palavras_chave?: string[] | null
+          push_name?: string | null
+          quoted_message_id?: string | null
           remetente: string
           sentimento?: string | null
           telefone: string
@@ -424,8 +496,16 @@ export type Database = {
           dados_extraidos?: Json | null
           data_mensagem?: string
           id?: string
+          instance_name?: string | null
           intencao?: string | null
+          is_from_me?: boolean | null
+          media_mimetype?: string | null
+          media_url?: string | null
+          message_id?: string | null
+          message_status?: string | null
           palavras_chave?: string[] | null
+          push_name?: string | null
+          quoted_message_id?: string | null
           remetente?: string
           sentimento?: string | null
           telefone?: string
@@ -525,6 +605,57 @@ export type Database = {
           tamanho?: string | null
           tipo?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      evolution_config: {
+        Row: {
+          api_key: string
+          api_url: string
+          created_at: string | null
+          eventos_ativos: string[] | null
+          id: string
+          instance_name: string
+          numero_conectado: string | null
+          qrcode_base64: string | null
+          status: string | null
+          total_contatos_sync: number | null
+          total_mensagens_sync: number | null
+          ultima_sincronizacao: string | null
+          updated_at: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          api_key: string
+          api_url: string
+          created_at?: string | null
+          eventos_ativos?: string[] | null
+          id?: string
+          instance_name: string
+          numero_conectado?: string | null
+          qrcode_base64?: string | null
+          status?: string | null
+          total_contatos_sync?: number | null
+          total_mensagens_sync?: number | null
+          ultima_sincronizacao?: string | null
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          api_key?: string
+          api_url?: string
+          created_at?: string | null
+          eventos_ativos?: string[] | null
+          id?: string
+          instance_name?: string
+          numero_conectado?: string | null
+          qrcode_base64?: string | null
+          status?: string | null
+          total_contatos_sync?: number | null
+          total_mensagens_sync?: number | null
+          ultima_sincronizacao?: string | null
+          updated_at?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
