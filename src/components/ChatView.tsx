@@ -20,6 +20,8 @@ import {
   CheckCheck,
   Paperclip,
   X,
+  Play,
+  Download,
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -285,6 +287,15 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                     {msgs.map((msg, index) => {
                       const isFromMe = msg.is_from_me || msg.remetente === 'empresa';
                       const midiaIcon = getTipoMidiaIcon(msg.tipo_midia);
+                      const isImagem = msg.tipo_midia === 'imagem' || msg.tipo_midia === 'image';
+                      const isVideo = msg.tipo_midia === 'video';
+                      const isAudio = msg.tipo_midia === 'audio';
+                      const isDocumento = msg.tipo_midia === 'documento' || msg.tipo_midia === 'document';
+                      const hasMedia = msg.media_url && (isImagem || isVideo || isAudio || isDocumento);
+
+                      // Verificar se conteúdo é apenas placeholder de mídia
+                      const isMediaPlaceholder = ['[Imagem]', '[Vídeo]', '[Áudio]', '[Documento]'].includes(msg.conteudo);
+                      const showTextContent = msg.conteudo && !isMediaPlaceholder;
 
                       return (
                         <div
@@ -296,32 +307,112 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                         >
                           <div
                             className={cn(
-                              'max-w-[75%] rounded-2xl px-4 py-2.5 shadow-sm',
+                              'max-w-[75%] rounded-2xl shadow-sm overflow-hidden',
                               isFromMe
                                 ? 'bg-primary text-primary-foreground rounded-br-md'
-                                : 'bg-card border rounded-bl-md'
+                                : 'bg-card border rounded-bl-md',
+                              hasMedia ? 'p-1' : 'px-4 py-2.5'
                             )}
                           >
-                            {/* Tipo de mídia */}
-                            {midiaIcon && msg.tipo_midia !== 'texto' && (
-                              <div className={cn(
-                                'flex items-center gap-2 mb-1 text-xs',
-                                isFromMe ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                              )}>
-                                {midiaIcon}
-                                <span className="capitalize">{msg.tipo_midia}</span>
+                            {/* Renderizar mídia */}
+                            {hasMedia && (
+                              <div className="mb-1">
+                                {/* Imagem */}
+                                {isImagem && (
+                                  <a 
+                                    href={msg.media_url!} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                  >
+                                    <img
+                                      src={msg.media_url!}
+                                      alt="Imagem"
+                                      className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      loading="lazy"
+                                      decoding="async"
+                                    />
+                                  </a>
+                                )}
+
+                                {/* Vídeo */}
+                                {isVideo && (
+                                  <div className="relative">
+                                    <video
+                                      src={msg.media_url!}
+                                      controls
+                                      className="rounded-xl max-w-full max-h-64"
+                                      preload="metadata"
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Áudio */}
+                                {isAudio && (
+                                  <div className="px-3 py-2">
+                                    <audio
+                                      src={msg.media_url!}
+                                      controls
+                                      className="w-full max-w-[250px]"
+                                      preload="metadata"
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Documento */}
+                                {isDocumento && (
+                                  <a
+                                    href={msg.media_url!}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={cn(
+                                      'flex items-center gap-3 px-3 py-2 rounded-lg transition-colors',
+                                      isFromMe 
+                                        ? 'bg-primary-foreground/10 hover:bg-primary-foreground/20' 
+                                        : 'bg-muted/50 hover:bg-muted'
+                                    )}
+                                  >
+                                    <div className={cn(
+                                      'h-10 w-10 rounded-lg flex items-center justify-center',
+                                      isFromMe ? 'bg-primary-foreground/20' : 'bg-primary/10'
+                                    )}>
+                                      <FileText className={cn(
+                                        'h-5 w-5',
+                                        isFromMe ? 'text-primary-foreground' : 'text-primary'
+                                      )} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium truncate">
+                                        {msg.conteudo !== '[Documento]' ? msg.conteudo : 'Documento'}
+                                      </p>
+                                      <p className={cn(
+                                        'text-xs',
+                                        isFromMe ? 'text-primary-foreground/60' : 'text-muted-foreground'
+                                      )}>
+                                        Clique para abrir
+                                      </p>
+                                    </div>
+                                    <Download className="h-4 w-4 shrink-0 opacity-60" />
+                                  </a>
+                                )}
                               </div>
                             )}
 
-                            {/* Conteúdo */}
-                            <p className="text-sm whitespace-pre-wrap break-words">
-                              {msg.conteudo}
-                            </p>
+                            {/* Legenda/Conteúdo de texto */}
+                            {showTextContent && (
+                              <p className={cn(
+                                "text-sm whitespace-pre-wrap break-words",
+                                hasMedia ? "px-3 py-1" : ""
+                              )}>
+                                {msg.conteudo}
+                              </p>
+                            )}
 
                             {/* Horário e status */}
                             <div className={cn(
-                              'flex items-center justify-end gap-1.5 mt-1 text-[10px]',
-                              isFromMe ? 'text-primary-foreground/60' : 'text-muted-foreground'
+                              'flex items-center justify-end gap-1.5 text-[10px]',
+                              isFromMe ? 'text-primary-foreground/60' : 'text-muted-foreground',
+                              hasMedia ? 'px-3 py-1' : 'mt-1'
                             )}>
                               <span>
                                 {format(parseISO(msg.data_mensagem), 'HH:mm')}

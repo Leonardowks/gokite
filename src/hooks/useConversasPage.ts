@@ -25,6 +25,8 @@ export interface MensagemChat {
   remetente: string;
   conteudo: string;
   tipo_midia: string | null;
+  media_url: string | null;
+  media_mimetype: string | null;
   lida: boolean;
   is_from_me: boolean | null;
   push_name: string | null;
@@ -92,7 +94,7 @@ export const useMensagensContato = (contatoId: string | null) => {
 
       const { data, error } = await supabase
         .from('conversas_whatsapp')
-        .select('id, contato_id, telefone, data_mensagem, remetente, conteudo, tipo_midia, lida, is_from_me, push_name, message_status')
+        .select('id, contato_id, telefone, data_mensagem, remetente, conteudo, tipo_midia, media_url, media_mimetype, lida, is_from_me, push_name, message_status')
         .eq('contato_id', contatoId)
         .order('data_mensagem', { ascending: true });
 
