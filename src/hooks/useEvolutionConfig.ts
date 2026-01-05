@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export interface EvolutionStatus {
   configured: boolean;
@@ -21,6 +21,25 @@ export interface EvolutionConfig {
   apiKey: string;
 }
 
+export interface SyncJob {
+  id: string;
+  tipo: string;
+  status: 'pendente' | 'em_andamento' | 'concluido' | 'erro' | 'cancelado';
+  progresso_atual: number;
+  progresso_total: number;
+  chats_processados: number;
+  contatos_criados: number;
+  contatos_atualizados: number;
+  mensagens_criadas: number;
+  mensagens_puladas: number;
+  erros: number;
+  logs: string[];
+  resultado?: Record<string, any>;
+  erro?: string;
+  iniciado_em?: string;
+  concluido_em?: string;
+}
+
 // Hook para buscar status da Evolution
 export const useEvolutionStatus = () => {
   return useQuery({
@@ -34,12 +53,11 @@ export const useEvolutionStatus = () => {
       return data as EvolutionStatus;
     },
     refetchInterval: (query) => {
-      // Refetch mais frequente quando aguardando QR code
       const data = query.state.data as EvolutionStatus | undefined;
       if (data?.status === 'qrcode' || data?.status === 'conectando') {
-        return 3000; // 3 segundos
+        return 3000;
       }
-      return 30000; // 30 segundos normalmente
+      return 30000;
     },
   });
 };
@@ -125,7 +143,7 @@ export const useDisconnectEvolution = () => {
   });
 };
 
-// Hook para sincronizar dados
+// Hook para sincronizar dados - retorna jobId para tracking
 export const useSyncEvolution = () => {
   const queryClient = useQueryClient();
 
@@ -136,26 +154,17 @@ export const useSyncEvolution = () => {
       });
 
       if (error) throw error;
-      return data;
+      return data as { success: boolean; jobId: string; results?: any; duration?: number };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['evolution-status'] });
-      queryClient.invalidateQueries({ queryKey: ['contatos-inteligencia'] });
-      queryClient.invalidateQueries({ queryKey: ['conversas-whatsapp'] });
-      queryClient.invalidateQueries({ queryKey: ['estatisticas-conversas'] });
-      
-      const { results } = data;
-      if (results.contacts.total > 0 || results.messages.total > 0) {
-        toast.success(
-          `Sincronização concluída: ${results.contacts.created} contatos, ${results.messages.created} mensagens`
-        );
-      } else {
-        toast.info('Nenhum dado novo para sincronizar');
+      // Não invalidar queries aqui - deixar o realtime fazer isso
+      if (data.jobId) {
+        toast.info('Sincronização iniciada. Acompanhe o progresso abaixo.');
       }
     },
     onError: (error) => {
       console.error('Erro ao sincronizar:', error);
-      toast.error('Erro ao sincronizar dados');
+      toast.error('Erro ao iniciar sincronização');
     },
   });
 };
@@ -182,6 +191,73 @@ export const useDeleteEvolutionConfig = () => {
       toast.error('Erro ao remover configuração');
     },
   });
+};
+
+// Hook para acompanhar progresso de sync em tempo real
+export const useSyncProgress = (jobId: string | null) => {
+  const [job, setJob] = useState<SyncJob | null>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!jobId) {
+      setJob(null);
+      return;
+    }
+
+    // Buscar job inicial
+    const fetchJob = async () => {
+      const { data } = await supabase
+        .from('sync_jobs')
+        .select('*')
+        .eq('id', jobId)
+        .single();
+      
+      if (data) {
+        setJob(data as SyncJob);
+      }
+    };
+
+    fetchJob();
+
+    // Subscrever para atualizações em tempo real
+    const channel = supabase
+      .channel(`sync-job-${jobId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sync_jobs',
+          filter: `id=eq.${jobId}`,
+        },
+        (payload) => {
+          console.log('[SyncProgress] Atualização recebida:', payload);
+          setJob(payload.new as SyncJob);
+          
+          // Se completou, invalidar queries
+          if (payload.new.status === 'concluido' || payload.new.status === 'erro') {
+            queryClient.invalidateQueries({ queryKey: ['evolution-status'] });
+            queryClient.invalidateQueries({ queryKey: ['contatos-inteligencia'] });
+            queryClient.invalidateQueries({ queryKey: ['conversas-whatsapp'] });
+            
+            if (payload.new.status === 'concluido') {
+              toast.success(
+                `Sincronização concluída: ${payload.new.contatos_criados + payload.new.contatos_atualizados} contatos, ${payload.new.mensagens_criadas} mensagens`
+              );
+            } else {
+              toast.error(`Erro na sincronização: ${payload.new.erro}`);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [jobId, queryClient]);
+
+  return job;
 };
 
 // Hook para realtime de novas mensagens
