@@ -68,6 +68,11 @@ interface WebhookPayload {
   };
 }
 
+interface EvolutionConfig {
+  api_url: string;
+  api_key: string;
+}
+
 // Normaliza telefone para formato consistente
 function normalizePhone(phone: string): string {
   return phone.replace(/[@s.a-z]/gi, "").replace(/\D/g, "");
@@ -124,6 +129,133 @@ function extractMessageContent(message: EvolutionMessage["message"]): { content:
   return { content: "[Mensagem não suportada]", tipoMidia: "outro" };
 }
 
+// Busca foto de perfil do contato na Evolution API
+async function fetchProfilePicture(config: EvolutionConfig, instanceName: string, remoteJid: string): Promise<string | null> {
+  try {
+    const url = `${config.api_url}/chat/fetchProfilePictureUrl/${instanceName}`;
+    console.log(`[Evolution Webhook] Buscando foto de perfil para ${remoteJid}`);
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": config.api_key,
+      },
+      body: JSON.stringify({ number: remoteJid }),
+    });
+
+    if (!response.ok) {
+      console.log(`[Evolution Webhook] Erro ao buscar foto: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log(`[Evolution Webhook] Foto encontrada: ${data.profilePictureUrl ? "sim" : "não"}`);
+    return data.profilePictureUrl || null;
+  } catch (error) {
+    console.error("[Evolution Webhook] Erro ao buscar foto de perfil:", error);
+    return null;
+  }
+}
+
+// Busca informações do contato na Evolution API
+async function fetchContactInfo(config: EvolutionConfig, instanceName: string, remoteJid: string): Promise<{ pushName?: string; isBusiness?: boolean; businessName?: string } | null> {
+  try {
+    const url = `${config.api_url}/chat/fetchProfile/${instanceName}`;
+    console.log(`[Evolution Webhook] Buscando perfil para ${remoteJid}`);
+    
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": config.api_key,
+      },
+      body: JSON.stringify({ number: remoteJid }),
+    });
+
+    if (!response.ok) {
+      console.log(`[Evolution Webhook] Erro ao buscar perfil: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log(`[Evolution Webhook] Perfil encontrado:`, JSON.stringify(data).slice(0, 200));
+    
+    return {
+      pushName: data.name || data.pushName,
+      isBusiness: data.isBusiness || false,
+      businessName: data.businessName,
+    };
+  } catch (error) {
+    console.error("[Evolution Webhook] Erro ao buscar perfil:", error);
+    return null;
+  }
+}
+
+// Enriquece dados do contato buscando na API da Evolution
+async function enrichContactData(
+  supabase: any,
+  config: EvolutionConfig,
+  instanceName: string,
+  contatoId: string,
+  remoteJid: string,
+  currentPushName?: string
+): Promise<void> {
+  try {
+    // Buscar dados atuais do contato
+    const { data: contato } = await supabase
+      .from("contatos_inteligencia")
+      .select("whatsapp_profile_picture, whatsapp_profile_name, is_business, business_name")
+      .eq("id", contatoId)
+      .single();
+
+    if (!contato) return;
+
+    const updates: Record<string, any> = {};
+    let needsUpdate = false;
+
+    // Se não tem foto, buscar
+    if (!contato.whatsapp_profile_picture) {
+      const profilePicture = await fetchProfilePicture(config, instanceName, remoteJid);
+      if (profilePicture) {
+        updates.whatsapp_profile_picture = profilePicture;
+        needsUpdate = true;
+      }
+    }
+
+    // Se não tem nome ou é genérico, buscar perfil completo
+    if (!contato.whatsapp_profile_name || contato.whatsapp_profile_name.startsWith("Contato ")) {
+      if (currentPushName) {
+        updates.whatsapp_profile_name = currentPushName;
+        updates.nome = currentPushName;
+        needsUpdate = true;
+      } else {
+        const profileInfo = await fetchContactInfo(config, instanceName, remoteJid);
+        if (profileInfo?.pushName) {
+          updates.whatsapp_profile_name = profileInfo.pushName;
+          updates.nome = profileInfo.pushName;
+          needsUpdate = true;
+        }
+        if (profileInfo?.isBusiness !== undefined) {
+          updates.is_business = profileInfo.isBusiness;
+          updates.business_name = profileInfo.businessName;
+        }
+      }
+    }
+
+    // Aplicar atualizações se houver
+    if (needsUpdate && Object.keys(updates).length > 0) {
+      console.log(`[Evolution Webhook] Enriquecendo contato ${contatoId}:`, updates);
+      await supabase
+        .from("contatos_inteligencia")
+        .update(updates)
+        .eq("id", contatoId);
+    }
+  } catch (error) {
+    console.error("[Evolution Webhook] Erro ao enriquecer contato:", error);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -140,6 +272,13 @@ serve(async (req) => {
 
     const { event, instance, data } = payload;
 
+    // Buscar configuração da instância para API calls
+    const { data: evolutionConfig } = await supabase
+      .from("evolution_config")
+      .select("api_url, api_key")
+      .eq("instance_name", instance)
+      .maybeSingle();
+
     // Processar diferentes tipos de eventos
     switch (event) {
       case "MESSAGES_UPSERT": {
@@ -148,7 +287,8 @@ serve(async (req) => {
           break;
         }
 
-        const phone = normalizePhone(data.key.remoteJid);
+        const remoteJid = data.key.remoteJid;
+        const phone = normalizePhone(remoteJid);
         const messageId = data.key.id;
         const isFromMe = data.key.fromMe;
         const pushName = data.pushName;
@@ -180,6 +320,7 @@ serve(async (req) => {
               telefone: phone,
               nome: pushName || `Contato ${phone.slice(-4)}`,
               whatsapp_profile_name: pushName,
+              remote_jid: remoteJid,
               origem: "evolution",
               status: "nao_classificado",
             })
@@ -222,6 +363,7 @@ serve(async (req) => {
             tipo_midia: tipoMidia,
             media_url: mediaUrl,
             media_mimetype: mediaMimetype,
+            lida: isFromMe, // Mensagens enviadas já são consideradas lidas
           });
 
         if (insertError) {
@@ -235,6 +377,7 @@ serve(async (req) => {
           .update({
             ultima_mensagem: timestamp.toISOString(),
             whatsapp_profile_name: pushName || undefined,
+            remote_jid: remoteJid,
           })
           .eq("id", contato.id);
 
@@ -247,6 +390,14 @@ serve(async (req) => {
           .eq("instance_name", instance);
 
         console.log(`[Evolution Webhook] Mensagem ${messageId} salva com sucesso`);
+
+        // Enriquecer dados do contato em background (não bloqueia resposta)
+        // Só enriquecer se não for mensagem nossa e tivermos config
+        if (!isFromMe && evolutionConfig) {
+          // Usar EdgeRuntime.waitUntil para processar em background
+          enrichContactData(supabase, evolutionConfig, instance, contato.id, remoteJid, pushName)
+            .catch(err => console.error("[Evolution Webhook] Erro no enriquecimento:", err));
+        }
         break;
       }
 
@@ -274,6 +425,7 @@ serve(async (req) => {
                 is_business: contact.isBusiness,
                 business_name: contact.businessName,
                 evolution_contact_id: contact.id,
+                remote_jid: contact.id,
               })
               .eq("id", existingContact.id);
           } else {
@@ -287,6 +439,7 @@ serve(async (req) => {
                 is_business: contact.isBusiness,
                 business_name: contact.businessName,
                 evolution_contact_id: contact.id,
+                remote_jid: contact.id,
                 origem: "evolution",
                 status: "nao_classificado",
               });
