@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { PageHeader } from '@/components/PageHeader';
 import { PremiumCard } from '@/components/ui/premium-card';
 import { Button } from '@/components/ui/button';
@@ -98,9 +98,14 @@ export default function Inteligencia() {
   const [campanhaDialogOpen, setCampanhaDialogOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filtros, setFiltros] = useState<ContatoFiltros>({});
+  
+  // Estado para classificação em massa automática
+  const [isClassificandoTodos, setIsClassificandoTodos] = useState(false);
+  const [progressoClassificacao, setProgressoClassificacao] = useState({ processed: 0, total: 0, remaining: 0 });
+  const abortRef = useRef(false);
 
-  const { data: contatos = [], isLoading } = useContatosInteligencia(filtros);
-  const { data: stats } = useEstatisticasContatos();
+  const { data: contatos = [], isLoading, refetch } = useContatosInteligencia(filtros);
+  const { data: stats, refetch: refetchStats } = useEstatisticasContatos();
   const classificarMutation = useClassificarContatos();
 
   const contatosSelecionados = useMemo(() => {
@@ -132,6 +137,59 @@ export default function Inteligencia() {
     }
     setSelectedIds([]);
   };
+
+  // Função para classificar todos os contatos automaticamente
+  const handleClassificarTodos = useCallback(async () => {
+    const naoClassificados = stats?.nao_classificados || 0;
+    if (naoClassificados === 0) return;
+
+    setIsClassificandoTodos(true);
+    setProgressoClassificacao({ processed: 0, total: naoClassificados, remaining: naoClassificados });
+    abortRef.current = false;
+
+    let totalProcessed = 0;
+    let remaining = naoClassificados;
+
+    while (remaining > 0 && !abortRef.current) {
+      try {
+        const result = await classificarMutation.mutateAsync({ batchSize: 500 });
+        
+        totalProcessed += result.processed;
+        remaining = result.remaining;
+        
+        setProgressoClassificacao({
+          processed: totalProcessed,
+          total: naoClassificados,
+          remaining: remaining,
+        });
+
+        // Atualizar dados
+        await refetch();
+        await refetchStats();
+
+        // Pequena pausa entre batches para não sobrecarregar
+        if (remaining > 0 && !abortRef.current) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      } catch (error) {
+        console.error('Erro na classificação em lote:', error);
+        break;
+      }
+    }
+
+    setIsClassificandoTodos(false);
+  }, [stats?.nao_classificados, classificarMutation, refetch, refetchStats]);
+
+  const handleCancelarClassificacao = () => {
+    abortRef.current = true;
+  };
+
+  // Limpar estado ao desmontar
+  useEffect(() => {
+    return () => {
+      abortRef.current = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -247,32 +305,70 @@ export default function Inteligencia() {
         </div>
       )}
 
+      {/* Barra de progresso da classificação em massa */}
+      {isClassificandoTodos && (
+        <PremiumCard className="p-4 border-primary/20 bg-primary/5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+              <span className="font-medium">Classificando todos os contatos...</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleCancelarClassificacao}>
+              Cancelar
+            </Button>
+          </div>
+          <Progress 
+            value={progressoClassificacao.total > 0 
+              ? (progressoClassificacao.processed / progressoClassificacao.total) * 100 
+              : 0
+            } 
+            className="h-3 mb-2" 
+          />
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{progressoClassificacao.processed} processados</span>
+            <span>{progressoClassificacao.remaining} restantes</span>
+          </div>
+        </PremiumCard>
+      )}
+
       {/* Ações e Filtros */}
       <PremiumCard className="p-4">
         <div className="flex flex-wrap gap-3 items-center justify-between">
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setImportDialogOpen(true)}>
+            <Button onClick={() => setImportDialogOpen(true)} disabled={isClassificandoTodos}>
               <Upload className="h-4 w-4 mr-2" />
               Importar Contatos
             </Button>
             <Button
               variant="outline"
               onClick={handleClassificar}
-              disabled={classificarMutation.isPending}
+              disabled={classificarMutation.isPending || isClassificandoTodos}
             >
-              {classificarMutation.isPending ? (
+              {classificarMutation.isPending && !isClassificandoTodos ? (
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
               {selectedIds.length > 0
                 ? `Classificar ${selectedIds.length} selecionados`
-                : 'Classificar com IA'}
+                : 'Classificar Lote'}
             </Button>
+            {(stats?.nao_classificados || 0) > 0 && !isClassificandoTodos && (
+              <Button
+                variant="default"
+                onClick={handleClassificarTodos}
+                disabled={classificarMutation.isPending}
+                className="bg-gradient-to-r from-primary to-primary/80"
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                Classificar Todos ({stats?.nao_classificados})
+              </Button>
+            )}
             {contatosSelecionados.length > 0 && (
               <Button
                 variant="outline"
                 onClick={() => setCampanhaDialogOpen(true)}
+                disabled={isClassificandoTodos}
               >
                 <Rocket className="h-4 w-4 mr-2" />
                 Criar Campanha ({contatosSelecionados.length})
