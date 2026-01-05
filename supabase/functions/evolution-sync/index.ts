@@ -263,14 +263,16 @@ serve(async (req) => {
     if (action === "full" || action === "contacts") {
       await addJobLog(supabase, jobId, "Buscando chats ativos via findChats...");
 
+      // Evolution API v2 usa POST para findChats
       const chatsResponse = await fetchWithRetry(
         `${config.api_url}/chat/findChats/${config.instance_name}`,
         {
-          method: "GET",
+          method: "POST",
           headers: {
             "Content-Type": "application/json",
             "apikey": config.api_key,
           },
+          body: JSON.stringify({}),
         }
       );
 
@@ -564,69 +566,82 @@ async function syncMessagesForContact(
   try {
     let messages: Message[] = [];
     
-    // Tentar buscar mensagens via findMessages
-    const findMessagesResponse = await fetchWithRetry(
-      `${config.api_url}/chat/findMessages/${config.instance_name}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": config.api_key,
-        },
-        body: JSON.stringify({
-          where: {
-            key: {
-              remoteJid: jid,
-            },
+    console.log(`[Sync] Buscando mensagens para JID: ${jid}`);
+    
+    const findMessagesUrl = `${config.api_url}chat/findMessages/${config.instance_name}`;
+    let currentPage = 1;
+    let totalPages = 1;
+    
+    // Buscar todas as páginas de mensagens
+    while (currentPage <= totalPages) {
+      const requestBody = {
+        where: {
+          key: {
+            remoteJid: jid,
           },
-          limit: 1000,
-        }),
-      }
-    );
-
-    if (findMessagesResponse.ok) {
-      const data = await findMessagesResponse.json();
-      messages = data.messages || data || [];
+        },
+        page: currentPage,
+        offset: 100, // 100 mensagens por página
+      };
       
-      // Filtrar apenas mensagens deste JID (workaround para bug conhecido)
-      if (Array.isArray(messages) && messages.length > 0) {
-        messages = messages.filter(m => {
-          const msgJid = m.key?.remoteJid || "";
-          return msgJid === jid || extractPhoneFromJid(msgJid) === phone;
-        });
-      }
-    } else {
-      // Fallback: buscar todas as mensagens e filtrar localmente
-      console.log(`[Sync] findMessages falhou para ${jid}, tentando fallback...`);
-      
-      const allMessagesResponse = await fetchWithRetry(
-        `${config.api_url}/chat/findMessages/${config.instance_name}`,
+      const findMessagesResponse = await fetchWithRetry(
+        findMessagesUrl,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "apikey": config.api_key,
           },
-          body: JSON.stringify({
-            limit: 5000,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
-      if (allMessagesResponse.ok) {
-        const allData = await allMessagesResponse.json();
-        const allMessages = allData.messages || allData || [];
+      if (!findMessagesResponse.ok) {
+        const errorText = await findMessagesResponse.text();
+        console.log(`[Sync] findMessages falhou página ${currentPage}: ${findMessagesResponse.status} - ${errorText}`);
+        break;
+      }
+
+      const data = await findMessagesResponse.json();
+      
+      // Evolution API v2 retorna: { messages: { total, pages, currentPage, records: [...] } }
+      if (data.messages?.records) {
+        const pageMessages = data.messages.records;
+        totalPages = data.messages.pages || 1;
         
-        messages = allMessages.filter((m: Message) => {
+        console.log(`[Sync] Página ${currentPage}/${totalPages}: ${pageMessages.length} mensagens (total: ${data.messages.total})`);
+        
+        // Filtrar mensagens deste JID
+        const filteredMessages = pageMessages.filter((m: Message) => {
           const msgJid = m.key?.remoteJid || "";
           return msgJid === jid || extractPhoneFromJid(msgJid) === phone;
         });
+        
+        messages.push(...filteredMessages);
+      } else if (Array.isArray(data)) {
+        messages.push(...data);
+        break; // Sem paginação
+      } else if (Array.isArray(data.messages)) {
+        messages.push(...data.messages);
+        break; // Sem paginação
+      } else {
+        break;
+      }
+      
+      currentPage++;
+      
+      // Pequeno delay entre páginas para não sobrecarregar a API
+      if (currentPage <= totalPages) {
+        await sleep(100);
       }
     }
 
-    if (!Array.isArray(messages) || messages.length === 0) {
+    if (messages.length === 0) {
+      console.log(`[Sync] Nenhuma mensagem encontrada para ${jid}`);
       return;
     }
+
+    console.log(`[Sync] Total de ${messages.length} mensagens para processar de ${jid}`);
 
     // Buscar IDs de mensagens já existentes para este contato
     const { data: existingMessages } = await supabase
@@ -674,20 +689,26 @@ async function syncMessagesForContact(
       });
     }
 
-    // Inserir em batches de 100
+    // Inserir em batches de 100 usando upsert para evitar duplicatas
     const BATCH_SIZE = 100;
     for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
       const batch = newMessages.slice(i, i + BATCH_SIZE);
       
-      const { error } = await supabase
+      const { error, data: inserted } = await supabase
         .from("conversas_whatsapp")
-        .insert(batch);
+        .upsert(batch, { 
+          onConflict: "message_id",
+          ignoreDuplicates: true 
+        })
+        .select("id");
 
       if (error) {
         console.error(`Erro ao inserir mensagens batch ${i}:`, error);
         stats.erros += batch.length;
       } else {
-        stats.mensagens_criadas += batch.length;
+        const insertedCount = inserted?.length || 0;
+        stats.mensagens_criadas += insertedCount;
+        stats.mensagens_puladas += batch.length - insertedCount;
       }
     }
 
