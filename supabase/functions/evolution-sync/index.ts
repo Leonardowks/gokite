@@ -572,8 +572,10 @@ async function syncMessagesForContact(
     let currentPage = 1;
     let totalPages = 1;
     
-    // Buscar todas as páginas de mensagens
-    while (currentPage <= totalPages) {
+    // Buscar todas as páginas de mensagens (500 por página para máxima eficiência)
+    const MAX_PAGES = 50; // Limite de segurança para evitar loops infinitos
+    
+    while (currentPage <= totalPages && currentPage <= MAX_PAGES) {
       const requestBody = {
         where: {
           key: {
@@ -581,7 +583,7 @@ async function syncMessagesForContact(
           },
         },
         page: currentPage,
-        offset: 100, // 100 mensagens por página
+        offset: 500, // 500 mensagens por página (máximo recomendado)
       };
       
       const findMessagesResponse = await fetchWithRetry(
@@ -609,7 +611,9 @@ async function syncMessagesForContact(
         const pageMessages = data.messages.records;
         totalPages = data.messages.pages || 1;
         
-        console.log(`[Sync] Página ${currentPage}/${totalPages}: ${pageMessages.length} mensagens (total: ${data.messages.total})`);
+        if (currentPage === 1) {
+          console.log(`[Sync] JID ${jid}: ${data.messages.total} mensagens em ${totalPages} páginas`);
+        }
         
         // Filtrar mensagens deste JID
         const filteredMessages = pageMessages.filter((m: Message) => {
@@ -618,6 +622,11 @@ async function syncMessagesForContact(
         });
         
         messages.push(...filteredMessages);
+        
+        // Se a página veio vazia, parar
+        if (pageMessages.length === 0) {
+          break;
+        }
       } else if (Array.isArray(data)) {
         messages.push(...data);
         break; // Sem paginação
@@ -630,10 +639,14 @@ async function syncMessagesForContact(
       
       currentPage++;
       
-      // Pequeno delay entre páginas para não sobrecarregar a API
+      // Delay entre páginas para não sobrecarregar a API
       if (currentPage <= totalPages) {
-        await sleep(100);
+        await sleep(50);
       }
+    }
+    
+    if (currentPage > MAX_PAGES) {
+      console.log(`[Sync] Limite de ${MAX_PAGES} páginas atingido para ${jid}`);
     }
 
     if (messages.length === 0) {
