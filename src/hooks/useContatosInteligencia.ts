@@ -306,6 +306,45 @@ export function useExcluirContatosEmLote() {
   });
 }
 
+// Mutation para enriquecer contatos com dados do WhatsApp
+export function useEnriquecerContatos() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (options?: { batchSize?: number; forceUpdate?: boolean }) => {
+      const { data, error } = await supabase.functions.invoke('enrich-contacts', {
+        body: {
+          batchSize: options?.batchSize || 50,
+          forceUpdate: options?.forceUpdate || false,
+        },
+      });
+
+      if (error) throw error;
+      return data as {
+        success: boolean;
+        enriched: number;
+        failed: number;
+        total: number;
+        remaining: number;
+        message: string;
+        errors?: string[];
+      };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['contatos-inteligencia'] });
+      queryClient.invalidateQueries({ queryKey: ['contatos-estatisticas'] });
+      queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao enriquecer contatos',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // Hook para campanhas
 export interface CampanhaRemarketing {
   id: string;

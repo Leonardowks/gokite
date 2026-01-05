@@ -39,11 +39,13 @@ import {
   Wifi,
   WifiOff,
   Settings,
+  UserCheck,
 } from 'lucide-react';
 import {
   useContatosInteligencia,
   useEstatisticasContatos,
   useClassificarContatos,
+  useEnriquecerContatos,
   ContatoFiltros,
 } from '@/hooks/useContatosInteligencia';
 import { ImportarContatosDialog } from '@/components/ImportarContatosDialog';
@@ -125,7 +127,12 @@ export default function Inteligencia() {
   const { data: statsConversas } = useEstatisticasConversas();
   const { data: evolutionStatus } = useEvolutionStatus();
   const classificarMutation = useClassificarContatos();
+  const enriquecerMutation = useEnriquecerContatos();
   const analisarMutation = useAnalisarConversas();
+  
+  // Estado para enriquecimento em massa
+  const [isEnriquecendo, setIsEnriquecendo] = useState(false);
+  const [progressoEnriquecimento, setProgressoEnriquecimento] = useState({ enriched: 0, total: 0, remaining: 0 });
   
   // Realtime listener para novas mensagens
   useConversasRealtime((payload) => {
@@ -207,6 +214,53 @@ export default function Inteligencia() {
   const handleCancelarClassificacao = () => {
     abortRef.current = true;
   };
+
+  // Função para enriquecer contatos com dados do WhatsApp
+  const handleEnriquecerContatos = useCallback(async () => {
+    if (evolutionStatus?.status !== 'conectado') {
+      toast.error('Conecte o WhatsApp primeiro');
+      setEvolutionConfigOpen(true);
+      return;
+    }
+
+    setIsEnriquecendo(true);
+    setProgressoEnriquecimento({ enriched: 0, total: 0, remaining: 0 });
+
+    let totalEnriched = 0;
+    let remaining = 1; // Iniciar com valor > 0
+
+    while (remaining > 0) {
+      try {
+        const result = await enriquecerMutation.mutateAsync({ batchSize: 50 });
+        
+        totalEnriched += result.enriched;
+        remaining = result.remaining;
+        
+        setProgressoEnriquecimento({
+          enriched: totalEnriched,
+          total: totalEnriched + remaining,
+          remaining: remaining,
+        });
+
+        // Atualizar dados
+        await refetch();
+
+        // Pequena pausa entre batches
+        if (remaining > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        console.error('Erro no enriquecimento:', error);
+        toast.error('Erro ao enriquecer contatos');
+        break;
+      }
+    }
+
+    if (totalEnriched > 0) {
+      toast.success(`${totalEnriched} contatos enriquecidos com dados do WhatsApp`);
+    }
+    setIsEnriquecendo(false);
+  }, [evolutionStatus?.status, enriquecerMutation, refetch]);
 
   // Limpar estado ao desmontar
   useEffect(() => {
@@ -396,6 +450,29 @@ export default function Inteligencia() {
         </PremiumCard>
       )}
 
+      {/* Barra de progresso do enriquecimento */}
+      {isEnriquecendo && (
+        <PremiumCard className="p-4 border-green-500/20 bg-green-500/5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 animate-pulse text-green-600" />
+              <span className="font-medium">Enriquecendo contatos com dados do WhatsApp...</span>
+            </div>
+          </div>
+          <Progress 
+            value={progressoEnriquecimento.total > 0 
+              ? (progressoEnriquecimento.enriched / progressoEnriquecimento.total) * 100 
+              : 0
+            } 
+            className="h-3 mb-2" 
+          />
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>{progressoEnriquecimento.enriched} enriquecidos</span>
+            <span>{progressoEnriquecimento.remaining} restantes</span>
+          </div>
+        </PremiumCard>
+      )}
+
       {/* Ações e Filtros */}
       <PremiumCard className="p-4">
         <div className="flex flex-wrap gap-3 items-center justify-between">
@@ -435,6 +512,22 @@ export default function Inteligencia() {
               >
                 <Brain className="h-4 w-4 mr-2" />
                 Classificar Todos ({stats?.nao_classificados})
+              </Button>
+            )}
+            {/* Botão para enriquecer contatos com dados do WhatsApp */}
+            {evolutionStatus?.status === 'conectado' && !isEnriquecendo && (
+              <Button
+                variant="outline"
+                onClick={handleEnriquecerContatos}
+                disabled={isClassificandoTodos || enriquecerMutation.isPending}
+                className="gap-2"
+              >
+                {enriquecerMutation.isPending ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  <UserCheck className="h-4 w-4" />
+                )}
+                Enriquecer Contatos
               </Button>
             )}
             {contatosSelecionados.length > 0 && (
