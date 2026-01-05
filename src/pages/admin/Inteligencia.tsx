@@ -50,9 +50,11 @@ import { ImportarContatosDialog } from '@/components/ImportarContatosDialog';
 import { ImportarConversasDialog } from '@/components/ImportarConversasDialog';
 import { CampanhaDialog } from '@/components/CampanhaDialog';
 import { EvolutionConfigDialog } from '@/components/EvolutionConfigDialog';
+import { ContatoDetalhesDrawer } from '@/components/ContatoDetalhesDrawer';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { useEstatisticasConversas, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
 import { useEvolutionStatus, useConversasRealtime } from '@/hooks/useEvolutionConfig';
+import { ContatoInteligencia } from '@/hooks/useContatosInteligencia';
 import { toast } from 'sonner';
 
 const statusLabels: Record<string, string> = {
@@ -108,6 +110,8 @@ export default function Inteligencia() {
   const [importConversasOpen, setImportConversasOpen] = useState(false);
   const [campanhaDialogOpen, setCampanhaDialogOpen] = useState(false);
   const [evolutionConfigOpen, setEvolutionConfigOpen] = useState(false);
+  const [contatoDetalhesOpen, setContatoDetalhesOpen] = useState(false);
+  const [contatoSelecionado, setContatoSelecionado] = useState<ContatoInteligencia | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filtros, setFiltros] = useState<ContatoFiltros>({});
   
@@ -547,8 +551,15 @@ export default function Inteligencia() {
                 </TableRow>
               ) : (
                 contatos.map((contato) => (
-                  <TableRow key={contato.id}>
-                    <TableCell>
+                  <TableRow 
+                    key={contato.id} 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => {
+                      setContatoSelecionado(contato);
+                      setContatoDetalhesOpen(true);
+                    }}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selectedIds.includes(contato.id)}
                         onCheckedChange={(c) => handleSelectOne(contato.id, !!c)}
@@ -635,6 +646,12 @@ export default function Inteligencia() {
       <EvolutionConfigDialog
         open={evolutionConfigOpen}
         onOpenChange={setEvolutionConfigOpen}
+      />
+
+      <ContatoDetalhesDrawer
+        open={contatoDetalhesOpen}
+        onOpenChange={setContatoDetalhesOpen}
+        contato={contatoSelecionado}
       />
     </div>
   );

@@ -23,6 +23,19 @@ export interface ContatoInteligencia {
   classificado_em: string | null;
   created_at: string;
   updated_at: string;
+  // Novos campos da Evolution API
+  conversas_analisadas?: number;
+  sentimento_predominante?: string | null;
+  engajamento_score?: number;
+  ultima_mensagem?: string | null;
+  tempo_resposta_medio_hrs?: number | null;
+  objecoes?: string[] | null;
+  gatilhos?: string[] | null;
+  evolution_contact_id?: string | null;
+  whatsapp_profile_name?: string | null;
+  whatsapp_profile_picture?: string | null;
+  is_business?: boolean;
+  business_name?: string | null;
 }
 
 export interface ContatoFiltros {
