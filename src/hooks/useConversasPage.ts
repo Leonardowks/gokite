@@ -19,6 +19,16 @@ export interface ContatoComUltimaMensagem {
   ultima_mensagem_tipo_midia: string | null;
   ultima_mensagem_is_from_me: boolean | null;
   nao_lidas: number;
+  // Campos adicionais para o drawer
+  interesse_principal: string | null;
+  dores_identificadas: string[] | null;
+  gatilhos: string[] | null;
+  objecoes: string[] | null;
+  resumo_ia: string | null;
+  engajamento_score: number | null;
+  conversas_analisadas: number | null;
+  ultimo_contato: string | null;
+  created_at: string | null;
 }
 
 export interface MensagemChat {
@@ -59,7 +69,16 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
           is_business,
           business_name,
           score_interesse,
-          ultima_mensagem
+          ultima_mensagem,
+          interesse_principal,
+          dores_identificadas,
+          gatilhos,
+          objecoes,
+          resumo_ia,
+          engajamento_score,
+          conversas_analisadas,
+          ultimo_contato,
+          created_at
         `)
         .not('ultima_mensagem', 'is', null)
         .order('ultima_mensagem', { ascending: false });

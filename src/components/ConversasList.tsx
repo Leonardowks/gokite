@@ -97,6 +97,7 @@ interface ConversasListProps {
   isLoading: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onAvatarClick?: (contato: ContatoComUltimaMensagem) => void;
   filtro: ConversaFiltro;
   onFiltroChange: (filtro: ConversaFiltro) => void;
   ordenacao: ConversaOrdenacao;
@@ -108,6 +109,7 @@ export function ConversasList({
   isLoading, 
   selectedId, 
   onSelect,
+  onAvatarClick,
   filtro,
   onFiltroChange,
   ordenacao,
@@ -279,9 +281,8 @@ export function ConversasList({
               const isPriority = contato.prioridade === 'alta' || contato.prioridade === 'urgente';
 
               return (
-                <button
+                <div
                   key={contato.id}
-                  onClick={() => onSelect(contato.id)}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -291,14 +292,21 @@ export function ConversasList({
                     transform: `translateY(${virtualItem.start}px)`,
                   }}
                   className={cn(
-                    'flex items-start gap-3 p-3 text-left transition-colors hover:bg-muted/50 border-b border-border/30',
+                    'flex items-start gap-3 p-3 text-left transition-colors hover:bg-muted/50 border-b border-border/30 cursor-pointer',
                     isSelected && 'bg-primary/5 hover:bg-primary/10',
                     hasUnread && !isSelected && 'bg-primary/5'
                   )}
+                  onClick={() => onSelect(contato.id)}
                 >
-                  {/* Avatar */}
-                  <div className="relative flex-shrink-0">
-                    <Avatar className="h-12 w-12">
+                  {/* Avatar - clicável para abrir drawer */}
+                  <div 
+                    className="relative flex-shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAvatarClick?.(contato);
+                    }}
+                  >
+                    <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
                       <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
                       <AvatarFallback className="bg-primary/10 text-primary text-sm">
                         {displayName.slice(0, 2).toUpperCase()}
@@ -382,7 +390,7 @@ export function ConversasList({
                       </div>
                     )}
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

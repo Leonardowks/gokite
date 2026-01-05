@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { ConversasList } from '@/components/ConversasList';
 import { ChatView } from '@/components/ChatView';
 import { InsightsIADrawer } from '@/components/InsightsIADrawer';
+import { ContatoDetalhesDrawer } from '@/components/ContatoDetalhesDrawer';
 import { toast } from 'sonner';
 import {
   useContatosComMensagens,
@@ -11,6 +12,7 @@ import {
   useConversasRealtime,
   ConversaFiltro,
   ConversaOrdenacao,
+  ContatoComUltimaMensagem,
 } from '@/hooks/useConversasPage';
 import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
 import { ArrowLeft } from 'lucide-react';
@@ -19,6 +21,8 @@ import { Button } from '@/components/ui/button';
 const Conversas = () => {
   const [selectedContatoId, setSelectedContatoId] = useState<string | null>(null);
   const [insightsDrawerOpen, setInsightsDrawerOpen] = useState(false);
+  const [detalhesDrawerOpen, setDetalhesDrawerOpen] = useState(false);
+  const [contatoParaDetalhes, setContatoParaDetalhes] = useState<ContatoComUltimaMensagem | null>(null);
   const [filtro, setFiltro] = useState<ConversaFiltro>('todos');
   const [ordenacao, setOrdenacao] = useState<ConversaOrdenacao>('recentes');
 
@@ -65,6 +69,11 @@ const Conversas = () => {
     setSelectedContatoId(id);
   };
 
+  const handleAvatarClick = (contato: ContatoComUltimaMensagem) => {
+    setContatoParaDetalhes(contato);
+    setDetalhesDrawerOpen(true);
+  };
+
   const handleAnalisar = () => {
     if (selectedContatoId) {
       setInsightsDrawerOpen(true);
@@ -96,6 +105,7 @@ const Conversas = () => {
             isLoading={loadingContatos}
             selectedId={selectedContatoId}
             onSelect={handleSelect}
+            onAvatarClick={handleAvatarClick}
             filtro={filtro}
             onFiltroChange={setFiltro}
             ordenacao={ordenacao}
@@ -152,6 +162,13 @@ const Conversas = () => {
         isLoading={loadingInsights}
         onReanalizar={handleReanalizar}
         isAnalisando={analisarMutation.isPending}
+      />
+
+      {/* Drawer de Detalhes do Contato */}
+      <ContatoDetalhesDrawer
+        open={detalhesDrawerOpen}
+        onOpenChange={setDetalhesDrawerOpen}
+        contato={contatoParaDetalhes}
       />
     </div>
   );
