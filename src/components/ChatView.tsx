@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,6 +23,7 @@ import {
   X,
   Play,
   Download,
+  User,
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -38,6 +40,7 @@ interface ChatViewProps {
 }
 
 export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisando }: ChatViewProps) {
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -181,7 +184,8 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     );
   }
 
-  const displayName = contato.nome || contato.whatsapp_profile_name || contato.telefone;
+  // Prioridade: nome WhatsApp > nome cadastrado > telefone
+  const displayName = contato.whatsapp_profile_name || contato.nome || contato.telefone;
 
   // Loading
   if (isLoading) {
@@ -239,6 +243,14 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
           >
             <Brain className={cn('h-4 w-4', isAnalisando && 'animate-pulse')} />
             <span className="hidden sm:inline">Analisar com IA</span>
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => navigate('/admin/inteligencia')}
+            title="Ver na Central de Inteligência"
+          >
+            <User className="h-4 w-4" />
           </Button>
           <Button
             size="icon"

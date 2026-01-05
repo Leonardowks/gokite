@@ -10,6 +10,20 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ContatoComUltimaMensagem } from '@/hooks/useConversasPage';
 
+// Formatar telefone para exibição amigável
+function formatPhone(phone: string): string {
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length === 13 && clean.startsWith('55')) {
+    // Formato: +55 (11) 99999-9999
+    return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
+  }
+  if (clean.length === 12 && clean.startsWith('55')) {
+    // Formato: +55 (11) 9999-9999
+    return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 8)}-${clean.slice(8)}`;
+  }
+  return phone;
+}
+
 interface ConversasListProps {
   contatos: ContatoComUltimaMensagem[];
   isLoading: boolean;
@@ -80,7 +94,11 @@ export function ConversasList({ contatos, isLoading, selectedId, onSelect }: Con
           <div className="divide-y divide-border/50">
             {contatosFiltrados.map((contato) => {
               const isSelected = selectedId === contato.id;
-              const displayName = contato.nome || contato.whatsapp_profile_name || contato.telefone;
+              // Prioridade: nome WhatsApp > nome cadastrado > telefone formatado
+              const displayName = 
+                contato.whatsapp_profile_name || 
+                contato.nome || 
+                formatPhone(contato.telefone);
               const hasUnread = contato.nao_lidas > 0;
               const isFromMe = contato.ultima_mensagem_remetente === 'empresa';
 
