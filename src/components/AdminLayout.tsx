@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles } from "lucide-react";
+import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -22,6 +22,7 @@ interface AdminLayoutProps {
 const allMenuItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Jarvis", url: "/assistente", icon: Sparkles, highlight: true },
+  { title: "Inteligência", url: "/inteligencia", icon: Brain, highlight: true },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Aulas", url: "/aulas", icon: Calendar },
   { title: "Vendas", url: "/vendas", icon: TrendingUp },
@@ -43,6 +44,7 @@ const bottomNavItems = [
 
 // Items shown in "Mais" sheet
 const moreMenuItems = [
+  { title: "Inteligência", url: "/inteligencia", icon: Brain },
   { title: "Vendas", url: "/vendas", icon: TrendingUp },
   { title: "Estoque", url: "/estoque", icon: Package },
   { title: "Aluguel", url: "/aluguel", icon: Package },

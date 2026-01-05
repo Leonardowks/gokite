@@ -131,6 +131,42 @@ export type Database = {
           },
         ]
       }
+      campanhas_remarketing: {
+        Row: {
+          created_at: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          segmento_filtros: Json
+          status: string | null
+          template_mensagem: string | null
+          total_contatos: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          segmento_filtros?: Json
+          status?: string | null
+          template_mensagem?: string | null
+          total_contatos?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          segmento_filtros?: Json
+          status?: string | null
+          template_mensagem?: string | null
+          total_contatos?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       clientes: {
         Row: {
           created_at: string | null
@@ -250,6 +286,83 @@ export type Database = {
           valor?: number
         }
         Relationships: []
+      }
+      contatos_inteligencia: {
+        Row: {
+          campanha_sugerida: string | null
+          classificado_em: string | null
+          cliente_id: string | null
+          created_at: string | null
+          dados_brutos: Json | null
+          dores_identificadas: string[] | null
+          email: string | null
+          id: string
+          interesse_principal: string | null
+          mensagem_personalizada: string | null
+          nome: string | null
+          origem: string | null
+          prioridade: string | null
+          resumo_ia: string | null
+          score_interesse: number | null
+          status: string | null
+          telefone: string
+          total_interacoes: number | null
+          ultimo_contato: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          campanha_sugerida?: string | null
+          classificado_em?: string | null
+          cliente_id?: string | null
+          created_at?: string | null
+          dados_brutos?: Json | null
+          dores_identificadas?: string[] | null
+          email?: string | null
+          id?: string
+          interesse_principal?: string | null
+          mensagem_personalizada?: string | null
+          nome?: string | null
+          origem?: string | null
+          prioridade?: string | null
+          resumo_ia?: string | null
+          score_interesse?: number | null
+          status?: string | null
+          telefone: string
+          total_interacoes?: number | null
+          ultimo_contato?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          campanha_sugerida?: string | null
+          classificado_em?: string | null
+          cliente_id?: string | null
+          created_at?: string | null
+          dados_brutos?: Json | null
+          dores_identificadas?: string[] | null
+          email?: string | null
+          id?: string
+          interesse_principal?: string | null
+          mensagem_personalizada?: string | null
+          nome?: string | null
+          origem?: string | null
+          prioridade?: string | null
+          resumo_ia?: string | null
+          score_interesse?: number | null
+          status?: string | null
+          telefone?: string
+          total_interacoes?: number | null
+          ultimo_contato?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contatos_inteligencia_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       despesas: {
         Row: {

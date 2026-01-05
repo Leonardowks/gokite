@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.nuvemshop-sync]
 verify_jwt = false
+
+[functions.classificar-contatos]
+verify_jwt = false
+
+[functions.processar-importacao]
+verify_jwt = false

@@ -24,6 +24,7 @@ const ConfiguracoesFinanceiras = lazy(() => import("./pages/admin/ConfiguracoesF
 const RelatorioDRE = lazy(() => import("./pages/admin/RelatorioDRE"));
 const ContasAPagar = lazy(() => import("./pages/admin/ContasAPagar"));
 const Assistente = lazy(() => import("./pages/Assistente"));
+const Inteligencia = lazy(() => import("./pages/admin/Inteligencia"));
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => {
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/assistente" element={<Assistente />} />
+            <Route path="/inteligencia" element={<Inteligencia />} />
           </Route>
 
           {/* Redirect old /admin routes */}
