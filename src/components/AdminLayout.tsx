@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain } from "lucide-react";
+import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain, MessageCircle } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -12,6 +12,9 @@ import { UserMenu } from "@/components/UserMenu";
 import { QuickStats } from "@/components/QuickStats";
 import { VoiceAssistantBar } from "@/components/VoiceAssistantBar";
 import { VoiceAssistantSheet } from "@/components/VoiceAssistantSheet";
+import { Badge } from "@/components/ui/badge";
+import { useMensagensNaoLidas, useConversasRealtime } from "@/hooks/useConversasPage";
+import { toast } from "sonner";
 import gokiteLogo from "@/assets/gokite-logo.png";
 
 interface AdminLayoutProps {
@@ -22,6 +25,7 @@ interface AdminLayoutProps {
 const allMenuItems = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "Jarvis", url: "/assistente", icon: Sparkles, highlight: true },
+  { title: "Conversas", url: "/conversas", icon: MessageCircle, showBadge: true },
   { title: "Inteligência", url: "/inteligencia", icon: Brain, highlight: true },
   { title: "Clientes", url: "/clientes", icon: Users },
   { title: "Aulas", url: "/aulas", icon: Calendar },
@@ -44,6 +48,7 @@ const bottomNavItems = [
 
 // Items shown in "Mais" sheet
 const moreMenuItems = [
+  { title: "Conversas", url: "/conversas", icon: MessageCircle },
   { title: "Inteligência", url: "/inteligencia", icon: Brain },
   { title: "Vendas", url: "/vendas", icon: TrendingUp },
   { title: "Estoque", url: "/estoque", icon: Package },
@@ -60,6 +65,22 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [voiceSheetOpen, setVoiceSheetOpen] = useState(false);
+
+  // Badge de mensagens não lidas
+  const { data: mensagensNaoLidas = 0 } = useMensagensNaoLidas();
+
+  // Realtime para novas mensagens (toast global)
+  useConversasRealtime((mensagem) => {
+    if (!mensagem.is_from_me && location.pathname !== '/conversas') {
+      toast.info('Nova mensagem recebida', {
+        description: mensagem.conteudo?.slice(0, 50),
+        action: {
+          label: 'Ver',
+          onClick: () => navigate('/conversas'),
+        },
+      });
+    }
+  });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -105,6 +126,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             {allMenuItems.map((item) => {
               const active = isActive(item.url);
               const isHighlight = 'highlight' in item && item.highlight;
+              const showBadge = 'showBadge' in item && item.showBadge && mensagensNaoLidas > 0;
               return (
                 <NavLink
                   key={item.title}
@@ -124,9 +146,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   {active && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white rounded-r-full" />
                   )}
-                  <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-200 group-hover:scale-110 ${isHighlight ? 'text-primary' : 'group-hover:text-cyan'}`} />
+                  <div className="relative">
+                    <item.icon className={`h-5 w-5 flex-shrink-0 transition-all duration-200 group-hover:scale-110 ${isHighlight ? 'text-primary' : 'group-hover:text-cyan'}`} />
+                    {showBadge && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] flex items-center justify-center font-bold">
+                        {mensagensNaoLidas > 9 ? '9+' : mensagensNaoLidas}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-sm font-medium">{item.title}</span>
-                  {active && (
+                  {showBadge && (
+                    <Badge variant="default" className="ml-auto h-5 px-1.5 text-[10px] animate-pulse">
+                      {mensagensNaoLidas}
+                    </Badge>
+                  )}
+                  {active && !showBadge && (
                     <Waves className="h-3.5 w-3.5 ml-auto opacity-70 animate-wave" />
                   )}
                   {isHighlight && !active && (
