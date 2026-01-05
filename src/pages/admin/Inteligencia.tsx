@@ -36,6 +36,9 @@ import {
   RefreshCw,
   MessageSquare,
   BarChart3,
+  Wifi,
+  WifiOff,
+  Settings,
 } from 'lucide-react';
 import {
   useContatosInteligencia,
@@ -46,8 +49,11 @@ import {
 import { ImportarContatosDialog } from '@/components/ImportarContatosDialog';
 import { ImportarConversasDialog } from '@/components/ImportarConversasDialog';
 import { CampanhaDialog } from '@/components/CampanhaDialog';
+import { EvolutionConfigDialog } from '@/components/EvolutionConfigDialog';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { useEstatisticasConversas, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
+import { useEvolutionStatus, useConversasRealtime } from '@/hooks/useEvolutionConfig';
+import { toast } from 'sonner';
 
 const statusLabels: Record<string, string> = {
   nao_classificado: 'Não Classificado',
@@ -101,6 +107,7 @@ export default function Inteligencia() {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importConversasOpen, setImportConversasOpen] = useState(false);
   const [campanhaDialogOpen, setCampanhaDialogOpen] = useState(false);
+  const [evolutionConfigOpen, setEvolutionConfigOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [filtros, setFiltros] = useState<ContatoFiltros>({});
   
@@ -112,8 +119,14 @@ export default function Inteligencia() {
   const { data: contatos = [], isLoading, refetch } = useContatosInteligencia(filtros);
   const { data: stats, refetch: refetchStats } = useEstatisticasContatos();
   const { data: statsConversas } = useEstatisticasConversas();
+  const { data: evolutionStatus } = useEvolutionStatus();
   const classificarMutation = useClassificarContatos();
   const analisarMutation = useAnalisarConversas();
+  
+  // Realtime listener para novas mensagens
+  useConversasRealtime((payload) => {
+    toast.info('Nova mensagem recebida via WhatsApp');
+  });
 
   const contatosSelecionados = useMemo(() => {
     if (selectedIds.length === 0) return contatos;
@@ -200,11 +213,37 @@ export default function Inteligencia() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Central de Inteligência"
-        description="Analise, classifique e segmente sua base de contatos com IA"
-        icon={Brain}
-      />
+      <div className="flex items-center justify-between">
+        <PageHeader
+          title="Central de Inteligência"
+          description="Analise, classifique e segmente sua base de contatos com IA"
+          icon={Brain}
+        />
+        
+        {/* Status Evolution API */}
+        <Button
+          variant={evolutionStatus?.status === 'conectado' ? 'outline' : 'default'}
+          onClick={() => setEvolutionConfigOpen(true)}
+          className="gap-2"
+        >
+          {evolutionStatus?.status === 'conectado' ? (
+            <>
+              <Wifi className="h-4 w-4 text-green-500" />
+              <span className="hidden sm:inline">WhatsApp Conectado</span>
+            </>
+          ) : evolutionStatus?.configured ? (
+            <>
+              <WifiOff className="h-4 w-4 text-yellow-500" />
+              <span className="hidden sm:inline">Reconectar WhatsApp</span>
+            </>
+          ) : (
+            <>
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Conectar WhatsApp</span>
+            </>
+          )}
+        </Button>
+      </div>
 
       {/* KPIs */}
       <div className="grid gap-4 md:grid-cols-6">
@@ -591,6 +630,11 @@ export default function Inteligencia() {
         onOpenChange={setCampanhaDialogOpen}
         filtros={filtros}
         contatos={contatosSelecionados}
+      />
+
+      <EvolutionConfigDialog
+        open={evolutionConfigOpen}
+        onOpenChange={setEvolutionConfigOpen}
       />
     </div>
   );

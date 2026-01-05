@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.analisar-conversas]
 verify_jwt = false
+
+[functions.evolution-webhook]
+verify_jwt = false
+
+[functions.evolution-connect]
+verify_jwt = false
+
+[functions.evolution-sync]
+verify_jwt = false
