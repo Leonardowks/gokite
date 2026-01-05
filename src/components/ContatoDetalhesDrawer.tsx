@@ -36,13 +36,14 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ContatoInteligencia } from '@/hooks/useContatosInteligencia';
+import { ContatoComUltimaMensagem } from '@/hooks/useConversasPage';
 import { useConversasContato, useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
 import { cn } from '@/lib/utils';
 
 interface ContatoDetalhesDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contato: ContatoInteligencia | null;
+  contato: ContatoInteligencia | ContatoComUltimaMensagem | null;
 }
 
 const statusLabels: Record<string, string> = {
@@ -150,7 +151,7 @@ export function ContatoDetalhesDrawer({ open, onOpenChange, contato }: ContatoDe
                   <Phone className="h-3.5 w-3.5" />
                   {contato.telefone}
                 </a>
-                {contato.email && (
+                {'email' in contato && contato.email && (
                   <a 
                     href={`mailto:${contato.email}`}
                     className="flex items-center gap-1 hover:text-foreground transition-colors truncate"
@@ -207,7 +208,7 @@ export function ContatoDetalhesDrawer({ open, onOpenChange, contato }: ContatoDe
                   <p className="text-xs text-muted-foreground">Score</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3 text-center">
-                  <p className="text-2xl font-bold">{contato.total_interacoes || 0}</p>
+                  <p className="text-2xl font-bold">{'total_interacoes' in contato ? contato.total_interacoes || 0 : 0}</p>
                   <p className="text-xs text-muted-foreground">Interações</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3 text-center">
@@ -294,7 +295,7 @@ export function ContatoDetalhesDrawer({ open, onOpenChange, contato }: ContatoDe
               )}
 
               {/* Campanha Sugerida */}
-              {contato.campanha_sugerida && (
+              {'campanha_sugerida' in contato && contato.campanha_sugerida && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-blue-500" />
@@ -315,7 +316,7 @@ export function ContatoDetalhesDrawer({ open, onOpenChange, contato }: ContatoDe
                     Último contato: {formatDistanceToNow(new Date(contato.ultimo_contato), { addSuffix: true, locale: ptBR })}
                   </div>
                 )}
-                {contato.classificado_em && (
+                {'classificado_em' in contato && contato.classificado_em && (
                   <div className="flex items-center gap-2">
                     <Brain className="h-3 w-3" />
                     Classificado: {format(new Date(contato.classificado_em), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
