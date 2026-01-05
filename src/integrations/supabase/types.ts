@@ -456,6 +456,7 @@ export type Database = {
           instance_name: string | null
           intencao: string | null
           is_from_me: boolean | null
+          lida: boolean
           media_mimetype: string | null
           media_url: string | null
           message_id: string | null
@@ -479,6 +480,7 @@ export type Database = {
           instance_name?: string | null
           intencao?: string | null
           is_from_me?: boolean | null
+          lida?: boolean
           media_mimetype?: string | null
           media_url?: string | null
           message_id?: string | null
@@ -502,6 +504,7 @@ export type Database = {
           instance_name?: string | null
           intencao?: string | null
           is_from_me?: boolean | null
+          lida?: boolean
           media_mimetype?: string | null
           media_url?: string | null
           message_id?: string | null
