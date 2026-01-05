@@ -11,9 +11,13 @@ export interface ContatoComUltimaMensagem {
   whatsapp_profile_name: string | null;
   status: string | null;
   prioridade: string | null;
+  is_business: boolean | null;
+  business_name: string | null;
+  score_interesse: number | null;
   ultima_mensagem: string | null;
   ultima_mensagem_texto: string | null;
-  ultima_mensagem_remetente: string | null;
+  ultima_mensagem_tipo_midia: string | null;
+  ultima_mensagem_is_from_me: boolean | null;
   nao_lidas: number;
 }
 
@@ -33,55 +37,106 @@ export interface MensagemChat {
   message_status: string | null;
 }
 
-// Hook para buscar lista de contatos com última mensagem
-export const useContatosComMensagens = () => {
+export type ConversaFiltro = 'todos' | 'nao_lidos' | 'leads' | 'clientes';
+export type ConversaOrdenacao = 'recentes' | 'nao_lidos' | 'nome';
+
+// Hook otimizado para buscar lista de contatos com última mensagem
+export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordenacao: ConversaOrdenacao = 'recentes') => {
   return useQuery({
-    queryKey: ['contatos-com-mensagens'],
+    queryKey: ['contatos-com-mensagens', filtro, ordenacao],
     queryFn: async () => {
-      // Buscar contatos que têm conversas
+      // Query otimizada: buscar contatos e suas mensagens em uma única chamada
       const { data: contatos, error: contatosError } = await supabase
         .from('contatos_inteligencia')
-        .select('id, nome, telefone, whatsapp_profile_picture, whatsapp_profile_name, status, prioridade, ultima_mensagem')
+        .select(`
+          id, 
+          nome, 
+          telefone, 
+          whatsapp_profile_picture, 
+          whatsapp_profile_name, 
+          status, 
+          prioridade,
+          is_business,
+          business_name,
+          score_interesse,
+          ultima_mensagem
+        `)
         .not('ultima_mensagem', 'is', null)
         .order('ultima_mensagem', { ascending: false });
 
       if (contatosError) throw contatosError;
       if (!contatos || contatos.length === 0) return [];
 
-      // Para cada contato, buscar última mensagem e contagem de não lidas
-      const contatosComDetalhes = await Promise.all(
-        contatos.map(async (contato) => {
-          // Última mensagem
-          const { data: ultimaMsg } = await supabase
-            .from('conversas_whatsapp')
-            .select('conteudo, remetente, is_from_me')
-            .eq('contato_id', contato.id)
-            .order('data_mensagem', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+      // Buscar todas as últimas mensagens e contagens em batch
+      const contatoIds = contatos.map(c => c.id);
+      
+      // Buscar últimas mensagens de todos os contatos
+      const { data: ultimasMensagens } = await supabase
+        .from('conversas_whatsapp')
+        .select('contato_id, conteudo, is_from_me, tipo_midia, data_mensagem')
+        .in('contato_id', contatoIds)
+        .order('data_mensagem', { ascending: false });
 
-          // Contagem de não lidas
-          const { count: naoLidas } = await supabase
-            .from('conversas_whatsapp')
-            .select('*', { count: 'exact', head: true })
-            .eq('contato_id', contato.id)
-            .eq('lida', false)
-            .eq('is_from_me', false);
+      // Buscar contagem de não lidas
+      const { data: naoLidasData } = await supabase
+        .from('conversas_whatsapp')
+        .select('contato_id')
+        .in('contato_id', contatoIds)
+        .eq('lida', false)
+        .eq('is_from_me', false);
 
-          const remetente = ultimaMsg?.is_from_me ? 'empresa' : 'cliente';
+      // Criar maps para lookup rápido
+      const ultimaMsgMap = new Map<string, typeof ultimasMensagens[0]>();
+      ultimasMensagens?.forEach(msg => {
+        if (!ultimaMsgMap.has(msg.contato_id!)) {
+          ultimaMsgMap.set(msg.contato_id!, msg);
+        }
+      });
 
-          return {
-            ...contato,
-            ultima_mensagem_texto: ultimaMsg?.conteudo || null,
-            ultima_mensagem_remetente: remetente,
-            nao_lidas: naoLidas || 0,
-          } as ContatoComUltimaMensagem;
-        })
-      );
+      const naoLidasMap = new Map<string, number>();
+      naoLidasData?.forEach(item => {
+        const count = naoLidasMap.get(item.contato_id!) || 0;
+        naoLidasMap.set(item.contato_id!, count + 1);
+      });
 
-      return contatosComDetalhes;
+      // Montar resultado
+      let resultado = contatos.map(contato => {
+        const ultimaMsg = ultimaMsgMap.get(contato.id);
+        const naoLidas = naoLidasMap.get(contato.id) || 0;
+
+        return {
+          ...contato,
+          ultima_mensagem_texto: ultimaMsg?.conteudo || null,
+          ultima_mensagem_tipo_midia: ultimaMsg?.tipo_midia || null,
+          ultima_mensagem_is_from_me: ultimaMsg?.is_from_me || null,
+          nao_lidas: naoLidas,
+        } as ContatoComUltimaMensagem;
+      });
+
+      // Aplicar filtros
+      if (filtro === 'nao_lidos') {
+        resultado = resultado.filter(c => c.nao_lidas > 0);
+      } else if (filtro === 'leads') {
+        resultado = resultado.filter(c => c.status === 'lead' || c.status === 'lead_quente');
+      } else if (filtro === 'clientes') {
+        resultado = resultado.filter(c => c.status === 'cliente_ativo' || c.status === 'cliente_inativo');
+      }
+
+      // Aplicar ordenação
+      if (ordenacao === 'nao_lidos') {
+        resultado.sort((a, b) => b.nao_lidas - a.nao_lidas);
+      } else if (ordenacao === 'nome') {
+        resultado.sort((a, b) => {
+          const nomeA = a.whatsapp_profile_name || a.nome || a.telefone;
+          const nomeB = b.whatsapp_profile_name || b.nome || b.telefone;
+          return nomeA.localeCompare(nomeB, 'pt-BR');
+        });
+      }
+      // 'recentes' já está ordenado pela query
+
+      return resultado;
     },
-    refetchInterval: 30000, // Refresh a cada 30s
+    refetchInterval: 30000,
   });
 };
 
@@ -140,7 +195,7 @@ export const useMensagensNaoLidas = () => {
       if (error) throw error;
       return count || 0;
     },
-    refetchInterval: 10000, // Refresh a cada 10s
+    refetchInterval: 10000,
   });
 };
 

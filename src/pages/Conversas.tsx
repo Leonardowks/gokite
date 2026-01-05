@@ -9,16 +9,21 @@ import {
   useMensagensContato,
   useMarcarComoLida,
   useConversasRealtime,
-  useContatoById,
+  ConversaFiltro,
+  ConversaOrdenacao,
 } from '@/hooks/useConversasPage';
 import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const Conversas = () => {
   const [selectedContatoId, setSelectedContatoId] = useState<string | null>(null);
   const [insightsDrawerOpen, setInsightsDrawerOpen] = useState(false);
+  const [filtro, setFiltro] = useState<ConversaFiltro>('todos');
+  const [ordenacao, setOrdenacao] = useState<ConversaOrdenacao>('recentes');
 
   // Queries
-  const { data: contatos = [], isLoading: loadingContatos, refetch: refetchContatos } = useContatosComMensagens();
+  const { data: contatos = [], isLoading: loadingContatos, refetch: refetchContatos } = useContatosComMensagens(filtro, ordenacao);
   const { data: mensagens = [], isLoading: loadingMensagens } = useMensagensContato(selectedContatoId);
   const { data: insights, isLoading: loadingInsights } = useInsightsContato(selectedContatoId);
 
@@ -31,11 +36,11 @@ const Conversas = () => {
 
   // Realtime
   const handleNovaMensagem = useCallback((mensagem: any) => {
-    // Mostrar toast de nova mensagem se não for da nossa parte
     if (!mensagem.is_from_me) {
       const contato = contatos.find(c => c.id === mensagem.contato_id);
+      const displayName = contato?.whatsapp_profile_name || contato?.nome || 'Contato';
       toast.info(
-        `Nova mensagem de ${contato?.nome || contato?.whatsapp_profile_name || 'Contato'}`,
+        `Nova mensagem de ${displayName}`,
         {
           description: mensagem.conteudo?.slice(0, 50) + (mensagem.conteudo?.length > 50 ? '...' : ''),
           action: {
@@ -91,6 +96,10 @@ const Conversas = () => {
             isLoading={loadingContatos}
             selectedId={selectedContatoId}
             onSelect={handleSelect}
+            filtro={filtro}
+            onFiltroChange={setFiltro}
+            ordenacao={ordenacao}
+            onOrdenacaoChange={setOrdenacao}
           />
         </div>
 
@@ -109,13 +118,16 @@ const Conversas = () => {
         {selectedContatoId && (
           <div className="fixed inset-0 z-50 bg-background lg:hidden">
             <div className="h-full flex flex-col">
-              <div className="p-4 border-b flex items-center gap-3">
-                <button
+              <div className="p-3 border-b flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setSelectedContatoId(null)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="gap-1.5"
                 >
-                  ← Voltar
-                </button>
+                  <ArrowLeft className="h-4 w-4" />
+                  Voltar
+                </Button>
               </div>
               <div className="flex-1 overflow-hidden">
                 <ChatView

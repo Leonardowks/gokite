@@ -78,6 +78,14 @@ function normalizePhone(phone: string): string {
   return phone.replace(/[@s.a-z]/gi, "").replace(/\D/g, "");
 }
 
+// Verifica se string parece um número de telefone (só dígitos)
+function isPhoneNumber(str: string): boolean {
+  if (!str) return false;
+  const cleaned = str.replace(/\D/g, '');
+  // Se tem mais de 8 dígitos e é quase todo números, é telefone
+  return cleaned.length >= 8 && cleaned.length / str.length > 0.7;
+}
+
 // Extrai conteúdo da mensagem
 function extractMessageContent(message: EvolutionMessage["message"]): { content: string; tipoMidia: string; mediaUrl?: string; mediaMimetype?: string } {
   if (!message) return { content: "", tipoMidia: "texto" };
@@ -313,13 +321,16 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!contato) {
+          // Validar pushName - ignorar se for um número de telefone
+          const validPushName = pushName && !isPhoneNumber(pushName) ? pushName : null;
+          
           // Criar novo contato
           const { data: novoContato, error: createError } = await supabase
             .from("contatos_inteligencia")
             .insert({
               telefone: phone,
-              nome: pushName || `Contato ${phone.slice(-4)}`,
-              whatsapp_profile_name: pushName,
+              nome: validPushName || `Contato ${phone.slice(-4)}`,
+              whatsapp_profile_name: validPushName,
               remote_jid: remoteJid,
               origem: "evolution",
               status: "nao_classificado",
@@ -332,7 +343,7 @@ serve(async (req) => {
             break;
           }
           contato = novoContato;
-          console.log(`[Evolution Webhook] Novo contato criado: ${contato.id}`);
+          console.log(`[Evolution Webhook] Novo contato criado: ${contato.id} com nome: ${validPushName || 'genérico'}`);
         }
 
         // Verificar se mensagem já existe
@@ -372,13 +383,22 @@ serve(async (req) => {
         }
 
         // Atualizar última mensagem no contato
+        // Validar pushName - só atualizar se for nome real (não telefone)
+        const validPushName = pushName && !isPhoneNumber(pushName) ? pushName : undefined;
+        
+        const contatoUpdates: Record<string, any> = {
+          ultima_mensagem: timestamp.toISOString(),
+          remote_jid: remoteJid,
+        };
+        
+        // Só atualizar nome se temos um nome válido
+        if (validPushName) {
+          contatoUpdates.whatsapp_profile_name = validPushName;
+        }
+        
         await supabase
           .from("contatos_inteligencia")
-          .update({
-            ultima_mensagem: timestamp.toISOString(),
-            whatsapp_profile_name: pushName || undefined,
-            remote_jid: remoteJid,
-          })
+          .update(contatoUpdates)
           .eq("id", contato.id);
 
         // Atualizar última sincronização na config
