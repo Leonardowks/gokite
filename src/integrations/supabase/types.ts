@@ -292,21 +292,28 @@ export type Database = {
           campanha_sugerida: string | null
           classificado_em: string | null
           cliente_id: string | null
+          conversas_analisadas: number | null
           created_at: string | null
           dados_brutos: Json | null
           dores_identificadas: string[] | null
           email: string | null
+          engajamento_score: number | null
+          gatilhos: string[] | null
           id: string
           interesse_principal: string | null
           mensagem_personalizada: string | null
           nome: string | null
+          objecoes: string[] | null
           origem: string | null
           prioridade: string | null
           resumo_ia: string | null
           score_interesse: number | null
+          sentimento_predominante: string | null
           status: string | null
           telefone: string
+          tempo_resposta_medio_hrs: number | null
           total_interacoes: number | null
+          ultima_mensagem: string | null
           ultimo_contato: string | null
           updated_at: string | null
         }
@@ -314,21 +321,28 @@ export type Database = {
           campanha_sugerida?: string | null
           classificado_em?: string | null
           cliente_id?: string | null
+          conversas_analisadas?: number | null
           created_at?: string | null
           dados_brutos?: Json | null
           dores_identificadas?: string[] | null
           email?: string | null
+          engajamento_score?: number | null
+          gatilhos?: string[] | null
           id?: string
           interesse_principal?: string | null
           mensagem_personalizada?: string | null
           nome?: string | null
+          objecoes?: string[] | null
           origem?: string | null
           prioridade?: string | null
           resumo_ia?: string | null
           score_interesse?: number | null
+          sentimento_predominante?: string | null
           status?: string | null
           telefone: string
+          tempo_resposta_medio_hrs?: number | null
           total_interacoes?: number | null
+          ultima_mensagem?: string | null
           ultimo_contato?: string | null
           updated_at?: string | null
         }
@@ -336,21 +350,28 @@ export type Database = {
           campanha_sugerida?: string | null
           classificado_em?: string | null
           cliente_id?: string | null
+          conversas_analisadas?: number | null
           created_at?: string | null
           dados_brutos?: Json | null
           dores_identificadas?: string[] | null
           email?: string | null
+          engajamento_score?: number | null
+          gatilhos?: string[] | null
           id?: string
           interesse_principal?: string | null
           mensagem_personalizada?: string | null
           nome?: string | null
+          objecoes?: string[] | null
           origem?: string | null
           prioridade?: string | null
           resumo_ia?: string | null
           score_interesse?: number | null
+          sentimento_predominante?: string | null
           status?: string | null
           telefone?: string
+          tempo_resposta_medio_hrs?: number | null
           total_interacoes?: number | null
+          ultima_mensagem?: string | null
           ultimo_contato?: string | null
           updated_at?: string | null
         }
@@ -360,6 +381,69 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversas_whatsapp: {
+        Row: {
+          cliente_id: string | null
+          contato_id: string | null
+          conteudo: string
+          created_at: string | null
+          dados_extraidos: Json | null
+          data_mensagem: string
+          id: string
+          intencao: string | null
+          palavras_chave: string[] | null
+          remetente: string
+          sentimento: string | null
+          telefone: string
+          tipo_midia: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          contato_id?: string | null
+          conteudo: string
+          created_at?: string | null
+          dados_extraidos?: Json | null
+          data_mensagem: string
+          id?: string
+          intencao?: string | null
+          palavras_chave?: string[] | null
+          remetente: string
+          sentimento?: string | null
+          telefone: string
+          tipo_midia?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          contato_id?: string | null
+          conteudo?: string
+          created_at?: string | null
+          dados_extraidos?: Json | null
+          data_mensagem?: string
+          id?: string
+          intencao?: string | null
+          palavras_chave?: string[] | null
+          remetente?: string
+          sentimento?: string | null
+          telefone?: string
+          tipo_midia?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversas_whatsapp_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversas_whatsapp_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos_inteligencia"
             referencedColumns: ["id"]
           },
         ]
@@ -443,6 +527,86 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      insights_conversas: {
+        Row: {
+          contato_id: string | null
+          created_at: string | null
+          dia_preferido: string | null
+          gatilhos_compra: string[] | null
+          horario_preferido: string | null
+          id: string
+          mensagens_enviadas: number | null
+          mensagens_recebidas: number | null
+          objecoes_identificadas: string[] | null
+          primeira_interacao: string | null
+          principais_interesses: string[] | null
+          probabilidade_conversao: number | null
+          proxima_acao_sugerida: string | null
+          resumo_ia: string | null
+          score_engajamento: number | null
+          sentimento_geral: string | null
+          tempo_medio_resposta_minutos: number | null
+          total_mensagens: number | null
+          ultima_analise: string | null
+          ultima_interacao: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          contato_id?: string | null
+          created_at?: string | null
+          dia_preferido?: string | null
+          gatilhos_compra?: string[] | null
+          horario_preferido?: string | null
+          id?: string
+          mensagens_enviadas?: number | null
+          mensagens_recebidas?: number | null
+          objecoes_identificadas?: string[] | null
+          primeira_interacao?: string | null
+          principais_interesses?: string[] | null
+          probabilidade_conversao?: number | null
+          proxima_acao_sugerida?: string | null
+          resumo_ia?: string | null
+          score_engajamento?: number | null
+          sentimento_geral?: string | null
+          tempo_medio_resposta_minutos?: number | null
+          total_mensagens?: number | null
+          ultima_analise?: string | null
+          ultima_interacao?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          contato_id?: string | null
+          created_at?: string | null
+          dia_preferido?: string | null
+          gatilhos_compra?: string[] | null
+          horario_preferido?: string | null
+          id?: string
+          mensagens_enviadas?: number | null
+          mensagens_recebidas?: number | null
+          objecoes_identificadas?: string[] | null
+          primeira_interacao?: string | null
+          principais_interesses?: string[] | null
+          probabilidade_conversao?: number | null
+          proxima_acao_sugerida?: string | null
+          resumo_ia?: string | null
+          score_engajamento?: number | null
+          sentimento_geral?: string | null
+          tempo_medio_resposta_minutos?: number | null
+          total_mensagens?: number | null
+          ultima_analise?: string | null
+          ultima_interacao?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insights_conversas_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: true
+            referencedRelation: "contatos_inteligencia"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pacotes: {
         Row: {
