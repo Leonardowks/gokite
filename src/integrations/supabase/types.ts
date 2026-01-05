@@ -350,6 +350,7 @@ export type Database = {
           objecoes: string[] | null
           origem: string | null
           prioridade: string | null
+          remote_jid: string | null
           resumo_ia: string | null
           score_interesse: number | null
           sentimento_predominante: string | null
@@ -384,6 +385,7 @@ export type Database = {
           objecoes?: string[] | null
           origem?: string | null
           prioridade?: string | null
+          remote_jid?: string | null
           resumo_ia?: string | null
           score_interesse?: number | null
           sentimento_predominante?: string | null
@@ -418,6 +420,7 @@ export type Database = {
           objecoes?: string[] | null
           origem?: string | null
           prioridade?: string | null
+          remote_jid?: string | null
           resumo_ia?: string | null
           score_interesse?: number | null
           sentimento_predominante?: string | null
@@ -829,6 +832,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sync_jobs: {
+        Row: {
+          chats_processados: number | null
+          concluido_em: string | null
+          contatos_atualizados: number | null
+          contatos_criados: number | null
+          created_at: string | null
+          erro: string | null
+          erros: number | null
+          id: string
+          iniciado_em: string | null
+          logs: Json | null
+          mensagens_criadas: number | null
+          mensagens_puladas: number | null
+          progresso_atual: number | null
+          progresso_total: number | null
+          resultado: Json | null
+          status: string
+          tipo: string
+        }
+        Insert: {
+          chats_processados?: number | null
+          concluido_em?: string | null
+          contatos_atualizados?: number | null
+          contatos_criados?: number | null
+          created_at?: string | null
+          erro?: string | null
+          erros?: number | null
+          id?: string
+          iniciado_em?: string | null
+          logs?: Json | null
+          mensagens_criadas?: number | null
+          mensagens_puladas?: number | null
+          progresso_atual?: number | null
+          progresso_total?: number | null
+          resultado?: Json | null
+          status?: string
+          tipo: string
+        }
+        Update: {
+          chats_processados?: number | null
+          concluido_em?: string | null
+          contatos_atualizados?: number | null
+          contatos_criados?: number | null
+          created_at?: string | null
+          erro?: string | null
+          erros?: number | null
+          id?: string
+          iniciado_em?: string | null
+          logs?: Json | null
+          mensagens_criadas?: number | null
+          mensagens_puladas?: number | null
+          progresso_atual?: number | null
+          progresso_total?: number | null
+          resultado?: Json | null
+          status?: string
+          tipo?: string
+        }
+        Relationships: []
       }
       trade_ins: {
         Row: {
