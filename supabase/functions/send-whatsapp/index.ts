@@ -8,7 +8,11 @@ const corsHeaders = {
 
 interface SendMessageRequest {
   contatoId: string;
-  mensagem: string;
+  mensagem?: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'audio' | 'video' | 'document';
+  fileName?: string;
+  caption?: string;
 }
 
 serve(async (req) => {
@@ -21,16 +25,17 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { contatoId, mensagem }: SendMessageRequest = await req.json();
+    const { contatoId, mensagem, mediaUrl, mediaType, fileName, caption }: SendMessageRequest = await req.json();
 
-    if (!contatoId || !mensagem?.trim()) {
+    // Validação: precisa ter mensagem OU mídia
+    if (!contatoId || (!mensagem?.trim() && !mediaUrl)) {
       return new Response(
-        JSON.stringify({ error: "contatoId e mensagem são obrigatórios" }),
+        JSON.stringify({ error: "contatoId e (mensagem ou mediaUrl) são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[Send WhatsApp] Enviando mensagem para contato ${contatoId}`);
+    console.log(`[Send WhatsApp] Enviando para contato ${contatoId}`, { hasText: !!mensagem, hasMedia: !!mediaUrl, mediaType });
 
     // Buscar dados do contato
     const { data: contato, error: contatoError } = await supabase
@@ -64,23 +69,89 @@ serve(async (req) => {
 
     // Formatar número para envio
     const remoteJid = contato.remote_jid || `${contato.telefone.replace(/\D/g, "")}@s.whatsapp.net`;
+    let evolutionResponse: Response;
+    let messageContent: string;
+    let tipoMidia = "texto";
 
-    console.log(`[Send WhatsApp] Enviando para ${remoteJid} via instância ${config.instance_name}`);
+    // Enviar mídia ou texto
+    if (mediaUrl) {
+      // Determinar endpoint baseado no tipo de mídia
+      let endpoint: string;
+      let bodyPayload: Record<string, any>;
 
-    // Enviar mensagem via Evolution API
-    const evolutionUrl = `${config.api_url}/message/sendText/${config.instance_name}`;
-    
-    const evolutionResponse = await fetch(evolutionUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": config.api_key,
-      },
-      body: JSON.stringify({
-        number: remoteJid,
-        text: mensagem.trim(),
-      }),
-    });
+      switch (mediaType) {
+        case 'image':
+          endpoint = 'sendMedia';
+          bodyPayload = {
+            number: remoteJid,
+            mediatype: 'image',
+            media: mediaUrl,
+            caption: caption || '',
+          };
+          tipoMidia = 'imagem';
+          messageContent = caption || '[Imagem]';
+          break;
+        case 'audio':
+          endpoint = 'sendWhatsAppAudio';
+          bodyPayload = {
+            number: remoteJid,
+            audio: mediaUrl,
+          };
+          tipoMidia = 'audio';
+          messageContent = '[Áudio]';
+          break;
+        case 'video':
+          endpoint = 'sendMedia';
+          bodyPayload = {
+            number: remoteJid,
+            mediatype: 'video',
+            media: mediaUrl,
+            caption: caption || '',
+          };
+          tipoMidia = 'video';
+          messageContent = caption || '[Vídeo]';
+          break;
+        case 'document':
+        default:
+          endpoint = 'sendMedia';
+          bodyPayload = {
+            number: remoteJid,
+            mediatype: 'document',
+            media: mediaUrl,
+            fileName: fileName || 'documento',
+          };
+          tipoMidia = 'documento';
+          messageContent = fileName || '[Documento]';
+          break;
+      }
+
+      console.log(`[Send WhatsApp] Enviando mídia via ${endpoint}`, bodyPayload);
+
+      evolutionResponse = await fetch(`${config.api_url}/message/${endpoint}/${config.instance_name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": config.api_key,
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+    } else {
+      // Enviar texto simples
+      console.log(`[Send WhatsApp] Enviando texto para ${remoteJid}`);
+      
+      evolutionResponse = await fetch(`${config.api_url}/message/sendText/${config.instance_name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": config.api_key,
+        },
+        body: JSON.stringify({
+          number: remoteJid,
+          text: mensagem!.trim(),
+        }),
+      });
+      messageContent = mensagem!.trim();
+    }
 
     if (!evolutionResponse.ok) {
       const errorText = await evolutionResponse.text();
@@ -109,15 +180,15 @@ serve(async (req) => {
         is_from_me: true,
         data_mensagem: timestamp,
         remetente: "empresa",
-        conteudo: mensagem.trim(),
-        tipo_midia: "texto",
+        conteudo: messageContent,
+        tipo_midia: tipoMidia,
+        media_url: mediaUrl || null,
         lida: true,
         message_status: "SERVER_ACK",
       });
 
     if (insertError) {
       console.error("[Send WhatsApp] Erro ao salvar mensagem:", insertError);
-      // Não retorna erro, pois a mensagem foi enviada com sucesso
     }
 
     // Atualizar última mensagem do contato
