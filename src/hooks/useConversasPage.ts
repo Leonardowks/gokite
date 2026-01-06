@@ -29,6 +29,10 @@ export interface ContatoComUltimaMensagem {
   conversas_analisadas: number | null;
   ultimo_contato: string | null;
   created_at: string | null;
+  // Campos de insights comerciais
+  proxima_acao_sugerida: string | null;
+  probabilidade_conversao: number | null;
+  sentimento_geral: string | null;
 }
 
 export interface MensagemChat {
@@ -89,6 +93,12 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
       // Buscar todas as últimas mensagens e contagens em batch
       const contatoIds = contatos.map(c => c.id);
       
+      // Buscar insights de todos os contatos
+      const { data: insightsData } = await supabase
+        .from('insights_conversas')
+        .select('contato_id, proxima_acao_sugerida, probabilidade_conversao, sentimento_geral')
+        .in('contato_id', contatoIds);
+      
       // Buscar últimas mensagens de todos os contatos
       const { data: ultimasMensagens } = await supabase
         .from('conversas_whatsapp')
@@ -118,10 +128,18 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
         naoLidasMap.set(item.contato_id!, count + 1);
       });
 
+      const insightsMap = new Map<string, typeof insightsData[0]>();
+      insightsData?.forEach(insight => {
+        if (insight.contato_id) {
+          insightsMap.set(insight.contato_id, insight);
+        }
+      });
+
       // Montar resultado
       let resultado = contatos.map(contato => {
         const ultimaMsg = ultimaMsgMap.get(contato.id);
         const naoLidas = naoLidasMap.get(contato.id) || 0;
+        const insights = insightsMap.get(contato.id);
 
         return {
           ...contato,
@@ -129,6 +147,9 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
           ultima_mensagem_tipo_midia: ultimaMsg?.tipo_midia || null,
           ultima_mensagem_is_from_me: ultimaMsg?.is_from_me || null,
           nao_lidas: naoLidas,
+          proxima_acao_sugerida: insights?.proxima_acao_sugerida || null,
+          probabilidade_conversao: insights?.probabilidade_conversao || null,
+          sentimento_geral: insights?.sentimento_geral || null,
         } as ContatoComUltimaMensagem;
       });
 
