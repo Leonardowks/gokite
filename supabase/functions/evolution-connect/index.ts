@@ -52,6 +52,7 @@ serve(async (req) => {
       const { data } = await supabase
         .from("evolution_config")
         .select("*")
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       config = data;
@@ -77,6 +78,8 @@ serve(async (req) => {
               api_url: apiUrl,
               api_key: apiKey,
               webhook_url: webhookUrl,
+              eventos_ativos: WEBHOOK_EVENTS,
+              updated_at: new Date().toISOString(),
             })
             .eq("instance_name", instanceName);
         } else {
@@ -87,6 +90,7 @@ serve(async (req) => {
               api_url: apiUrl,
               api_key: apiKey,
               webhook_url: webhookUrl,
+              eventos_ativos: WEBHOOK_EVENTS,
               status: "desconectado",
             });
         }
@@ -177,7 +181,7 @@ serve(async (req) => {
           webhook: {
             enabled: true,
             url: config.webhook_url,
-            webhookByEvents: true,
+            webhookByEvents: false,
             webhookBase64: false,
             events: WEBHOOK_EVENTS,
           },
@@ -307,7 +311,7 @@ serve(async (req) => {
           webhook: {
             enabled: true,
             url: config.webhook_url,
-            webhookByEvents: true,
+            webhookByEvents: false,
             webhookBase64: false,
             events: WEBHOOK_EVENTS,
           },
