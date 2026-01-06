@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Sparkles, Loader2, Send } from "lucide-react";
+import { useState, useRef } from "react";
+import { Sparkles, Loader2, Send, Mic, Camera, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PremiumCard, PremiumCardContent } from "@/components/ui/premium-card";
@@ -24,10 +24,159 @@ interface QuickFinancialEntryProps {
 export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async () => {
-    if (!text.trim() || text.trim().length < 10) {
-      toast.error("Digite uma descrição mais detalhada", {
+  // Voice recording with Jarvis
+  const startListening = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        await processAudio(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsListening(true);
+      toast.info("🎤 Ouvindo...", { description: "Descreva a transação" });
+    } catch (error) {
+      console.error("[QuickEntry] Mic error:", error);
+      toast.error("Erro ao acessar microfone");
+    }
+  };
+
+  const stopListening = () => {
+    if (mediaRecorderRef.current && isListening) {
+      mediaRecorderRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  const processAudio = async (audioBlob: Blob) => {
+    setIsLoading(true);
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      
+      const base64Audio = await new Promise<string>((resolve) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+      });
+
+      // Transcribe with OpenAI STT
+      const { data: sttData, error: sttError } = await supabase.functions.invoke("openai-stt", {
+        body: { audio: base64Audio },
+      });
+
+      if (sttError || !sttData?.text) {
+        throw new Error(sttError?.message || "Erro na transcrição");
+      }
+
+      const transcribedText = sttData.text;
+      console.log("[QuickEntry] Transcribed:", transcribedText);
+      
+      // Set text and auto-submit
+      setText(transcribedText);
+      await parseText(transcribedText);
+    } catch (error) {
+      console.error("[QuickEntry] Audio error:", error);
+      toast.error("Erro ao processar áudio");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Photo/OCR processing
+  const handlePhotoCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingImage(true);
+    
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Extract with OCR
+      const { data, error } = await supabase.functions.invoke("extract-receipt", {
+        body: { image_base64: base64 },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(error?.message || data?.error || "Erro no OCR");
+      }
+
+      const extracted = data.data;
+      console.log("[QuickEntry] OCR result:", extracted);
+
+      // Map OCR data to ParsedTransaction
+      const parsed: ParsedTransaction = {
+        tipo: "despesa",
+        valor_bruto: extracted.valor || 0,
+        custo_produto: 0,
+        descricao: extracted.descricao || `${extracted.fornecedor || "Compra"} - ${extracted.categoria}`,
+        forma_pagamento: "dinheiro",
+        parcelas: 1,
+        centro_de_custo: mapCategoriaToCentroCusto(extracted.categoria),
+        origem: "outros",
+      };
+
+      onParsed(parsed);
+      toast.success("Nota fiscal processada!", {
+        description: `R$ ${extracted.valor?.toFixed(2)} - ${extracted.descricao || extracted.categoria}`,
+      });
+    } catch (error) {
+      console.error("[QuickEntry] OCR error:", error);
+      toast.error("Erro ao processar imagem", {
+        description: error instanceof Error ? error.message : "Tente novamente",
+      });
+    } finally {
+      setIsProcessingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const mapCategoriaToCentroCusto = (categoria: string): "Loja" | "Escola" | "Administrativo" => {
+    const lojaCategories = ["equipamentos", "produtos"];
+    const escolaCategories = ["combustivel", "transporte"];
+    
+    if (lojaCategories.includes(categoria?.toLowerCase())) return "Loja";
+    if (escolaCategories.includes(categoria?.toLowerCase())) return "Escola";
+    return "Administrativo";
+  };
+
+  // Text parsing
+  const parseText = async (inputText: string) => {
+    const textToProcess = inputText || text;
+    
+    if (!textToProcess.trim() || textToProcess.trim().length < 10) {
+      toast.error("Descrição muito curta", {
         description: "Ex: Vendi Kite 12m por 5000 em 10x no cartão",
       });
       return;
@@ -37,35 +186,19 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
 
     try {
       const { data, error } = await supabase.functions.invoke("parse-financial-text", {
-        body: { text: text.trim() },
+        body: { text: textToProcess.trim() },
       });
 
-      if (error) {
-        console.error("[QuickEntry] Error:", error);
-        throw new Error(error.message || "Erro ao processar");
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      if (!data?.data) {
-        throw new Error("Resposta inválida da IA");
-      }
+      if (error) throw new Error(error.message || "Erro ao processar");
+      if (data?.error) throw new Error(data.error);
+      if (!data?.data) throw new Error("Resposta inválida da IA");
 
       console.log("[QuickEntry] Parsed:", data.data);
-
-      // Chamar callback com dados parseados
       onParsed(data.data as ParsedTransaction);
-
-      // Limpar input após sucesso
       setText("");
-
-      toast.success("Dados extraídos!", {
-        description: "Revise e confirme no formulário.",
-      });
+      toast.success("Dados extraídos!", { description: "Revise e confirme no formulário." });
     } catch (error) {
-      console.error("[QuickEntry] Error:", error);
+      console.error("[QuickEntry] Parse error:", error);
       toast.error("Erro ao processar texto", {
         description: error instanceof Error ? error.message : "Tente novamente",
       });
@@ -74,12 +207,17 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
     }
   };
 
+  const handleSubmit = () => parseText(text);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
     }
   };
+
+  const isVoiceSupported = typeof navigator !== "undefined" && "mediaDevices" in navigator;
+  const isAnyLoading = isLoading || isListening || isProcessingImage;
 
   return (
     <PremiumCard featured gradient="accent" className="overflow-hidden">
@@ -91,18 +229,64 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
           </div>
 
           <div className="flex-1 flex gap-2">
+            {/* Voice Button */}
+            {isVoiceSupported && (
+              <Button
+                type="button"
+                variant={isListening ? "destructive" : "outline"}
+                size="icon"
+                onClick={isListening ? stopListening : startListening}
+                disabled={isLoading || isProcessingImage}
+                className="shrink-0"
+                title={isListening ? "Parar gravação" : "Falar com Jarvis"}
+              >
+                {isListening ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+
+            {/* Photo Button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isAnyLoading}
+              className="shrink-0"
+              title="Escanear nota fiscal"
+            >
+              {isProcessingImage ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handlePhotoCapture}
+            />
+
+            {/* Text Input */}
             <Input
-              placeholder="Ex: Vendi Kite Rebel 12m por 5000 em 10x visa, custo foi 3200..."
+              placeholder={isListening ? "🎤 Ouvindo..." : "Ex: Vendi Kite Rebel 12m por 5000 em 10x visa..."}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              disabled={isLoading}
+              disabled={isAnyLoading}
               className="flex-1 bg-background/80 border-accent/30 focus:border-accent placeholder:text-muted-foreground/60"
             />
 
+            {/* Submit Button */}
             <Button
               onClick={handleSubmit}
-              disabled={isLoading || text.trim().length < 10}
+              disabled={isAnyLoading || text.trim().length < 10}
               className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground shrink-0"
             >
               {isLoading ? (
@@ -122,7 +306,11 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
         </div>
 
         <p className="text-xs text-muted-foreground mt-2 hidden sm:block">
-          Descreva a transação em linguagem natural. A IA extrai valor, forma de pagamento, parcelas e calcula automaticamente taxas e lucro.
+          <Mic className="h-3 w-3 inline mr-1" /> Voz
+          <span className="mx-2">•</span>
+          <Camera className="h-3 w-3 inline mr-1" /> Foto de nota
+          <span className="mx-2">•</span>
+          <Sparkles className="h-3 w-3 inline mr-1" /> Texto livre — A IA extrai tudo automaticamente
         </p>
       </PremiumCardContent>
     </PremiumCard>
