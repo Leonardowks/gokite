@@ -59,19 +59,19 @@ function getDisplayName(contato: ContatoComUltimaMensagem): string {
   return 'Contato desconhecido';
 }
 
-// Formatar timestamp de forma inteligente
+// Formatar timestamp de forma inteligente - "Hoje 14:00" ou "Ontem"
 function formatTimestamp(date: Date): string {
   if (isToday(date)) {
-    return format(date, 'HH:mm');
+    return `Hoje ${format(date, 'HH:mm')}`;
   }
   if (isYesterday(date)) {
-    return 'Ontem';
+    return `Ontem ${format(date, 'HH:mm')}`;
   }
   const daysDiff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
   if (daysDiff < 7) {
-    return format(date, 'EEE', { locale: ptBR });
+    return format(date, "EEE HH:mm", { locale: ptBR });
   }
-  return format(date, 'dd/MM', { locale: ptBR });
+  return format(date, 'dd/MM HH:mm', { locale: ptBR });
 }
 
 // Ícone para tipo de mídia
@@ -180,7 +180,7 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
           </span>
         </div>
         
-        {/* Preview da mensagem */}
+        {/* Preview da mensagem - exibe conteúdo, não timestamp */}
         <div className="flex items-center gap-1.5">
           {midiaIcon && (
             <span className="text-muted-foreground shrink-0">{midiaIcon}</span>
@@ -191,7 +191,9 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
               ? 'text-foreground font-medium' 
               : 'text-muted-foreground'
           )}>
-            {messagePrefix}{contato.ultima_mensagem || 'Sem mensagens'}
+            {messagePrefix}
+            {/* Priorizar texto da mensagem, usar campo correto */}
+            {contato.ultima_mensagem_texto || contato.ultima_mensagem || 'Sem mensagens'}
           </p>
         </div>
       </div>
