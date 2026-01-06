@@ -83,11 +83,22 @@ serve(async (req) => {
         );
       }
 
-      const messages = await response.json();
-      console.log(`[Evolution Poll] ${messages.length || 0} mensagens encontradas`);
+      const responseData = await response.json();
+      
+      // A API pode retornar um array ou um objeto com array dentro
+      let messages: any[] = [];
+      if (Array.isArray(responseData)) {
+        messages = responseData;
+      } else if (responseData?.messages && Array.isArray(responseData.messages)) {
+        messages = responseData.messages;
+      } else if (responseData?.data && Array.isArray(responseData.data)) {
+        messages = responseData.data;
+      }
+      
+      console.log(`[Evolution Poll] ${messages.length} mensagens encontradas`);
 
       // Processar mensagens
-      for (const msg of (messages || [])) {
+      for (const msg of messages) {
         const messageId = msg.key?.id;
         if (!messageId) continue;
 
