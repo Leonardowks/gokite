@@ -145,14 +145,24 @@ serve(async (req) => {
     const messageTimestamp = msgData.messageTimestamp || Math.floor(Date.now() / 1000)
     const messageDate = new Date(messageTimestamp * 1000).toISOString()
     
-    const contactData = {
+    // CORREÇÃO: Só atualizar nome/whatsapp_profile_name se for mensagem RECEBIDA (não enviada pela empresa)
+    // Isso evita sobrescrever o nome do cliente com "Você" ou "EQA"
+    const isValidPushName = pushName && 
+        !pushName.match(/^\d+$/) && 
+        pushName.length > 2 && 
+        !['Eu (Suporte)', 'Você', 'EQA', 'Suporte'].includes(pushName);
+    
+    const contactData: Record<string, any> = {
         telefone: phone,
-        nome: (!pushName.match(/^\d+$/) && pushName.length > 1) ? pushName : `Contato ${phone.slice(-4)}`,
-        whatsapp_profile_name: (!pushName.match(/^\d+$/) && pushName.length > 1) ? pushName : null,
         ultima_mensagem: messageDate,
         remote_jid: remoteJid,
         origem: 'evolution',
-        status: 'nao_classificado',
+    };
+    
+    // Só atualizar nome se for mensagem do CLIENTE (não da empresa)
+    if (!isFromMe && isValidPushName) {
+        contactData.nome = pushName;
+        contactData.whatsapp_profile_name = pushName;
     }
 
     // Upsert na tabela contatos_inteligencia

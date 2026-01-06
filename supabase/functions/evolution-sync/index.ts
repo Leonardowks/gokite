@@ -326,17 +326,23 @@ serve(async (req) => {
             let contatoId: string;
 
             if (existingContact) {
-              // Atualizar contato existente
+              // Atualizar contato existente - NÃO sobrescrever nome se já tiver
+              // Só atualizar foto, remote_jid e dados técnicos
+              const updateData: Record<string, any> = {
+                remote_jid: jid,
+                telefone: phone,
+                evolution_contact_id: chat.id,
+                updated_at: new Date().toISOString(),
+              };
+              
+              // Só atualizar foto se tiver uma nova
+              if (chat.profilePictureUrl) {
+                updateData.whatsapp_profile_picture = chat.profilePictureUrl;
+              }
+              
               await supabase
                 .from("contatos_inteligencia")
-                .update({
-                  remote_jid: jid,
-                  telefone: phone,
-                  whatsapp_profile_name: chat.pushName || chat.name,
-                  whatsapp_profile_picture: chat.profilePictureUrl,
-                  evolution_contact_id: chat.id,
-                  updated_at: new Date().toISOString(),
-                })
+                .update(updateData)
                 .eq("id", existingContact.id);
               
               contatoId = existingContact.id;
@@ -743,12 +749,35 @@ async function syncMessagesForContact(
       .limit(1)
       .maybeSingle();
 
+    // Buscar nome real do cliente da última mensagem RECEBIDA (não enviada pela empresa)
+    const { data: lastClientMsg } = await supabase
+      .from("conversas_whatsapp")
+      .select("push_name")
+      .eq("contato_id", contatoId)
+      .eq("is_from_me", false)
+      .not("push_name", "is", null)
+      .order("data_mensagem", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    // Preparar update do contato
+    const contactUpdate: Record<string, any> = {
+      conversas_analisadas: count || 0,
+      ultima_mensagem: lastMsg?.data_mensagem || new Date().toISOString(),
+    };
+    
+    // Atualizar nome se encontrou um válido nas mensagens recebidas
+    if (lastClientMsg?.push_name && 
+        lastClientMsg.push_name.length > 2 && 
+        !/^\d+$/.test(lastClientMsg.push_name) &&
+        !['Você', 'EQA', 'Eu (Suporte)', 'Suporte'].includes(lastClientMsg.push_name)) {
+      contactUpdate.whatsapp_profile_name = lastClientMsg.push_name;
+      contactUpdate.nome = lastClientMsg.push_name;
+    }
+    
     await supabase
       .from("contatos_inteligencia")
-      .update({
-        conversas_analisadas: count || 0,
-        ultima_mensagem: lastMsg?.data_mensagem || new Date().toISOString(),
-      })
+      .update(contactUpdate)
       .eq("id", contatoId);
 
   } catch (error) {

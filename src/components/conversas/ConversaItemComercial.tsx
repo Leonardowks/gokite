@@ -88,6 +88,33 @@ function getMidiaIcon(tipo: string | null) {
   }
 }
 
+// Label para tipo de mídia (fallback quando não há texto)
+function getMidiaLabel(tipo: string | null): string {
+  switch (tipo) {
+    case 'imagem':
+    case 'image':
+      return '📷 Foto';
+    case 'audio':
+      return '🎤 Áudio';
+    case 'video':
+      return '🎬 Vídeo';
+    case 'documento':
+    case 'document':
+      return '📄 Documento';
+    case 'sticker':
+      return '🎭 Sticker';
+    default:
+      return '';
+  }
+}
+
+// Verifica se string parece ser um timestamp ISO
+function looksLikeTimestamp(str: string): boolean {
+  if (!str) return false;
+  // Detecta formatos como "2025-01-06T..." ou datas ISO
+  return /^\d{4}-\d{2}-\d{2}T/.test(str) || /^\d{4}-\d{2}-\d{2}$/.test(str);
+}
+
 export const ConversaItemComercial = memo(function ConversaItemComercial({
   contato,
   isSelected,
@@ -189,8 +216,12 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
               : 'text-muted-foreground'
           )}>
             {messagePrefix}
-            {/* Priorizar texto da mensagem, usar campo correto */}
-            {contato.ultima_mensagem_texto || contato.ultima_mensagem || 'Sem mensagens'}
+            {/* Priorizar texto real, com fallbacks seguros (nunca mostrar timestamp) */}
+            {(contato.ultima_mensagem_texto && !looksLikeTimestamp(contato.ultima_mensagem_texto)) 
+              ? contato.ultima_mensagem_texto 
+              : (contato.ultima_mensagem_tipo_midia 
+                  ? getMidiaLabel(contato.ultima_mensagem_tipo_midia) 
+                  : 'Conversa iniciada')}
           </p>
         </div>
       </div>
