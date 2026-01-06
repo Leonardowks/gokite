@@ -595,3 +595,119 @@ export const useSincronizarBaseCompleta = () => {
     },
   });
 };
+
+// ========== HOOK: Buscar Chats Recentes (Lista Lateral) ==========
+export const useFetchRecentChats = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      console.log('[useFetchRecentChats] Buscando chats recentes...');
+      
+      const { data, error } = await supabase.functions.invoke('fetch-recent-chats', {
+        body: {},
+      });
+
+      if (error) {
+        console.error('[useFetchRecentChats] Erro:', error);
+        throw new Error(error.message || 'Erro ao buscar chats');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      console.log('[useFetchRecentChats] Sucesso:', data);
+      queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+      
+      if (data?.contatos_criados > 0 || data?.contatos_atualizados > 0) {
+        toast.success(`${data.total_chats} chats carregados!`);
+      }
+    },
+    onError: (error: Error) => {
+      console.error('[useFetchRecentChats] Erro:', error);
+      toast.error(error.message || 'Erro ao buscar chats');
+    },
+  });
+};
+
+// ========== HOOK: Buscar Histórico de Mensagens (Chat Específico) ==========
+export const useFetchMessagesHistory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contatoId, phone, limit = 50 }: { contatoId?: string; phone?: string; limit?: number }) => {
+      console.log('[useFetchMessagesHistory] Buscando histórico...', { contatoId, phone, limit });
+      
+      const { data, error } = await supabase.functions.invoke('fetch-messages-history', {
+        body: { contato_id: contatoId, phone, limit },
+      });
+
+      if (error) {
+        console.error('[useFetchMessagesHistory] Erro:', error);
+        throw new Error(error.message || 'Erro ao buscar histórico');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      console.log('[useFetchMessagesHistory] Sucesso:', data);
+      
+      // Invalidar queries para atualizar o chat
+      if (variables.contatoId) {
+        queryClient.invalidateQueries({ queryKey: ['mensagens-chat', variables.contatoId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+    },
+    onError: (error: Error) => {
+      console.error('[useFetchMessagesHistory] Erro:', error);
+      // Não mostrar toast aqui pois é chamado automaticamente
+    },
+  });
+};
+
+// ========== HOOK: Analisar Conversa com IA ==========
+export const useAnalyzeConversation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contatoId }: { contatoId: string }) => {
+      console.log('[useAnalyzeConversation] Analisando...', contatoId);
+      
+      const { data, error } = await supabase.functions.invoke('analyze-conversation', {
+        body: { contato_id: contatoId },
+      });
+
+      if (error) {
+        console.error('[useAnalyzeConversation] Erro:', error);
+        throw new Error(error.message || 'Erro ao analisar conversa');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      console.log('[useAnalyzeConversation] Sucesso:', data);
+      
+      // Invalidar queries para atualizar os insights
+      queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+      queryClient.invalidateQueries({ queryKey: ['insights-contato', variables.contatoId] });
+      
+      toast.success('Análise de IA concluída!');
+    },
+    onError: (error: Error) => {
+      console.error('[useAnalyzeConversation] Erro:', error);
+      toast.error(error.message || 'Erro ao analisar conversa');
+    },
+  });
+};
