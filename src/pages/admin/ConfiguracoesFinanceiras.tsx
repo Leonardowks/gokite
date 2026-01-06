@@ -16,15 +16,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { useConfigFinanceiro, useUpdateConfigFinanceiro } from "@/hooks/useTransacoes";
+import { useConfigFinanceiro, useUpdateConfigFinanceiro, TaxasCartao } from "@/hooks/useTransacoes";
 
 export default function ConfiguracoesFinanceiras() {
   const { data: config, isLoading, refetch } = useConfigFinanceiro();
   const updateConfig = useUpdateConfigFinanceiro();
 
   const [formData, setFormData] = useState({
-    taxa_cartao_credito: 4.0,
-    taxa_cartao_debito: 2.0,
+    taxas_cartao: {
+      debito: 1.99,
+      credito_1x: 3.50,
+      credito_2x_6x: 4.90,
+      credito_7x_12x: 12.50,
+    } as TaxasCartao,
     taxa_pix: 0,
     taxa_imposto_padrao: 6.0,
     meta_mensal: 15000,
@@ -35,8 +39,12 @@ export default function ConfiguracoesFinanceiras() {
   useEffect(() => {
     if (config) {
       setFormData({
-        taxa_cartao_credito: config.taxa_cartao_credito,
-        taxa_cartao_debito: config.taxa_cartao_debito,
+        taxas_cartao: config.taxas_cartao || {
+          debito: 1.99,
+          credito_1x: 3.50,
+          credito_2x_6x: 4.90,
+          credito_7x_12x: 12.50,
+        },
         taxa_pix: config.taxa_pix,
         taxa_imposto_padrao: config.taxa_imposto_padrao,
         meta_mensal: config.meta_mensal,
@@ -45,7 +53,19 @@ export default function ConfiguracoesFinanceiras() {
     }
   }, [config]);
 
-  const handleChange = (field: keyof typeof formData, value: string) => {
+  const handleTaxaCartaoChange = (field: keyof TaxasCartao, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setFormData(prev => ({
+      ...prev,
+      taxas_cartao: {
+        ...prev.taxas_cartao,
+        [field]: numValue,
+      },
+    }));
+    setHasChanges(true);
+  };
+
+  const handleChange = (field: 'taxa_pix' | 'taxa_imposto_padrao' | 'meta_mensal', value: string) => {
     const numValue = parseFloat(value) || 0;
     setFormData(prev => ({ ...prev, [field]: numValue }));
     setHasChanges(true);
@@ -65,8 +85,12 @@ export default function ConfiguracoesFinanceiras() {
   const handleReset = () => {
     if (config) {
       setFormData({
-        taxa_cartao_credito: config.taxa_cartao_credito,
-        taxa_cartao_debito: config.taxa_cartao_debito,
+        taxas_cartao: config.taxas_cartao || {
+          debito: 1.99,
+          credito_1x: 3.50,
+          credito_2x_6x: 4.90,
+          credito_7x_12x: 12.50,
+        },
         taxa_pix: config.taxa_pix,
         taxa_imposto_padrao: config.taxa_imposto_padrao,
         meta_mensal: config.meta_mensal,
@@ -76,9 +100,9 @@ export default function ConfiguracoesFinanceiras() {
     }
   };
 
-  // Calculate example
+  // Simulação: Venda de R$ 1000 no crédito 12x
   const exampleValue = 1000;
-  const taxaCartao = (exampleValue * formData.taxa_cartao_credito) / 100;
+  const taxaCartao = (exampleValue * formData.taxas_cartao.credito_7x_12x) / 100;
   const taxaImposto = (exampleValue * formData.taxa_imposto_padrao) / 100;
   const lucroLiquido = exampleValue - taxaCartao - taxaImposto;
 
@@ -99,7 +123,7 @@ export default function ConfiguracoesFinanceiras() {
             Configurações Financeiras
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Configure as taxas e metas para cálculos automáticos
+            Configure as taxas variáveis e metas para cálculos automáticos
           </p>
         </div>
         <div className="flex gap-2">
@@ -124,8 +148,8 @@ export default function ConfiguracoesFinanceiras() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Taxas de Cartão */}
-        <PremiumCard>
+        {/* Taxas de Cartão - Nova estrutura com 4 campos */}
+        <PremiumCard className="lg:col-span-2">
           <PremiumCardHeader>
             <div className="flex items-center gap-3">
               <div className="icon-container icon-container-primary h-10 w-10">
@@ -134,72 +158,127 @@ export default function ConfiguracoesFinanceiras() {
               <div>
                 <PremiumCardTitle>Taxas de Cartão</PremiumCardTitle>
                 <PremiumCardDescription>
-                  Taxas cobradas pelas operadoras de cartão
+                  Taxas variáveis por modalidade de pagamento
                 </PremiumCardDescription>
               </div>
             </div>
           </PremiumCardHeader>
-          <PremiumCardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="taxa_credito" className="flex items-center gap-2">
-                Cartão de Crédito
-                <PremiumBadge variant="neutral" size="sm">
-                  <Percent className="h-3 w-3" />
-                </PremiumBadge>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="taxa_credito"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={formData.taxa_cartao_credito}
-                  onChange={(e) => handleChange('taxa_cartao_credito', e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+          <PremiumCardContent>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Débito */}
+              <div className="space-y-2">
+                <Label htmlFor="taxa_debito" className="flex items-center gap-2">
+                  Débito
+                  <PremiumBadge variant="success" size="sm">Menor taxa</PremiumBadge>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="taxa_debito"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.taxas_cartao.debito}
+                    onChange={(e) => handleTaxaCartaoChange('debito', e.target.value)}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Transações no débito
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Taxa média cobrada para transações de crédito (parcelado ou à vista)
-              </p>
+
+              {/* Crédito à Vista */}
+              <div className="space-y-2">
+                <Label htmlFor="taxa_credito_1x" className="flex items-center gap-2">
+                  Crédito à Vista (1x)
+                  <PremiumBadge variant="neutral" size="sm">
+                    <Percent className="h-3 w-3" />
+                  </PremiumBadge>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="taxa_credito_1x"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.taxas_cartao.credito_1x}
+                    onChange={(e) => handleTaxaCartaoChange('credito_1x', e.target.value)}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Crédito sem parcelamento
+                </p>
+              </div>
+
+              {/* Crédito 2x a 6x */}
+              <div className="space-y-2">
+                <Label htmlFor="taxa_credito_2x_6x" className="flex items-center gap-2">
+                  Crédito (2x a 6x)
+                  <PremiumBadge variant="warning" size="sm">
+                    <Percent className="h-3 w-3" />
+                  </PremiumBadge>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="taxa_credito_2x_6x"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.taxas_cartao.credito_2x_6x}
+                    onChange={(e) => handleTaxaCartaoChange('credito_2x_6x', e.target.value)}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Parcelado curto prazo
+                </p>
+              </div>
+
+              {/* Crédito 7x a 12x */}
+              <div className="space-y-2">
+                <Label htmlFor="taxa_credito_7x_12x" className="flex items-center gap-2">
+                  Crédito (7x a 12x)
+                  <PremiumBadge variant="urgent" size="sm">Maior taxa</PremiumBadge>
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="taxa_credito_7x_12x"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.taxas_cartao.credito_7x_12x}
+                    onChange={(e) => handleTaxaCartaoChange('credito_7x_12x', e.target.value)}
+                    className="pr-8"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Parcelado longo prazo
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="taxa_debito" className="flex items-center gap-2">
-                Cartão de Débito
-                <PremiumBadge variant="neutral" size="sm">
-                  <Percent className="h-3 w-3" />
-                </PremiumBadge>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="taxa_debito"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="100"
-                  value={formData.taxa_cartao_debito}
-                  onChange={(e) => handleChange('taxa_cartao_debito', e.target.value)}
-                  className="pr-8"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Taxa média cobrada para transações de débito
-              </p>
-            </div>
+            <Separator className="my-6" />
 
-            <div className="space-y-2">
+            {/* PIX */}
+            <div className="max-w-xs">
               <Label htmlFor="taxa_pix" className="flex items-center gap-2">
                 PIX
-                <PremiumBadge variant="success" size="sm">Grátis</PremiumBadge>
+                <PremiumBadge variant="success" size="sm">Geralmente grátis</PremiumBadge>
               </Label>
-              <div className="relative">
+              <div className="relative mt-2">
                 <Input
                   id="taxa_pix"
                   type="number"
-                  step="0.1"
+                  step="0.01"
                   min="0"
                   max="100"
                   value={formData.taxa_pix}
@@ -208,8 +287,8 @@ export default function ConfiguracoesFinanceiras() {
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Geralmente 0%, mas alguns gateways cobram
+              <p className="text-xs text-muted-foreground mt-1">
+                Alguns gateways cobram taxa sobre PIX
               </p>
             </div>
           </PremiumCardContent>
@@ -256,8 +335,6 @@ export default function ConfiguracoesFinanceiras() {
               </p>
             </div>
 
-            <Separator className="my-4" />
-
             <div className="p-4 rounded-xl bg-muted/50 border border-border">
               <div className="flex items-start gap-3">
                 <Info className="h-5 w-5 text-accent mt-0.5" />
@@ -267,8 +344,7 @@ export default function ConfiguracoesFinanceiras() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Este valor é separado automaticamente de cada venda para que você tenha 
-                    dinheiro guardado quando os impostos forem cobrados. Não é cobrado do 
-                    cliente, apenas contabilizado separadamente.
+                    dinheiro guardado quando os impostos forem cobrados.
                   </p>
                 </div>
               </div>
@@ -313,61 +389,67 @@ export default function ConfiguracoesFinanceiras() {
           </PremiumCardContent>
         </PremiumCard>
 
-        {/* Simulação */}
-        <PremiumCard featured gradient="primary">
+        {/* Simulação - Crédito 12x (pior caso) */}
+        <PremiumCard featured gradient="primary" className="lg:col-span-2">
           <PremiumCardHeader>
             <div className="flex items-center gap-3">
               <div className="icon-container icon-container-primary h-10 w-10">
                 <Settings2 className="h-5 w-5" />
               </div>
               <div>
-                <PremiumCardTitle>Simulação</PremiumCardTitle>
+                <PremiumCardTitle>Simulação: Venda de R$ 1.000 no Crédito 12x</PremiumCardTitle>
                 <PremiumCardDescription>
-                  Exemplo de venda com as taxas configuradas
+                  Pior cenário de margem com parcelamento longo
                 </PremiumCardDescription>
               </div>
             </div>
           </PremiumCardHeader>
           <PremiumCardContent>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Valor da venda (cartão crédito)</span>
-                <span className="font-medium">R$ {exampleValue.toLocaleString('pt-BR')}</span>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Valor da venda</span>
+                  <span className="font-medium">R$ {exampleValue.toLocaleString('pt-BR')}</span>
+                </div>
+                
+                <Separator />
+                
+                <div className="flex justify-between items-center text-destructive">
+                  <span className="text-sm flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Taxa Cartão 12x ({formData.taxas_cartao.credito_7x_12x}%)
+                  </span>
+                  <span className="font-medium">-R$ {taxaCartao.toFixed(2)}</span>
+                </div>
+                
+                <div className="flex justify-between items-center text-destructive">
+                  <span className="text-sm flex items-center gap-2">
+                    <Landmark className="h-4 w-4" />
+                    Imposto ({formData.taxa_imposto_padrao}%)
+                  </span>
+                  <span className="font-medium">-R$ {taxaImposto.toFixed(2)}</span>
+                </div>
+                
+                <Separator />
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-success flex items-center gap-2">
+                    💰 Lucro Líquido
+                  </span>
+                  <span className="text-xl font-bold text-success">
+                    R$ {lucroLiquido.toFixed(2)}
+                  </span>
+                </div>
               </div>
-              
-              <Separator />
-              
-              <div className="flex justify-between items-center text-destructive">
-                <span className="text-sm flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Taxa de Cartão ({formData.taxa_cartao_credito}%)
-                </span>
-                <span className="font-medium">-R$ {taxaCartao.toFixed(2)}</span>
-              </div>
-              
-              <div className="flex justify-between items-center text-destructive">
-                <span className="text-sm flex items-center gap-2">
-                  <Landmark className="h-4 w-4" />
-                  Imposto ({formData.taxa_imposto_padrao}%)
-                </span>
-                <span className="font-medium">-R$ {taxaImposto.toFixed(2)}</span>
-              </div>
-              
-              <Separator />
-              
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-success flex items-center gap-2">
-                  💰 Lucro Líquido
-                </span>
-                <span className="text-xl font-bold text-success">
-                  R$ {lucroLiquido.toFixed(2)}
-                </span>
-              </div>
-              
-              <div className="text-center pt-2">
-                <PremiumBadge variant="success">
+
+              <div className="flex flex-col items-center justify-center gap-4 p-6 rounded-xl bg-background/50">
+                <PremiumBadge variant={lucroLiquido > 0 ? "success" : "urgent"} size="lg">
                   {((lucroLiquido / exampleValue) * 100).toFixed(1)}% de margem
                 </PremiumBadge>
+                <p className="text-xs text-center text-muted-foreground">
+                  Este é o pior cenário. <br />
+                  Débito e PIX terão margens melhores.
+                </p>
               </div>
             </div>
           </PremiumCardContent>

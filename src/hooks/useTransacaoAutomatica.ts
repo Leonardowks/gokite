@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { TaxasCartao, getTaxaCartao } from './useTransacoes';
 
 type FormaPagamento = 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'trade_in';
 type TipoOrigem = 'aulas' | 'aluguel' | 'venda_produto' | 'trade_in' | 'pacote' | 'ecommerce' | 'manual';
@@ -122,12 +123,20 @@ export function useTransacaoAutomatica() {
         .limit(1)
         .single();
 
-      // 4. Calcular taxas
-      const taxaCartaoPercent = config ? (
-        input.forma_pagamento === 'cartao_credito' ? config.taxa_cartao_credito :
-        input.forma_pagamento === 'cartao_debito' ? config.taxa_cartao_debito :
-        input.forma_pagamento === 'pix' ? config.taxa_pix : 0
-      ) : 0;
+      // 4. Calcular taxas usando nova estrutura JSONB
+      const rawTaxas = config?.taxas_cartao as unknown;
+      const taxasCartao: TaxasCartao | null = (rawTaxas && typeof rawTaxas === 'object')
+        ? {
+            debito: (rawTaxas as any).debito ?? 1.99,
+            credito_1x: (rawTaxas as any).credito_1x ?? 3.50,
+            credito_2x_6x: (rawTaxas as any).credito_2x_6x ?? 4.90,
+            credito_7x_12x: (rawTaxas as any).credito_7x_12x ?? 12.50,
+          }
+        : null;
+
+      const taxaCartaoPercent = input.forma_pagamento === 'pix' 
+        ? (config?.taxa_pix || 0) 
+        : getTaxaCartao(taxasCartao, input.forma_pagamento, input.parcelas || 1);
 
       const taxaImpostoPercent = config?.taxa_imposto_padrao || 6;
 
