@@ -11,10 +11,23 @@ interface EvolutionConfig {
   api_key: string;
 }
 
-// Normaliza telefone para formato consistente
-function normalizePhone(phone: string): string {
-  if (!phone) return "";
-  return phone.replace(/[@s.a-z]/gi, "").replace(/\D/g, "");
+// Valida se é um JID de contato WhatsApp válido (ignora grupos, broadcasts e IDs especiais)
+function isValidWhatsAppJid(jid: string): boolean {
+  if (!jid) return false;
+  // Apenas JIDs individuais no formato NÚMERO@s.whatsapp.net são válidos
+  return jid.endsWith('@s.whatsapp.net') && 
+         !jid.includes('@g.us') && 
+         !jid.includes('@broadcast') &&
+         !jid.includes('@lid');
+}
+
+// Normaliza telefone para formato consistente - apenas de JIDs válidos
+function normalizePhone(jid: string): string {
+  if (!isValidWhatsAppJid(jid)) return "";
+  // Extrair apenas a parte numérica antes do @s.whatsapp.net
+  const phone = jid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+  // Validar que tem pelo menos 10 dígitos (DDD + número)
+  return phone.length >= 10 ? phone : "";
 }
 
 // Verifica se string parece um número de telefone
@@ -226,17 +239,18 @@ serve(async (req) => {
         }
 
         for (const msgData of messages) {
-          const key = msgData.key || {};
+        const key = msgData.key || {};
           const remoteJid = key.remoteJid;
           
-          if (!remoteJid || remoteJid.includes("@g.us") || remoteJid.includes("@broadcast")) {
-            console.log("[Evolution Webhook] Ignorando grupo/broadcast:", remoteJid);
+          // Validar que é um JID individual válido do WhatsApp
+          if (!isValidWhatsAppJid(remoteJid)) {
+            console.log("[Evolution Webhook] Ignorando JID inválido/grupo:", remoteJid);
             continue;
           }
 
           const phone = normalizePhone(remoteJid);
-          if (!phone || phone.length < 8) {
-            console.log("[Evolution Webhook] Telefone inválido:", phone);
+          if (!phone) {
+            console.log("[Evolution Webhook] Telefone inválido extraído de:", remoteJid);
             continue;
           }
 
