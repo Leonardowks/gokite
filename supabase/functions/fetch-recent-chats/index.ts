@@ -104,8 +104,11 @@ serve(async (req) => {
         if (profilePicture) {
           contatoData.whatsapp_profile_picture = profilePicture;
         }
+        // IMPORTANTE: Usar timestamp real da mensagem do WhatsApp para ordenação
         if (lastMessageTimestamp) {
-          contatoData.ultimo_contato = new Date(lastMessageTimestamp * 1000).toISOString();
+          const realDate = new Date(lastMessageTimestamp * 1000).toISOString();
+          contatoData.ultimo_contato = realDate;
+          contatoData.ultima_mensagem = realDate; // Atualiza também para ordenação na lista
         }
 
         // UPSERT no contatos_inteligencia

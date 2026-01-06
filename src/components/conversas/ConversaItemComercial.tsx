@@ -59,19 +59,15 @@ function getDisplayName(contato: ContatoComUltimaMensagem): string {
   return 'Contato desconhecido';
 }
 
-// Formatar timestamp de forma inteligente - "Hoje 14:00" ou "Ontem"
+// Formatar timestamp igual WhatsApp Web: "14:30" hoje, "Ontem" ontem, "05/01/2026" anterior
 function formatTimestamp(date: Date): string {
   if (isToday(date)) {
-    return `Hoje ${format(date, 'HH:mm')}`;
+    return format(date, 'HH:mm');
   }
   if (isYesterday(date)) {
-    return `Ontem ${format(date, 'HH:mm')}`;
+    return 'Ontem';
   }
-  const daysDiff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysDiff < 7) {
-    return format(date, "EEE HH:mm", { locale: ptBR });
-  }
-  return format(date, 'dd/MM HH:mm', { locale: ptBR });
+  return format(date, 'dd/MM/yyyy', { locale: ptBR });
 }
 
 // Ícone para tipo de mídia
@@ -100,8 +96,9 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
   style,
 }: ConversaItemComercialProps) {
   const displayName = getDisplayName(contato);
-  const lastMessageTime = contato.ultimo_contato 
-    ? formatTimestamp(new Date(contato.ultimo_contato))
+  // Usar ultima_mensagem (timestamp da última msg) para exibir a data, não ultimo_contato
+  const lastMessageTime = contato.ultima_mensagem 
+    ? formatTimestamp(new Date(contato.ultima_mensagem))
     : '';
   
   const unreadCount = contato.nao_lidas || 0;
