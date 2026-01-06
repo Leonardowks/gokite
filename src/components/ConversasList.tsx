@@ -1,24 +1,16 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Search, 
   MessageSquare, 
   Filter,
-  Image,
-  Mic,
-  Video,
-  FileText,
-  Building2,
-  Star,
   ChevronDown,
+  Flame,
 } from 'lucide-react';
-import { formatDistanceToNow, isToday, isYesterday, format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ContatoComUltimaMensagem, ConversaFiltro, ConversaOrdenacao } from '@/hooks/useConversasPage';
 import {
@@ -30,53 +22,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useDebounce } from '@/hooks/useDebounce';
-
-// Formatar telefone para exibição amigável
-function formatPhone(phone: string): string {
-  const clean = phone.replace(/\D/g, '');
-  if (clean.length === 13 && clean.startsWith('55')) {
-    return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
-  }
-  if (clean.length === 12 && clean.startsWith('55')) {
-    return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 8)}-${clean.slice(8)}`;
-  }
-  return phone;
-}
-
-// Formatar timestamp de forma inteligente
-function formatTimestamp(date: Date): string {
-  if (isToday(date)) {
-    return format(date, 'HH:mm');
-  }
-  if (isYesterday(date)) {
-    return 'Ontem';
-  }
-  // Dentro da última semana
-  const daysDiff = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-  if (daysDiff < 7) {
-    return format(date, 'EEE', { locale: ptBR });
-  }
-  // Mais antigo
-  return format(date, 'dd/MM', { locale: ptBR });
-}
-
-// Ícone para tipo de mídia
-function getMidiaIcon(tipo: string | null) {
-  switch (tipo) {
-    case 'imagem':
-    case 'image':
-      return <Image className="h-3.5 w-3.5 text-muted-foreground" />;
-    case 'audio':
-      return <Mic className="h-3.5 w-3.5 text-muted-foreground" />;
-    case 'video':
-      return <Video className="h-3.5 w-3.5 text-muted-foreground" />;
-    case 'documento':
-    case 'document':
-      return <FileText className="h-3.5 w-3.5 text-muted-foreground" />;
-    default:
-      return null;
-  }
-}
+import { OportunidadesQuentes } from './conversas/OportunidadesQuentes';
+import { ConversaItemComercial } from './conversas/ConversaItemComercial';
 
 // Labels dos filtros
 const filtroLabels: Record<ConversaFiltro, string> = {
@@ -137,11 +84,22 @@ export function ConversasList({
     [contatos]
   );
 
+  // Contar oportunidades quentes
+  const totalQuentes = useMemo(() => 
+    contatos.filter(c => 
+      (c.score_interesse && c.score_interesse >= 50) || 
+      c.prioridade === 'alta' || 
+      c.prioridade === 'urgente' ||
+      c.status === 'lead_quente'
+    ).length, 
+    [contatos]
+  );
+
   // Virtualização para performance com muitos contatos
   const virtualizer = useVirtualizer({
     count: contatosFiltrados.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 80,
+    estimateSize: () => 88,
     overscan: 5,
   });
 
@@ -244,12 +202,27 @@ export function ConversasList({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {/* Indicador de oportunidades quentes */}
+          {totalQuentes > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-orange-600 ml-auto">
+              <Flame className="h-3.5 w-3.5" />
+              <span className="font-medium">{totalQuentes}</span>
+            </div>
+          )}
+
           {/* Contador */}
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className={cn('text-xs text-muted-foreground', totalQuentes > 0 ? '' : 'ml-auto')}>
             {contatosFiltrados.length} conversas
           </span>
         </div>
       </div>
+
+      {/* Seção de Oportunidades Quentes */}
+      <OportunidadesQuentes 
+        contatos={contatos} 
+        onSelect={onSelect} 
+        selectedId={selectedId} 
+      />
 
       {/* Lista virtualizada */}
       <div ref={parentRef} className="flex-1 overflow-auto">
@@ -270,19 +243,14 @@ export function ConversasList({
           >
             {virtualizer.getVirtualItems().map((virtualItem) => {
               const contato = contatosFiltrados[virtualItem.index];
-              const isSelected = selectedId === contato.id;
-              const displayName = 
-                contato.whatsapp_profile_name || 
-                contato.nome || 
-                formatPhone(contato.telefone);
-              const hasUnread = contato.nao_lidas > 0;
-              const isFromMe = contato.ultima_mensagem_is_from_me;
-              const midiaIcon = getMidiaIcon(contato.ultima_mensagem_tipo_midia);
-              const isPriority = contato.prioridade === 'alta' || contato.prioridade === 'urgente';
 
               return (
-                <div
+                <ConversaItemComercial
                   key={contato.id}
+                  contato={contato}
+                  isSelected={selectedId === contato.id}
+                  onSelect={() => onSelect(contato.id)}
+                  onAvatarClick={() => onAvatarClick?.(contato)}
                   style={{
                     position: 'absolute',
                     top: 0,
@@ -291,106 +259,7 @@ export function ConversasList({
                     height: `${virtualItem.size}px`,
                     transform: `translateY(${virtualItem.start}px)`,
                   }}
-                  className={cn(
-                    'flex items-start gap-3 p-3 text-left transition-colors hover:bg-muted/50 border-b border-border/30 cursor-pointer',
-                    isSelected && 'bg-primary/5 hover:bg-primary/10',
-                    hasUnread && !isSelected && 'bg-primary/5'
-                  )}
-                  onClick={() => onSelect(contato.id)}
-                >
-                  {/* Avatar - clicável para abrir drawer */}
-                  <div 
-                    className="relative flex-shrink-0"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAvatarClick?.(contato);
-                    }}
-                  >
-                    <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
-                      <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {displayName.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Badge de não lidas */}
-                    {hasUnread && (
-                      <div className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold px-1">
-                        {contato.nao_lidas > 99 ? '99+' : contato.nao_lidas}
-                      </div>
-                    )}
-                    {/* Indicador de prioridade */}
-                    {isPriority && !hasUnread && (
-                      <div className="absolute -top-0.5 -right-0.5">
-                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={cn(
-                          'font-medium truncate text-sm',
-                          hasUnread && 'font-semibold'
-                        )}>
-                          {displayName}
-                        </span>
-                        {contato.is_business && (
-                          <Building2 className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
-                        )}
-                      </div>
-                      {contato.ultima_mensagem && (
-                        <span className={cn(
-                          'text-[11px] flex-shrink-0',
-                          hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'
-                        )}>
-                          {formatTimestamp(new Date(contato.ultima_mensagem))}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Preview da mensagem */}
-                    <div className="flex items-center gap-1.5">
-                      {isFromMe && (
-                        <span className="text-xs text-muted-foreground flex-shrink-0">Você:</span>
-                      )}
-                      {midiaIcon}
-                      <p className={cn(
-                        'text-xs truncate',
-                        hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'
-                      )}>
-                        {contato.ultima_mensagem_texto || 'Sem mensagens'}
-                      </p>
-                    </div>
-
-                    {/* Status badge */}
-                    {contato.status && contato.status !== 'nao_classificado' && (
-                      <div className="mt-1.5 flex items-center gap-1.5">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[10px] h-5 px-1.5',
-                            contato.status === 'lead' && 'border-blue-500/50 text-blue-600 bg-blue-500/5',
-                            contato.status === 'lead_quente' && 'border-orange-500/50 text-orange-600 bg-orange-500/5',
-                            contato.status === 'cliente_ativo' && 'border-green-500/50 text-green-600 bg-green-500/5',
-                            contato.status === 'cliente_inativo' && 'border-gray-500/50 text-gray-600 bg-gray-500/5'
-                          )}
-                        >
-                          {contato.status === 'lead' && 'Lead'}
-                          {contato.status === 'lead_quente' && 'Lead Quente'}
-                          {contato.status === 'cliente_ativo' && 'Cliente'}
-                          {contato.status === 'cliente_inativo' && 'Inativo'}
-                        </Badge>
-                        {contato.score_interesse && contato.score_interesse > 70 && (
-                          <span className="text-[10px] text-green-600">
-                            {contato.score_interesse}% interesse
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                />
               );
             })}
           </div>
