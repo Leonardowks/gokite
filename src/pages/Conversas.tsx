@@ -15,9 +15,11 @@ import {
   ContatoComUltimaMensagem,
 } from '@/hooks/useConversasPage';
 import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
-import { ArrowLeft } from 'lucide-react';
+import { useAnaliseAutomatica } from '@/hooks/useAnaliseAutomatica';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 const Conversas = () => {
   const [selectedContatoId, setSelectedContatoId] = useState<string | null>(null);
@@ -35,6 +37,9 @@ const Conversas = () => {
   // Mutations
   const marcarComoLidaMutation = useMarcarComoLida();
   const analisarMutation = useAnalisarConversas();
+
+  // Fase 3: IA Proativa - Análise automática em background
+  useAnaliseAutomatica(true);
 
   // Contato selecionado
   const contatoSelecionado = contatos.find((c) => c.id === selectedContatoId) || null;
@@ -92,10 +97,16 @@ const Conversas = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)]">
-      <PageHeader
-        title="Conversas"
-        description="Central de mensagens WhatsApp"
-      />
+      <div className="flex items-center justify-between">
+        <PageHeader
+          title="Conversas"
+          description="Central de mensagens WhatsApp"
+        />
+        <Badge variant="outline" className="gap-1.5 text-xs bg-primary/5 border-primary/20 text-primary">
+          <Sparkles className="h-3 w-3" />
+          IA Proativa
+        </Badge>
+      </div>
 
       {/* Layout de duas colunas */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 border rounded-xl overflow-hidden bg-card shadow-sm mt-4 min-h-0">

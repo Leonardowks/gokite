@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.enrich-contacts]
 verify_jwt = false
+
+[functions.processar-analise-queue]
+verify_jwt = false
