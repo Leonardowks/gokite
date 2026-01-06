@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ConversasList } from '@/components/ConversasList';
 import { ChatView } from '@/components/ChatView';
 import { InsightsIADrawer } from '@/components/InsightsIADrawer';
-import { ContatoContextPanel } from '@/components/ContatoContextPanel';
+import { CRMLeadPanel } from '@/components/conversas/CRMLeadPanel';
 import { ConnectionRequiredOverlay } from '@/components/ConnectionRequiredOverlay';
 import { toast } from 'sonner';
 import {
@@ -10,6 +10,7 @@ import {
   useMensagensContato,
   useMarcarComoLida,
   useConversasRealtime,
+  useSincronizarBaseCompleta,
   ConversaFiltro,
   ConversaOrdenacao,
   ContatoComUltimaMensagem,
@@ -18,7 +19,7 @@ import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWh
 import { useAnaliseAutomatica } from '@/hooks/useAnaliseAutomatica';
 import { useEvolutionHealth, useContatoPolling } from '@/hooks/useEvolutionHealth';
 import { useEvolutionStatus } from '@/hooks/useEvolutionConfig';
-import { ArrowLeft, Sparkles, Wifi, WifiOff, RefreshCw, PanelRightClose, PanelRight } from 'lucide-react';
+import { ArrowLeft, Sparkles, Wifi, WifiOff, RefreshCw, PanelRightClose, PanelRight, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -46,6 +47,7 @@ const Conversas = () => {
   // Mutations
   const marcarComoLidaMutation = useMarcarComoLida();
   const analisarMutation = useAnalisarConversas();
+  const sincronizarBase = useSincronizarBaseCompleta();
 
   // Fase 3: IA Proativa
   useAnaliseAutomatica(true);
@@ -164,22 +166,47 @@ const Conversas = () => {
             </Tooltip>
 
             {isConnected && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={handleReconnect}
-                    disabled={isReconnecting}
-                  >
-                    <RefreshCw className={cn('h-4 w-4', isReconnecting && 'animate-spin')} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Sincronizar</p>
-                </TooltipContent>
-              </Tooltip>
+              <>
+                {/* Botão Sincronizar Base */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2 gap-1.5 text-xs"
+                      onClick={() => sincronizarBase.mutate({ action: 'contacts' })}
+                      disabled={sincronizarBase.isPending}
+                    >
+                      {sincronizarBase.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      <span className="hidden sm:inline">Sincronizar</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Sincronizar todos os contatos do WhatsApp</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={handleReconnect}
+                      disabled={isReconnecting}
+                    >
+                      <RefreshCw className={cn('h-4 w-4', isReconnecting && 'animate-spin')} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reconfigurar Webhook</p>
+                  </TooltipContent>
+                </Tooltip>
+              </>
             )}
 
             <Badge variant="outline" className="gap-1.5 text-xs bg-primary/5 border-primary/20 text-primary">
@@ -198,9 +225,9 @@ const Conversas = () => {
             </div>
           ) : (
             <>
-              {/* Lista - Desktop */}
+              {/* Lista de Contatos - 25% */}
               <aside className={cn(
-                'w-full lg:w-80 xl:w-[350px] border-r border-border/50 flex-shrink-0',
+                'w-full lg:flex-[2.5] lg:min-w-[280px] lg:max-w-[320px] border-r border-border/50 flex-shrink-0',
                 selectedContatoId ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'
               )}>
                 <ConversasList
@@ -215,11 +242,11 @@ const Conversas = () => {
                 />
               </aside>
 
-          {/* Chat - Desktop (70% quando painel aberto, 100% quando fechado) */}
-          <main className={cn(
-            'hidden lg:flex lg:flex-col min-w-0 transition-all duration-200',
-            contextPanelOpen && selectedContatoId ? 'flex-[7]' : 'flex-1'
-          )}>
+              {/* Chat - 50% */}
+              <main className={cn(
+                'hidden lg:flex lg:flex-col min-w-0 transition-all duration-200',
+                contextPanelOpen ? 'flex-[5]' : 'flex-1'
+              )}>
             {/* Botão toggle do painel */}
             {selectedContatoId && (
               <div className="absolute right-0 top-16 z-10">
@@ -251,10 +278,10 @@ const Conversas = () => {
             />
           </main>
 
-          {/* Painel de Contexto - Desktop (30%) */}
-          {selectedContatoId && contextPanelOpen && (
-            <aside className="hidden lg:flex flex-[3] min-w-[280px] max-w-[400px]">
-              <ContatoContextPanel
+          {/* CRM Lead Panel - Desktop (25%) */}
+          {contextPanelOpen && (
+            <aside className="hidden lg:flex flex-[2.5] min-w-[280px] max-w-[380px]">
+              <CRMLeadPanel
                 contato={contatoSelecionado}
                 onClose={() => setContextPanelOpen(false)}
               />
