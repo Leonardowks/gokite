@@ -3,6 +3,7 @@ import { Sparkles, Loader2, Send, Mic, Camera, X, Check, RotateCcw, Image } from
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PremiumCard, PremiumCardContent } from "@/components/ui/premium-card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -299,97 +300,130 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
             <span className="font-semibold text-sm">Lançamento Rápido com IA</span>
           </div>
 
-          <div className="flex-1 flex gap-2">
-            {/* Voice Button */}
-            {isVoiceSupported && (
-              <Button
-                type="button"
-                variant={isListening ? "destructive" : "outline"}
-                size="icon"
-                onClick={isListening ? stopListening : startListening}
-                disabled={isLoading || isProcessingImage}
-                className="shrink-0"
-                title={isListening ? "Parar gravação" : "Falar com Jarvis"}
-              >
-                {isListening ? (
-                  <X className="h-4 w-4" />
-                ) : (
-                  <Mic className="h-4 w-4" />
-                )}
-              </Button>
-            )}
-
-            {/* Camera Button */}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => cameraInputRef.current?.click()}
-              disabled={isAnyLoading}
-              className="shrink-0"
-              title="Tirar foto"
-            >
-              <Camera className="h-4 w-4" />
-            </Button>
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={handlePhotoCapture}
-            />
-
-            {/* Gallery Button */}
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => galleryInputRef.current?.click()}
-              disabled={isAnyLoading}
-              className="shrink-0"
-              title="Escolher da galeria"
-            >
-              <Image className="h-4 w-4" />
-            </Button>
-            <input
-              ref={galleryInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePhotoCapture}
-            />
-
-            {/* Text Input */}
-            <Input
-              placeholder={isListening ? "🎤 Ouvindo..." : "Ex: Vendi Kite Rebel 12m por 5000 em 10x visa..."}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isAnyLoading}
-              className="flex-1 bg-background/80 border-accent/30 focus:border-accent placeholder:text-muted-foreground/60"
-            />
-
-            {/* Submit Button */}
-            <Button
-              onClick={handleSubmit}
-              disabled={isAnyLoading || text.trim().length < 10}
-              className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground shrink-0"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="hidden sm:inline">Processando...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  <span className="hidden sm:inline">Lançar</span>
-                  <Send className="h-4 w-4 sm:hidden" />
-                </>
+          <TooltipProvider delayDuration={300}>
+            <div className="flex-1 flex gap-2">
+              {/* Voice Button */}
+              {isVoiceSupported && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant={isListening ? "destructive" : "outline"}
+                      size="icon"
+                      onClick={isListening ? stopListening : startListening}
+                      disabled={isLoading || isProcessingImage}
+                      className="shrink-0"
+                    >
+                      {isListening ? (
+                        <X className="h-4 w-4" />
+                      ) : (
+                        <Mic className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="font-medium">{isListening ? "Parar gravação" : "Falar com Jarvis"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {isListening ? "Clique para parar" : "Descreva a transação por voz"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               )}
-            </Button>
-          </div>
+
+              {/* Camera Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => cameraInputRef.current?.click()}
+                    disabled={isAnyLoading}
+                    className="shrink-0"
+                  >
+                    <Camera className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="font-medium">Tirar foto</p>
+                  <p className="text-xs text-muted-foreground">Fotografe uma nota fiscal ou recibo</p>
+                </TooltipContent>
+              </Tooltip>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoCapture}
+              />
+
+              {/* Gallery Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => galleryInputRef.current?.click()}
+                    disabled={isAnyLoading}
+                    className="shrink-0"
+                  >
+                    <Image className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="font-medium">Escolher da galeria</p>
+                  <p className="text-xs text-muted-foreground">Selecione uma imagem existente</p>
+                </TooltipContent>
+              </Tooltip>
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoCapture}
+              />
+
+              {/* Text Input */}
+              <Input
+                placeholder={isListening ? "🎤 Ouvindo..." : "Ex: Vendi Kite Rebel 12m por 5000 em 10x visa..."}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isAnyLoading}
+                className="flex-1 bg-background/80 border-accent/30 focus:border-accent placeholder:text-muted-foreground/60"
+              />
+
+              {/* Submit Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isAnyLoading || text.trim().length < 10}
+                    className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground shrink-0"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="hidden sm:inline">Processando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        <span className="hidden sm:inline">Lançar</span>
+                        <Send className="h-4 w-4 sm:hidden" />
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="font-medium">Processar com IA</p>
+                  <p className="text-xs text-muted-foreground">Extrai dados e abre formulário preenchido</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </div>
 
         <p className="text-xs text-muted-foreground mt-2 hidden sm:block">
