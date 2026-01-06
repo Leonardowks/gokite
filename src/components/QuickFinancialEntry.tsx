@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Sparkles, Loader2, Send, Mic, Camera, X } from "lucide-react";
+import { Sparkles, Loader2, Send, Mic, Camera, X, Check, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PremiumCard, PremiumCardContent } from "@/components/ui/premium-card";
@@ -26,6 +26,10 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  
+  // Image preview state
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedBase64, setCapturedBase64] = useState<string | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -70,7 +74,6 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
   const processAudio = async (audioBlob: Blob) => {
     setIsLoading(true);
     try {
-      // Convert to base64
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       
@@ -81,7 +84,6 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
         };
       });
 
-      // Transcribe with OpenAI STT
       const { data: sttData, error: sttError } = await supabase.functions.invoke("openai-stt", {
         body: { audio: base64Audio },
       });
@@ -93,7 +95,6 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
       const transcribedText = sttData.text;
       console.log("[QuickEntry] Transcribed:", transcribedText);
       
-      // Set text and auto-submit
       setText(transcribedText);
       await parseText(transcribedText);
     } catch (error) {
@@ -104,26 +105,33 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
     }
   };
 
-  // Photo/OCR processing
-  const handlePhotoCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Photo capture - show preview first
+  const handlePhotoCapture = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setCapturedImage(result);
+      setCapturedBase64(result.split(",")[1]);
+    };
+    reader.readAsDataURL(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Confirm and process the captured image
+  const confirmImage = async () => {
+    if (!capturedBase64) return;
+    
     setIsProcessingImage(true);
     
     try {
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve) => {
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          resolve(result.split(",")[1]);
-        };
-        reader.readAsDataURL(file);
-      });
-
-      // Extract with OCR
       const { data, error } = await supabase.functions.invoke("extract-receipt", {
-        body: { image_base64: base64 },
+        body: { image_base64: capturedBase64 },
       });
 
       if (error || !data?.success) {
@@ -133,7 +141,6 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
       const extracted = data.data;
       console.log("[QuickEntry] OCR result:", extracted);
 
-      // Map OCR data to ParsedTransaction
       const parsed: ParsedTransaction = {
         tipo: "despesa",
         valor_bruto: extracted.valor || 0,
@@ -146,6 +153,7 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
       };
 
       onParsed(parsed);
+      clearImage();
       toast.success("Nota fiscal processada!", {
         description: `R$ ${extracted.valor?.toFixed(2)} - ${extracted.descricao || extracted.categoria}`,
       });
@@ -156,10 +164,13 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
       });
     } finally {
       setIsProcessingImage(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
+  };
+
+  // Clear captured image and retake
+  const clearImage = () => {
+    setCapturedImage(null);
+    setCapturedBase64(null);
   };
 
   const mapCategoriaToCentroCusto = (categoria: string): "Loja" | "Escola" | "Administrativo" => {
@@ -171,7 +182,6 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
     return "Administrativo";
   };
 
-  // Text parsing
   const parseText = async (inputText: string) => {
     const textToProcess = inputText || text;
     
@@ -219,6 +229,66 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
   const isVoiceSupported = typeof navigator !== "undefined" && "mediaDevices" in navigator;
   const isAnyLoading = isLoading || isListening || isProcessingImage;
 
+  // Show image preview mode
+  if (capturedImage) {
+    return (
+      <PremiumCard featured gradient="accent" className="overflow-hidden">
+        <PremiumCardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            {/* Image Preview */}
+            <div className="relative w-32 h-32 sm:w-24 sm:h-24 rounded-lg overflow-hidden border-2 border-accent/30 shrink-0">
+              <img 
+                src={capturedImage} 
+                alt="Nota fiscal" 
+                className="w-full h-full object-cover"
+              />
+              {isProcessingImage && (
+                <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex-1 flex flex-col gap-2">
+              <p className="text-sm text-muted-foreground text-center sm:text-left">
+                Confirma a imagem para processar?
+              </p>
+              <div className="flex gap-2 justify-center sm:justify-start">
+                <Button
+                  variant="outline"
+                  onClick={clearImage}
+                  disabled={isProcessingImage}
+                  className="gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Refazer
+                </Button>
+                <Button
+                  onClick={confirmImage}
+                  disabled={isProcessingImage}
+                  className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
+                >
+                  {isProcessingImage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Processando...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Confirmar
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </PremiumCardContent>
+      </PremiumCard>
+    );
+  }
+
   return (
     <PremiumCard featured gradient="accent" className="overflow-hidden">
       <PremiumCardContent className="p-4 sm:p-6">
@@ -258,11 +328,7 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
               className="shrink-0"
               title="Escanear nota fiscal"
             >
-              {isProcessingImage ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Camera className="h-4 w-4" />
-              )}
+              <Camera className="h-4 w-4" />
             </Button>
             <input
               ref={fileInputRef}
