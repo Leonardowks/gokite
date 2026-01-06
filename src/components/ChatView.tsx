@@ -27,6 +27,8 @@ import {
   MoreVertical,
   Tag,
   Phone,
+  PanelRightOpen,
+  PanelRightClose,
 } from 'lucide-react';
 import { format, isSameDay, parseISO, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -41,6 +43,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { QuickActionsBar } from '@/components/conversas/QuickActionsBar';
+import { ChatContextPanel } from '@/components/conversas/ChatContextPanel';
 
 interface ChatViewProps {
   contato: ContatoComUltimaMensagem | null;
@@ -59,6 +63,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const [novaMensagem, setNovaMensagem] = useState('');
   const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showContextPanel, setShowContextPanel] = useState(false);
   
   const enviarMensagem = useEnviarMensagem();
   const uploadMedia = useUploadMedia();
@@ -221,8 +226,17 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     mensagensPorData[dateKey].push(msg);
   });
 
+  // Handler para enviar mensagem via template
+  const handleEnviarMensagemTemplate = (mensagem: string) => {
+    if (!contato) return;
+    enviarMensagem.mutate({
+      contatoId: contato.id,
+      mensagem,
+    });
+  };
+
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-muted/10 to-muted/5">
+    <div className="h-full flex bg-gradient-to-b from-muted/10 to-muted/5">
       {/* Header Enriquecido */}
       <div className="px-4 py-3 border-b bg-card/80 backdrop-blur-sm">
         <div className="flex items-center justify-between gap-4">
@@ -294,9 +308,24 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
               className="gap-1.5 h-8"
             >
               <Brain className={cn('h-3.5 w-3.5', isAnalisando && 'animate-pulse')} />
-              <span className="hidden sm:inline text-xs">Analisar IA</span>
+              <span className="hidden sm:inline text-xs">Analisar</span>
             </Button>
             
+            {/* Toggle Painel de Contexto */}
+            <Button
+              size="icon"
+              variant={showContextPanel ? 'secondary' : 'ghost'}
+              className="h-8 w-8"
+              onClick={() => setShowContextPanel(!showContextPanel)}
+              title={showContextPanel ? 'Ocultar insights' : 'Mostrar insights'}
+            >
+              {showContextPanel ? (
+                <PanelRightClose className="h-4 w-4" />
+              ) : (
+                <PanelRightOpen className="h-4 w-4" />
+              )}
+            </Button>
+
             <Button
               size="icon"
               variant="ghost"
@@ -342,7 +371,20 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         </div>
       </div>
 
-      {/* Mensagens */}
+      {/* Barra de Ações Rápidas */}
+      <QuickActionsBar
+        contato={contato}
+        onEnviarMensagem={handleEnviarMensagemTemplate}
+        onAgendarAula={() => navigate('/aulas')}
+        onEnviarProposta={() => toast.info('Funcionalidade de proposta em breve!')}
+        isSending={enviarMensagem.isPending}
+      />
+
+      {/* Área principal: Chat + Painel */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Coluna do Chat */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Mensagens */}
       <ScrollArea className="flex-1 p-4" ref={scrollRef}>
         {mensagens.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
@@ -575,6 +617,19 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         <p className="text-[10px] text-muted-foreground text-center">
           Enter para enviar • Shift + Enter para nova linha
         </p>
+      </div>
+        </div>
+
+        {/* Painel de Contexto Comercial */}
+        {showContextPanel && (
+          <div className="w-72 hidden lg:block">
+            <ChatContextPanel
+              contato={contato}
+              onAnalisar={onAnalisar}
+              isAnalisando={isAnalisando}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
