@@ -7,9 +7,24 @@ interface AuthState {
 
 const AUTH_KEY = "gokite_admin_auth";
 
+/**
+ * =====================================================
+ * ⚠️  SEGURANÇA TEMPORARIAMENTE DESATIVADA  ⚠️
+ * =====================================================
+ * 
+ * Bypass ativo para web scraping/crawling externo.
+ * 
+ * PARA REATIVAR A AUTENTICAÇÃO, substitua o useState abaixo por:
+ * 
+ * const [authState, setAuthState] = useState<AuthState>(() => {
+ *   const stored = localStorage.getItem(AUTH_KEY);
+ *   return stored ? JSON.parse(stored) : { isAuthenticated: false, user: null };
+ * });
+ * 
+ * E descomente o bloco de redirecionamento em AdminLayout.tsx
+ * =====================================================
+ */
 export function useAuth() {
-  // TEMPORÁRIO: Bypass de autenticação para web scraping
-  // Para reverter, restaure o código original que verifica localStorage
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: true,
     user: { email: "scraping@gokite.com" }

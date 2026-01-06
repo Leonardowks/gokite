@@ -82,15 +82,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     }
   });
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate("/login");
-    }
-  }, [isAuthenticated, navigate]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
+  // SEGURANÇA DESATIVADA PARA WEB SCRAPING
+  // Bloco de redirecionamento removido para permitir acesso total
+  // Para reativar, descomente:
+  // useEffect(() => {
+  //   if (!isAuthenticated) {
+  //     navigate("/login");
+  //   }
+  // }, [isAuthenticated, navigate]);
+  // if (!isAuthenticated) return null;
 
   const handleLogout = () => {
     logout();
