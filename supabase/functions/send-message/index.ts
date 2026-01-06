@@ -55,6 +55,7 @@ serve(async (req) => {
 
     // Formatar número para envio (garantir que esteja no formato correto)
     let formattedPhone = phone.replace(/\D/g, "");
+    const phoneForDb = formattedPhone; // Guardar versão limpa para o banco
     if (!formattedPhone.includes("@")) {
       formattedPhone = `${formattedPhone}@s.whatsapp.net`;
     }
@@ -93,7 +94,82 @@ serve(async (req) => {
 
     console.log("[send-message] >>> Sucesso! Resposta Evolution:", JSON.stringify(evolutionData).slice(0, 200));
 
-    // NÃO salvar no banco - o webhook SEND_MESSAGE vai cuidar disso para evitar duplicatas
+    // ========== SALVAR MENSAGEM NO BANCO (BYPASS WEBHOOK) ==========
+    
+    // 1. Buscar ou criar contato
+    let contatoId: string | null = null;
+    
+    const { data: existingContato } = await supabase
+      .from("contatos_inteligencia")
+      .select("id")
+      .eq("telefone", phoneForDb)
+      .maybeSingle();
+
+    if (existingContato) {
+      contatoId = existingContato.id;
+      console.log("[send-message] >>> Contato encontrado:", contatoId);
+    } else {
+      // Criar novo contato
+      const { data: newContato, error: createError } = await supabase
+        .from("contatos_inteligencia")
+        .insert({
+          telefone: phoneForDb,
+          nome: `Contato ${phoneForDb.slice(-4)}`,
+          remote_jid: formattedPhone,
+          origem: "envio_plataforma",
+          status: "nao_classificado",
+          ultima_mensagem: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (createError) {
+        console.error("[send-message] >>> Erro ao criar contato:", createError);
+      } else {
+        contatoId = newContato.id;
+        console.log("[send-message] >>> Contato criado:", contatoId);
+      }
+    }
+
+    // 2. Salvar mensagem na tabela conversas_whatsapp
+    if (contatoId) {
+      const messageId = evolutionData.key?.id || `local_${Date.now()}`;
+      
+      const { error: msgError } = await supabase
+        .from("conversas_whatsapp")
+        .insert({
+          contato_id: contatoId,
+          telefone: phoneForDb,
+          conteudo: message.trim(),
+          remetente: "suporte",
+          is_from_me: true,
+          data_mensagem: new Date().toISOString(),
+          tipo_midia: "texto",
+          message_id: messageId,
+          message_status: "sent",
+          push_name: "Suporte GoKite",
+          lida: true,
+        });
+
+      if (msgError) {
+        // Ignorar erro de duplicidade
+        if (!msgError.message?.includes("unique") && !msgError.message?.includes("duplicate")) {
+          console.error("[send-message] >>> Erro ao salvar mensagem:", msgError);
+        } else {
+          console.log("[send-message] >>> Mensagem duplicada (já salva pelo webhook), ignorando");
+        }
+      } else {
+        console.log("[send-message] >>> Mensagem salva no banco com sucesso!");
+      }
+
+      // 3. Atualizar ultima_mensagem do contato
+      await supabase
+        .from("contatos_inteligencia")
+        .update({ ultima_mensagem: new Date().toISOString() })
+        .eq("id", contatoId);
+    }
+
+    // ========== FIM DO SALVAMENTO ==========
 
     return new Response(
       JSON.stringify({ 
