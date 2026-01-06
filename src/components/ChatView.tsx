@@ -23,11 +23,12 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem, useUploadMedia } from '@/hooks/useConversasPage';
+import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem, useUploadMedia, useImportarHistorico } from '@/hooks/useConversasPage';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -68,6 +69,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   
   const enviarMensagem = useEnviarMensagem();
   const uploadMedia = useUploadMedia();
+  const importarHistorico = useImportarHistorico();
 
   // Mensagens filtradas pela busca
   const searchResults = useMemo(() => {
@@ -362,9 +364,21 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                 <MoreVertical className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-52">
               <DropdownMenuLabel className="text-xs">Ações</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={() => importarHistorico.mutate({ contatoId: contato.id })} 
+                disabled={importarHistorico.isPending}
+                className="min-h-[44px]"
+              >
+                {importarHistorico.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Importar Histórico
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onAnalisar} disabled={isAnalisando} className="min-h-[44px]">
                 <Brain className={cn('h-4 w-4 mr-2', isAnalisando && 'animate-pulse')} />
                 Analisar conversa

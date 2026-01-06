@@ -479,3 +479,48 @@ export const useUploadMedia = () => {
     },
   });
 };
+
+// ========== HOOK: Importar Histórico ==========
+export const useImportarHistorico = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contatoId, phone, limit = 100 }: { contatoId?: string; phone?: string; limit?: number }) => {
+      console.log('[useImportarHistorico] Importando...', { contatoId, phone, limit });
+      
+      const { data, error } = await supabase.functions.invoke('import-history', {
+        body: { contato_id: contatoId, phone, limit },
+      });
+
+      if (error) {
+        console.error('[useImportarHistorico] Erro:', error);
+        throw new Error(error.message || 'Erro ao importar histórico');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      console.log('[useImportarHistorico] Sucesso:', data);
+      
+      // Invalidar queries para atualizar a lista
+      queryClient.invalidateQueries({ queryKey: ['mensagens-chat'] });
+      queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+      
+      if (data?.mensagens_importadas > 0) {
+        toast.success(`${data.mensagens_importadas} mensagens importadas!`);
+      } else if (data?.mensagens_duplicadas > 0) {
+        toast.info('Todas as mensagens já estavam sincronizadas');
+      } else {
+        toast.info('Nenhuma mensagem encontrada para importar');
+      }
+    },
+    onError: (error: Error) => {
+      console.error('[useImportarHistorico] Erro:', error);
+      toast.error(error.message || 'Erro ao importar histórico');
+    },
+  });
+};
