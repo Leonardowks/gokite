@@ -14,18 +14,27 @@ interface EvolutionConfig {
 // Valida se é um JID de contato WhatsApp válido (ignora grupos, broadcasts e IDs especiais)
 function isValidWhatsAppJid(jid: string): boolean {
   if (!jid) return false;
-  // Apenas JIDs individuais no formato NÚMERO@s.whatsapp.net são válidos
-  return jid.endsWith('@s.whatsapp.net') && 
-         !jid.includes('@g.us') && 
-         !jid.includes('@broadcast') &&
-         !jid.includes('@lid');
+
+  // Aceitar contatos individuais (inclui "@lid" que a Evolution pode enviar em alguns cenários)
+  const isIndividual = jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
+  if (!isIndividual) return false;
+
+  // Bloquear grupos, broadcast e destinos especiais
+  if (jid.includes("@g.us") || jid.includes("@broadcast")) return false;
+
+  return true;
 }
 
 // Normaliza telefone para formato consistente - apenas de JIDs válidos
 function normalizePhone(jid: string): string {
   if (!isValidWhatsAppJid(jid)) return "";
-  // Extrair apenas a parte numérica antes do @s.whatsapp.net
-  const phone = jid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+
+  // Extrair apenas a parte numérica antes do sufixo
+  const phone = jid
+    .replace("@s.whatsapp.net", "")
+    .replace("@lid", "")
+    .replace(/\D/g, "");
+
   // Validar que tem pelo menos 10 dígitos (DDD + número)
   return phone.length >= 10 ? phone : "";
 }
