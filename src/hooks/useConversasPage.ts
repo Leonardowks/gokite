@@ -399,7 +399,7 @@ export const useContatoById = (contatoId: string | null) => {
   });
 };
 
-// Hook para enviar mensagem via Evolution API
+// Hook para enviar mensagem via Evolution API (usa send-message - não salva no banco, o webhook cuida disso)
 export const useEnviarMensagem = () => {
   const queryClient = useQueryClient();
 
@@ -419,8 +419,32 @@ export const useEnviarMensagem = () => {
       fileName?: string;
       caption?: string;
     }) => {
-      const { data, error } = await supabase.functions.invoke('send-whatsapp', {
-        body: { contatoId, mensagem, mediaUrl, mediaType, fileName, caption },
+      // Se for mídia, usar a função antiga que suporta mídia
+      if (mediaUrl) {
+        const { data, error } = await supabase.functions.invoke('send-whatsapp', {
+          body: { contatoId, mensagem, mediaUrl, mediaType, fileName, caption },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        return data;
+      }
+
+      // Para texto simples, buscar telefone do contato e usar send-message
+      const { data: contato, error: contatoError } = await supabase
+        .from('contatos_inteligencia')
+        .select('telefone, remote_jid')
+        .eq('id', contatoId)
+        .single();
+
+      if (contatoError || !contato) {
+        throw new Error('Contato não encontrado');
+      }
+
+      // Usar remote_jid se disponível, senão formatar telefone
+      const phone = contato.remote_jid || contato.telefone;
+
+      const { data, error } = await supabase.functions.invoke('send-message', {
+        body: { phone, message: mensagem },
       });
 
       if (error) throw error;
@@ -429,7 +453,7 @@ export const useEnviarMensagem = () => {
       return data;
     },
     onSuccess: (_, variables) => {
-      // Invalidar queries para atualizar a UI
+      // Invalidar queries para atualizar a UI (o realtime vai atualizar quando o webhook processar)
       queryClient.invalidateQueries({ queryKey: ['mensagens-chat', variables.contatoId] });
       queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
     },
