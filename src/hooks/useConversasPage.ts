@@ -579,15 +579,21 @@ export const useSincronizarBaseCompleta = () => {
     onSuccess: (data) => {
       console.log('[useSincronizarBaseCompleta] Sucesso:', data);
       
-      // Invalidar queries
+      // Invalidar queries - forçar refetch imediato
       queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
       queryClient.invalidateQueries({ queryKey: ['contatos-inteligencia'] });
+      queryClient.invalidateQueries({ queryKey: ['mensagens-nao-lidas'] });
       
-      const stats = data?.stats || {};
-      toast.success(
-        `Sincronização concluída! ${stats.contatos_criados || 0} novos, ${stats.contatos_atualizados || 0} atualizados`,
-        { duration: 5000 }
-      );
+      // Usar stats ou results (para compatibilidade)
+      const stats = data?.stats || data?.results || {};
+      const criados = stats.contatos_criados || 0;
+      const atualizados = stats.contatos_atualizados || 0;
+      const mensagens = stats.mensagens_criadas || 0;
+      
+      toast.success('Sincronização finalizada!', {
+        description: `${criados} novos, ${atualizados} atualizados, ${mensagens} mensagens`,
+        duration: 5000
+      });
     },
     onError: (error: Error) => {
       console.error('[useSincronizarBaseCompleta] Erro:', error);

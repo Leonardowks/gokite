@@ -178,24 +178,12 @@ const Conversas = () => {
                       variant="outline"
                       className="h-8 px-2 gap-1.5 text-xs"
                       onClick={() => {
-                        sincronizarBase.mutate({ action: 'full' }, {
-                          onSuccess: () => {
-                            toast.success('Sincronização finalizada', {
-                              description: 'A lista será atualizada.'
-                            });
-                            // Forçar refresh imediato da lista de contatos
-                            queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
-                            refetchContatos();
-                          },
-                          onError: (error) => {
-                            toast.error('Erro na sincronização', {
-                              description: error.message || 'Tente novamente.'
-                            });
-                          }
-                        });
+                        console.log('[Conversas] Botão Sincronizar clicado');
+                        console.log('[Conversas] isPending:', sincronizarBase.isPending);
                         toast.info('Sincronização iniciada', {
                           description: 'Baixando contatos e mensagens...'
                         });
+                        sincronizarBase.mutate({ action: 'full' });
                       }}
                       disabled={sincronizarBase.isPending}
                     >
