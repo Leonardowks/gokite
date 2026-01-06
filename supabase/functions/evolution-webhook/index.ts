@@ -313,9 +313,11 @@ function normalizeEvent(event: string | null | undefined): string {
 // ========== HANDLER PRINCIPAL ==========
 
 serve(async (req) => {
-  // Log inicial
-  console.log(`[Evolution Webhook] 🔔 Request at ${new Date().toISOString()}`);
-  console.log(`[Evolution Webhook] Method: ${req.method}`);
+  // ==================== DEBUG EXTREMO - TOPO DA FUNÇÃO ====================
+  console.log(`>>> WEBHOOK ACIONADO - ${new Date().toISOString()}`);
+  console.log(`>>> METHOD: ${req.method}`);
+  console.log(`>>> URL: ${req.url}`);
+  // =========================================================================
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -323,16 +325,20 @@ serve(async (req) => {
 
   const startTime = Date.now();
   
+  let reqBody: any = {};
+  
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Ler payload
-    const reqBody = await req.json();
+    reqBody = await req.json();
     
-    // LOG CRÍTICO: Payload completo para debug
-    console.log(`[Evolution Webhook] 📦 PAYLOAD RECEBIDO:`, JSON.stringify(reqBody).slice(0, 3000));
+    // ==================== DEBUG EXTREMO - EVENTO E INSTANCE ====================
+    console.log(`>>> WEBHOOK ACIONADO. Evento: ${reqBody.event || reqBody.type || 'N/A'}, Instance: ${reqBody.instance || reqBody.instanceName || 'N/A'}`);
+    console.log(`>>> PAYLOAD COMPLETO:`, JSON.stringify(reqBody).slice(0, 5000));
+    // ===========================================================================
     
     // EXTRAÇÃO ROBUSTA - Evolution v2 pode envolver em data ou data.data
     const rawEvent = reqBody.event || reqBody.type || "";
@@ -566,37 +572,46 @@ serve(async (req) => {
       }
 
       case "SEND_MESSAGE": {
-        console.log(`[Evolution Webhook] 📤 Processando SEND_MESSAGE...`);
+        // ==================== DEBUG EXTREMO - SEND_MESSAGE ====================
+        console.log(`>>> ENTRANDO NO BLOCO SEND_MESSAGE`);
+        console.log(`>>> SEND_MESSAGE data:`, JSON.stringify(data).slice(0, 2000));
+        // ======================================================================
         
         const remoteJid = extractRemoteJid(reqBody, data);
         const messageId = extractMessageId(reqBody, data);
         
-        console.log(`[Evolution Webhook] 📤 SEND_MESSAGE - JID: ${remoteJid}, MsgID: ${messageId}`);
+        console.log(`>>> SEND_MESSAGE - JID: ${remoteJid}, MsgID: ${messageId}`);
         
         if (!remoteJid || !messageId) {
-          console.log(`[Evolution Webhook] ⚠️ SEND_MESSAGE sem JID ou MsgID`);
+          console.log(`>>> SEND_MESSAGE ABORTADO: sem JID (${remoteJid}) ou MsgID (${messageId})`);
           break;
         }
         if (!isValidWhatsAppJid(remoteJid)) {
-          console.log(`[Evolution Webhook] ⚠️ SEND_MESSAGE JID inválido: ${remoteJid}`);
+          console.log(`>>> SEND_MESSAGE ABORTADO: JID inválido: ${remoteJid}`);
           break;
         }
 
         const phone = extractPhone(remoteJid);
         if (!phone) {
-          console.log(`[Evolution Webhook] ⚠️ SEND_MESSAGE telefone inválido`);
+          console.log(`>>> SEND_MESSAGE ABORTADO: telefone inválido`);
           break;
         }
+        
+        console.log(`>>> SEND_MESSAGE telefone extraído: ${phone}`);
 
         // Verificar duplicata
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from("conversas_whatsapp")
           .select("id")
           .eq("message_id", messageId)
           .maybeSingle();
 
+        if (existingError) {
+          console.error(`>>> SEND_MESSAGE erro ao verificar duplicata:`, JSON.stringify(existingError));
+        }
+
         if (existing) {
-          console.log(`[Evolution Webhook] ⏭️ SEND_MESSAGE duplicada: ${messageId}`);
+          console.log(`>>> SEND_MESSAGE duplicada, atualizando status: ${messageId}`);
           await supabase
             .from("conversas_whatsapp")
             .update({ message_status: "SERVER_ACK" })
@@ -605,15 +620,20 @@ serve(async (req) => {
         }
 
         // Buscar ou CRIAR contato
-        let { data: contato } = await supabase
+        let { data: contato, error: contatoError } = await supabase
           .from("contatos_inteligencia")
           .select("id, telefone")
           .eq("telefone", phone)
           .maybeSingle();
 
+        if (contatoError) {
+          console.error(`>>> SEND_MESSAGE erro ao buscar contato:`, JSON.stringify(contatoError));
+        }
+
         const now = new Date().toISOString();
 
         if (!contato) {
+          console.log(`>>> SEND_MESSAGE contato não existe, CRIANDO...`);
           // CRIAR contato se não existir
           const { data: novoContato, error: insertError } = await supabase
             .from("contatos_inteligencia")
@@ -629,50 +649,59 @@ serve(async (req) => {
             .single();
 
           if (insertError) {
-            console.error("[Evolution Webhook] ❌ Erro criar contato SEND_MESSAGE:", insertError);
+            console.error(`>>> SEND_MESSAGE ERRO ao criar contato:`, JSON.stringify(insertError));
             break;
           }
           contato = novoContato;
-          console.log(`[Evolution Webhook] ✅ Contato CRIADO via SEND_MESSAGE: ${contato.id}`);
+          console.log(`>>> SEND_MESSAGE contato CRIADO: ${contato.id}`);
+        } else {
+          console.log(`>>> SEND_MESSAGE contato já existe: ${contato.id}`);
         }
 
         // Extrair conteúdo da mensagem
         const msgObj = extractMessageObject(reqBody, data);
         const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(msgObj);
         
-        console.log(`[Evolution Webhook] 📤 SEND_MESSAGE conteúdo: "${content.slice(0, 50)}"`);
+        // ==================== DEBUG EXTREMO - DADOS ANTES DO INSERT ====================
+        const messageData = {
+          contato_id: contato.id,
+          telefone: contato.telefone,
+          message_id: messageId,
+          instance_name: instance,
+          is_from_me: true,
+          data_mensagem: now,
+          remetente: "empresa",
+          conteudo: content || "Mensagem enviada",
+          tipo_midia: tipoMidia,
+          media_url: mediaUrl,
+          media_mimetype: mediaMimetype,
+          lida: true,
+          message_status: "SERVER_ACK",
+        };
+        console.log(`>>> TENTANDO SALVAR MENSAGEM:`, JSON.stringify(messageData));
+        // ===============================================================================
 
         // INSERIR mensagem
         const { error: msgError } = await supabase
           .from("conversas_whatsapp")
-          .insert({
-            contato_id: contato.id,
-            telefone: contato.telefone,
-            message_id: messageId,
-            instance_name: instance,
-            is_from_me: true,
-            data_mensagem: now,
-            remetente: "empresa",
-            conteudo: content || "Mensagem enviada",
-            tipo_midia: tipoMidia,
-            media_url: mediaUrl,
-            media_mimetype: mediaMimetype,
-            lida: true,
-            message_status: "SERVER_ACK",
-          });
+          .insert(messageData);
 
         if (msgError) {
-          console.error("[Evolution Webhook] ❌ Erro inserir SEND_MESSAGE:", msgError);
+          console.error(`>>> SEND_MESSAGE ERRO AO INSERIR MENSAGEM:`, JSON.stringify(msgError));
           break;
         }
 
         // ATUALIZAR ultima_mensagem do contato para subir na lista
-        await supabase
+        const { error: updateError } = await supabase
           .from("contatos_inteligencia")
           .update({ ultima_mensagem: now })
           .eq("id", contato.id);
+          
+        if (updateError) {
+          console.error(`>>> SEND_MESSAGE erro ao atualizar ultima_mensagem:`, JSON.stringify(updateError));
+        }
 
-        console.log(`[Evolution Webhook] ✅ SEND_MESSAGE salva: ${messageId}`);
+        console.log(`>>> SEND_MESSAGE SUCESSO! Mensagem salva: ${messageId}`);
         break;
       }
 
@@ -808,8 +837,14 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("[Evolution Webhook] ❌ ERRO CRÍTICO:", error);
-    console.error("[Evolution Webhook] Stack:", error instanceof Error ? error.stack : "N/A");
+    // ==================== DEBUG EXTREMO - CATCH COMPLETO ====================
+    console.error(`>>> ERRO CRÍTICO NO WEBHOOK!`);
+    console.error(`>>> Tipo do erro:`, typeof error);
+    console.error(`>>> Erro completo:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    console.error(`>>> Message:`, error instanceof Error ? error.message : String(error));
+    console.error(`>>> Stack:`, error instanceof Error ? error.stack : "N/A");
+    console.error(`>>> Payload que causou erro:`, JSON.stringify(reqBody).slice(0, 1000));
+    // ========================================================================
     
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
