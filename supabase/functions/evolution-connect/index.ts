@@ -7,11 +7,22 @@ const corsHeaders = {
 };
 
 interface ConnectRequest {
-  action: "create" | "connect" | "disconnect" | "status" | "delete" | "save-config";
+  action: "create" | "connect" | "disconnect" | "status" | "delete" | "save-config" | "reconfigure-webhook";
   instanceName?: string;
   apiUrl?: string;
   apiKey?: string;
 }
+
+// Lista completa de eventos para sincronização bidirecional em tempo real
+const WEBHOOK_EVENTS = [
+  "MESSAGES_UPSERT",      // Novas mensagens (recebidas e enviadas)
+  "MESSAGES_UPDATE",       // Status de mensagem (entregue, lida)
+  "MESSAGES_DELETE",       // Mensagens deletadas
+  "SEND_MESSAGE",          // Confirmação de mensagem enviada
+  "CONTACTS_UPSERT",       // Novos contatos ou atualizações
+  "CONNECTION_UPDATE",     // Status da conexão
+  "QRCODE_UPDATED",        // QR Code atualizado
+];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -123,22 +134,20 @@ serve(async (req) => {
           }
         }
 
-        // Configurar webhook na Evolution
+        // Configurar webhook na Evolution com TODOS os eventos
         const webhookPayload = {
           webhook: {
             enabled: true,
             url: config.webhook_url,
             webhookByEvents: true,
-            events: [
-              "MESSAGES_UPSERT",
-              "CONTACTS_UPSERT",
-              "CONNECTION_UPDATE",
-              "QRCODE_UPDATED",
-            ],
+            webhookBase64: false,
+            events: WEBHOOK_EVENTS,
           },
         };
 
-        await fetch(`${config.api_url}/webhook/set/${config.instance_name}`, {
+        console.log("[Evolution Connect] Configurando webhook:", webhookPayload);
+        
+        const webhookResponse = await fetch(`${config.api_url}/webhook/set/${config.instance_name}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -146,6 +155,17 @@ serve(async (req) => {
           },
           body: JSON.stringify(webhookPayload),
         });
+        
+        const webhookResult = await webhookResponse.json();
+        console.log("[Evolution Connect] Webhook response:", webhookResult);
+
+        // Atualizar eventos ativos no banco
+        await supabase
+          .from("evolution_config")
+          .update({
+            eventos_ativos: WEBHOOK_EVENTS,
+          })
+          .eq("instance_name", config.instance_name);
 
         // Buscar QR Code
         const qrResponse = await fetch(`${config.api_url}/instance/connect/${config.instance_name}`, {
@@ -189,6 +209,68 @@ serve(async (req) => {
 
         return new Response(
           JSON.stringify({ success: true, data: qrData }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "reconfigure-webhook": {
+        if (!config) {
+          return new Response(
+            JSON.stringify({ error: "Configuração não encontrada" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        console.log("[Evolution Connect] Reconfigurando webhook...");
+
+        // Reconfigurar webhook com todos os eventos
+        const webhookPayload = {
+          webhook: {
+            enabled: true,
+            url: config.webhook_url,
+            webhookByEvents: true,
+            webhookBase64: false,
+            events: WEBHOOK_EVENTS,
+          },
+        };
+
+        const webhookResponse = await fetch(`${config.api_url}/webhook/set/${config.instance_name}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": config.api_key,
+          },
+          body: JSON.stringify(webhookPayload),
+        });
+
+        const webhookResult = await webhookResponse.json();
+        console.log("[Evolution Connect] Webhook reconfigured:", webhookResult);
+
+        // Verificar configuração atual
+        const verifyResponse = await fetch(`${config.api_url}/webhook/find/${config.instance_name}`, {
+          method: "GET",
+          headers: { "apikey": config.api_key },
+        });
+
+        const verifyData = await verifyResponse.json();
+        console.log("[Evolution Connect] Webhook verify:", verifyData);
+
+        // Atualizar eventos ativos no banco
+        await supabase
+          .from("evolution_config")
+          .update({
+            eventos_ativos: WEBHOOK_EVENTS,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("instance_name", config.instance_name);
+
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            webhookUrl: config.webhook_url,
+            events: WEBHOOK_EVENTS,
+            currentConfig: verifyData,
+          }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -300,6 +382,8 @@ serve(async (req) => {
               ultimaSincronizacao: config.ultima_sincronizacao,
               totalMensagens: config.total_mensagens_sync,
               totalContatos: config.total_contatos_sync,
+              eventosAtivos: config.eventos_ativos || [],
+              webhookUrl: config.webhook_url,
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
