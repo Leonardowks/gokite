@@ -29,6 +29,7 @@ import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem, useUploadMedia, useImportarHistorico } from '@/hooks/useConversasPage';
+import { useTypingStatus } from '@/hooks/useTypingStatus';
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -70,6 +71,9 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const enviarMensagem = useEnviarMensagem();
   const uploadMedia = useUploadMedia();
   const importarHistorico = useImportarHistorico();
+  
+  // Status de digitando
+  const { isTyping, typingStatus } = useTypingStatus(contato?.telefone);
 
   // Mensagens filtradas pela busca
   const searchResults = useMemo(() => {
@@ -320,7 +324,18 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         
         <div className="flex-1 min-w-0">
           <h2 className="font-medium text-base truncate">{displayName}</h2>
-          <p className="text-xs text-muted-foreground truncate">{contato.telefone}</p>
+          {isTyping ? (
+            <p className="text-xs text-primary font-medium flex items-center gap-1.5 animate-pulse">
+              <span className="flex gap-0.5">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </span>
+              {typingStatus?.presence === 'recording' ? 'gravando áudio...' : 'digitando...'}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground truncate">{contato.telefone}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-1">

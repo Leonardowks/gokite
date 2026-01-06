@@ -50,6 +50,34 @@ serve(async (req) => {
         return new Response('ok', { headers: corsHeaders })
     }
 
+    // PRESENCE_UPDATE: Broadcast de "digitando..." via Realtime
+    if (eventType === 'PRESENCE_UPDATE') {
+        const presenceData = payload.data || payload
+        const remoteJid = presenceData.id || presenceData.remoteJid
+        const presence = presenceData.presence || presenceData.status // 'composing', 'recording', 'available', 'unavailable'
+        
+        console.log('>>> PRESENCE_UPDATE:', { remoteJid, presence })
+        
+        if (remoteJid && !remoteJid.includes('@g.us') && !remoteJid.includes('@broadcast')) {
+            const phone = remoteJid.replace(/@.+/, '')
+            
+            // Broadcast via Realtime channel (não salva no banco)
+            await supabase.channel('typing-status')
+                .send({
+                    type: 'broadcast',
+                    event: 'presence',
+                    payload: {
+                        phone,
+                        remoteJid,
+                        presence, // 'composing' | 'recording' | 'available' | 'unavailable'
+                        timestamp: new Date().toISOString()
+                    }
+                })
+        }
+        
+        return new Response('Presence broadcasted', { headers: corsHeaders })
+    }
+
     // 2. DETECÇÃO DE MENSAGEM (Qualquer tipo)
     // Procura a mensagem dentro da estrutura complexa da Evolution
     // Suporte para MESSAGES_UPSERT e SEND_MESSAGE (estruturas diferentes)
