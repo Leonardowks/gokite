@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Check, CheckCheck, FileText, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,23 @@ interface MessageBubbleProps {
   message: MensagemChat;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
+  highlightText?: string;
 }
+
+// Função para destacar texto da busca
+const highlightSearchText = (text: string, searchTerm: string) => {
+  if (!searchTerm.trim()) return text;
+  
+  const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'));
+  
+  return parts.map((part, index) => 
+    part.toLowerCase() === searchTerm.toLowerCase() ? (
+      <mark key={index} className="bg-yellow-300 dark:bg-yellow-600 text-inherit rounded px-0.5">
+        {part}
+      </mark>
+    ) : part
+  );
+};
 
 const getStatusIcon = (status: string | null, isFromMe: boolean) => {
   if (!isFromMe) return null;
@@ -27,7 +43,8 @@ const getStatusIcon = (status: string | null, isFromMe: boolean) => {
 export const MessageBubble = memo(function MessageBubble({ 
   message, 
   isFirstInGroup = true,
-  isLastInGroup = true 
+  isLastInGroup = true,
+  highlightText = ''
 }: MessageBubbleProps) {
   const isFromMe = message.is_from_me || message.remetente === 'empresa';
   const isImagem = message.tipo_midia === 'imagem' || message.tipo_midia === 'image';
@@ -184,7 +201,7 @@ export const MessageBubble = memo(function MessageBubble({
             "text-[15px] leading-relaxed whitespace-pre-wrap break-words",
             hasMedia && "px-2 py-1"
           )}>
-            {message.conteudo}
+            {highlightText ? highlightSearchText(message.conteudo, highlightText) : message.conteudo}
           </p>
         )}
 
