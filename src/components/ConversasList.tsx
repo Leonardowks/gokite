@@ -4,26 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   Search, 
-  MessageSquare, 
-  Filter,
-  ChevronDown,
-  Flame,
-  SlidersHorizontal,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContatoComUltimaMensagem, ConversaFiltro, ConversaOrdenacao } from '@/hooks/useConversasPage';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useDebounce } from '@/hooks/useDebounce';
-import { OportunidadesQuentes } from './conversas/OportunidadesQuentes';
 import { ConversaItemComercial } from './conversas/ConversaItemComercial';
 
 // Labels dos filtros
@@ -32,12 +20,6 @@ const filtroLabels: Record<ConversaFiltro, string> = {
   nao_lidos: 'Não lidos',
   leads: 'Leads',
   clientes: 'Clientes',
-};
-
-const ordenacaoLabels: Record<ConversaOrdenacao, string> = {
-  recentes: 'Recentes',
-  nao_lidos: 'Não lidos',
-  nome: 'Nome',
 };
 
 interface ConversasListProps {
@@ -60,8 +42,6 @@ export function ConversasList({
   onAvatarClick,
   filtro,
   onFiltroChange,
-  ordenacao,
-  onOrdenacaoChange,
 }: ConversasListProps) {
   const [busca, setBusca] = useState('');
   const debouncedBusca = useDebounce(busca, 300);
@@ -85,22 +65,11 @@ export function ConversasList({
     [contatos]
   );
 
-  // Contar oportunidades quentes
-  const totalQuentes = useMemo(() => 
-    contatos.filter(c => 
-      (c.score_interesse && c.score_interesse >= 50) || 
-      c.prioridade === 'alta' || 
-      c.prioridade === 'urgente' ||
-      c.status === 'lead_quente'
-    ).length, 
-    [contatos]
-  );
-
-  // Virtualização para performance com muitos contatos
+  // Virtualização para performance
   const virtualizer = useVirtualizer({
     count: contatosFiltrados.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 92,
+    estimateSize: () => 72,
     overscan: 5,
   });
 
@@ -108,19 +77,20 @@ export function ConversasList({
     return (
       <div className="h-full flex flex-col">
         <div className="p-3 border-b space-y-3">
-          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full rounded-lg" />
           <div className="flex gap-2">
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-16 rounded-full" />
+            <Skeleton className="h-8 w-20 rounded-full" />
+            <Skeleton className="h-8 w-16 rounded-full" />
           </div>
         </div>
-        <div className="flex-1 p-3 space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+        <div className="flex-1 p-2 space-y-1">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex items-center gap-3 px-3 py-3">
               <Skeleton className="h-12 w-12 rounded-full flex-shrink-0" />
-              <div className="flex-1 space-y-2.5">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-4 w-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3.5 w-full" />
               </div>
             </div>
           ))}
@@ -131,106 +101,58 @@ export function ConversasList({
 
   return (
     <div className="h-full flex flex-col bg-card">
-      {/* Header com busca e filtros */}
-      <div className="px-4 py-3 border-b border-border/50 space-y-3">
-        {/* Busca */}
+      {/* Busca */}
+      <div className="p-3 bg-muted/30">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar conversa..."
+            placeholder="Pesquisar ou começar nova conversa"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="pl-10 bg-muted/50 border-0 h-11 text-sm"
+            className="pl-10 bg-card border-0 h-10 rounded-lg text-sm"
           />
-        </div>
-
-        {/* Filtros e Contador */}
-        <div className="flex items-center gap-2">
-          {/* Filtro */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-2 text-sm min-w-[44px]">
-                <Filter className="h-4 w-4" />
-                <span className="hidden sm:inline">{filtroLabels[filtro]}</span>
-                {totalNaoLidos > 0 && (
-                  <Badge variant="destructive" className="h-5 min-w-[18px] px-1.5 text-xs ml-1">
-                    {totalNaoLidos > 99 ? '99+' : totalNaoLidos}
-                  </Badge>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuLabel className="text-xs">Filtrar por</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {Object.entries(filtroLabels).map(([key, label]) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => onFiltroChange(key as ConversaFiltro)}
-                  className={cn('min-h-[44px]', filtro === key && 'bg-accent')}
-                >
-                  {label}
-                  {key === 'nao_lidos' && totalNaoLidos > 0 && (
-                    <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
-                      {totalNaoLidos}
-                    </Badge>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Ordenação */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-9 gap-2 text-sm min-w-[44px]">
-                <SlidersHorizontal className="h-4 w-4" />
-                <span className="hidden sm:inline">{ordenacaoLabels[ordenacao]}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-44">
-              <DropdownMenuLabel className="text-xs">Ordenar por</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {Object.entries(ordenacaoLabels).map(([key, label]) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => onOrdenacaoChange(key as ConversaOrdenacao)}
-                  className={cn('min-h-[44px]', ordenacao === key && 'bg-accent')}
-                >
-                  {label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Indicadores */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            {totalQuentes > 0 && (
-              <div className="flex items-center gap-1 text-orange-600">
-                <Flame className="h-4 w-4" />
-                <span className="font-medium">{totalQuentes}</span>
-              </div>
-            )}
-            <span className="font-medium">{contatosFiltrados.length}</span>
-          </div>
         </div>
       </div>
 
-      {/* Seção de Oportunidades Quentes */}
-      <OportunidadesQuentes 
-        contatos={contatos} 
-        onSelect={onSelect} 
-        selectedId={selectedId} 
-      />
+      {/* Filtros como Pills */}
+      <div className="px-3 py-2 flex gap-2 overflow-x-auto scrollbar-none border-b border-border/30">
+        {(Object.keys(filtroLabels) as ConversaFiltro[]).map((key) => (
+          <Button
+            key={key}
+            variant={filtro === key ? 'default' : 'outline'}
+            size="sm"
+            className={cn(
+              'h-8 px-3 rounded-full text-xs font-medium shrink-0',
+              filtro === key 
+                ? 'bg-primary text-primary-foreground' 
+                : 'bg-transparent border-border/50 hover:bg-muted/50'
+            )}
+            onClick={() => onFiltroChange(key)}
+          >
+            {filtroLabels[key]}
+            {key === 'nao_lidos' && totalNaoLidos > 0 && (
+              <Badge 
+                variant="secondary" 
+                className={cn(
+                  'ml-1.5 h-5 min-w-[20px] px-1.5 text-xs rounded-full',
+                  filtro === key 
+                    ? 'bg-primary-foreground/20 text-primary-foreground' 
+                    : 'bg-primary text-primary-foreground'
+                )}
+              >
+                {totalNaoLidos > 99 ? '99+' : totalNaoLidos}
+              </Badge>
+            )}
+          </Button>
+        ))}
+      </div>
 
       {/* Lista virtualizada */}
       <div ref={parentRef} className="flex-1 overflow-auto">
         {contatosFiltrados.length === 0 ? (
           <div className="p-10 text-center">
-            <MessageSquare className="h-14 w-14 mx-auto text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground text-base">
+            <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
+            <p className="text-muted-foreground text-sm">
               {busca ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
             </p>
           </div>
