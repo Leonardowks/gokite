@@ -598,37 +598,9 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Sincronização</p>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleSync('contacts')}
-                        disabled={sync.isPending || syncProgress?.status === 'em_andamento'}
-                      >
-                        {sync.isPending && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                        Contatos
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleSync('messages')}
-                        disabled={sync.isPending || syncProgress?.status === 'em_andamento'}
-                      >
-                        {sync.isPending && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                        Mensagens
-                      </Button>
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => handleSync('full')}
-                        disabled={sync.isPending || syncProgress?.status === 'em_andamento'}
-                      >
-                        {sync.isPending && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
-                        Sync Completo
-                      </Button>
-                    </div>
+                  {/* Nota: Sincronização centralizada no botão do header da página de Conversas */}
+                  <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded-lg text-center">
+                    💡 Use o botão <strong>Sincronizar</strong> no header de Conversas para baixar contatos e mensagens.
                   </div>
 
                   <Separator />
