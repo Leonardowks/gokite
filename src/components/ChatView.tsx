@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import {
   MessageSquare,
@@ -20,6 +21,8 @@ import {
   Phone,
   Sparkles,
   Search,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -51,18 +54,46 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [novaMensagem, setNovaMensagem] = useState('');
   const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [insightsOpen, setInsightsOpen] = useState(false);
   
+  // Estado da busca
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(0);
+  
   const enviarMensagem = useEnviarMensagem();
   const uploadMedia = useUploadMedia();
+
+  // Mensagens filtradas pela busca
+  const searchResults = useMemo(() => {
+    if (!searchTerm.trim()) return [];
+    return mensagens.filter(msg => 
+      msg.conteudo?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [mensagens, searchTerm]);
 
   // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens]);
+
+  // Focus no input de busca quando abre
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
+
+  // Reset busca quando muda contato
+  useEffect(() => {
+    setSearchOpen(false);
+    setSearchTerm('');
+    setCurrentSearchIndex(0);
+  }, [contato?.id]);
 
   // Preview de arquivo
   useEffect(() => {
@@ -102,6 +133,11 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     setNovaMensagem('');
     setArquivoSelecionado(null);
     setPreviewUrl(null);
+    
+    // Reset altura do textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
 
     try {
       if (arquivo) {
@@ -138,6 +174,16 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     }
   };
 
+  // Auto-resize do textarea
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNovaMensagem(e.target.value);
+    
+    // Auto-resize
+    const textarea = e.target;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+  };
+
   const handleEnviarMensagemTemplate = (mensagem: string) => {
     if (!contato) return;
     enviarMensagem.mutate({
@@ -145,6 +191,45 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
       mensagem,
     });
   };
+
+  // Navegação da busca
+  const handleSearchPrev = () => {
+    if (searchResults.length === 0) return;
+    setCurrentSearchIndex(prev => 
+      prev <= 0 ? searchResults.length - 1 : prev - 1
+    );
+  };
+
+  const handleSearchNext = () => {
+    if (searchResults.length === 0) return;
+    setCurrentSearchIndex(prev => 
+      prev >= searchResults.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleSearchPrev();
+      } else {
+        handleSearchNext();
+      }
+    }
+    if (e.key === 'Escape') {
+      setSearchOpen(false);
+      setSearchTerm('');
+    }
+  };
+
+  // Scroll para mensagem encontrada
+  useEffect(() => {
+    if (searchResults.length > 0 && currentSearchIndex >= 0) {
+      const messageId = searchResults[currentSearchIndex]?.id;
+      const element = document.getElementById(`msg-${messageId}`);
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [currentSearchIndex, searchResults]);
 
   // Estado vazio
   if (!contato) {
@@ -194,6 +279,9 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     mensagensPorData[dateKey].push(msg);
   });
 
+  // ID da mensagem atual na busca
+  const currentSearchMessageId = searchResults[currentSearchIndex]?.id;
+
   return (
     <div className="h-full flex flex-col bg-muted/20">
       {/* Header */}
@@ -230,7 +318,18 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             </SheetContent>
           </Sheet>
 
-          <Button size="icon" variant="ghost" className="h-10 w-10">
+          <Button 
+            size="icon" 
+            variant={searchOpen ? 'secondary' : 'ghost'} 
+            className="h-10 w-10"
+            onClick={() => {
+              setSearchOpen(!searchOpen);
+              if (searchOpen) {
+                setSearchTerm('');
+                setCurrentSearchIndex(0);
+              }
+            }}
+          >
             <Search className="h-5 w-5" />
           </Button>
 
@@ -273,6 +372,52 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         </div>
       </header>
 
+      {/* Barra de Busca */}
+      {searchOpen && (
+        <div className="shrink-0 px-4 py-2 bg-card border-b flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentSearchIndex(0);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Buscar na conversa..."
+              className="pl-9 h-9"
+            />
+          </div>
+          
+          {searchResults.length > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {currentSearchIndex + 1}/{searchResults.length}
+              </span>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSearchPrev}>
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-8 w-8" onClick={handleSearchNext}>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-8 w-8"
+            onClick={() => {
+              setSearchOpen(false);
+              setSearchTerm('');
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Quick Actions */}
       <QuickActionsBar
         contato={contato}
@@ -284,14 +429,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
       {/* Mensagens */}
       <ScrollArea className="flex-1 bg-[#efeae2] dark:bg-[#0b141a]">
-        <div 
-          className="min-h-full p-4"
-          style={{
-            backgroundImage: 'url(/chat-pattern.svg)',
-            backgroundRepeat: 'repeat',
-            backgroundSize: '412px 116px',
-          }}
-        >
+        <div className="min-h-full p-4">
           {mensagens.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-20">
               <MessageSquare className="h-12 w-12 opacity-30 mb-3" />
@@ -328,13 +466,24 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                         const isFirstInGroup = prevIsFromMe !== currentIsFromMe;
                         const isLastInGroup = nextIsFromMe !== currentIsFromMe;
                         
+                        const isHighlighted = currentSearchMessageId === msg.id;
+                        
                         return (
-                          <MessageBubble 
+                          <div 
                             key={msg.id} 
-                            message={msg}
-                            isFirstInGroup={isFirstInGroup}
-                            isLastInGroup={isLastInGroup}
-                          />
+                            id={`msg-${msg.id}`}
+                            className={cn(
+                              'transition-all duration-300',
+                              isHighlighted && 'bg-yellow-500/20 -mx-2 px-2 py-1 rounded-lg'
+                            )}
+                          >
+                            <MessageBubble 
+                              message={msg}
+                              isFirstInGroup={isFirstInGroup}
+                              isLastInGroup={isLastInGroup}
+                              highlightText={searchTerm}
+                            />
+                          </div>
                         );
                       })}
                     </div>
@@ -395,10 +544,10 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
           <Textarea
             ref={textareaRef}
             value={novaMensagem}
-            onChange={(e) => setNovaMensagem(e.target.value)}
+            onChange={handleTextareaChange}
             onKeyDown={handleKeyDown}
             placeholder="Digite uma mensagem"
-            className="min-h-10 max-h-24 resize-none flex-1 rounded-lg py-2.5 text-sm"
+            className="min-h-[42px] max-h-[120px] resize-none flex-1 rounded-xl py-2.5 px-4 text-sm"
             rows={1}
             disabled={enviarMensagem.isPending || uploadMedia.isPending}
           />
