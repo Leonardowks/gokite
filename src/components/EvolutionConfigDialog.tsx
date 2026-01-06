@@ -28,8 +28,10 @@ import {
   XCircle,
   AlertCircle,
   Smartphone,
-  Timer
+  Timer,
+  Wrench
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useEvolutionStatus,
   useSaveEvolutionConfig,
@@ -213,6 +215,7 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
   });
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [previousStatus, setPreviousStatus] = useState<string | null>(null);
+  const [isFixingWebhook, setIsFixingWebhook] = useState(false);
 
   const { data: status, isLoading: statusLoading, refetch, isFetching } = useEvolutionStatus();
   const saveConfig = useSaveEvolutionConfig();
@@ -306,6 +309,38 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
       await deleteConfig.mutateAsync(status?.instanceName);
       setStep('config');
       setFormData({ instanceName: '', apiUrl: '', apiKey: '' });
+    }
+  };
+
+  const handleFixWebhook = async () => {
+    setIsFixingWebhook(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fix-webhook-config');
+      
+      if (error) {
+        console.error('Erro ao reparar webhook:', error);
+        toast.error('Erro ao reparar webhook', {
+          description: error.message,
+        });
+        return;
+      }
+      
+      if (data?.success) {
+        toast.success('Webhook reparado com sucesso!', {
+          description: `Eventos ativos: ${data.events?.length || 0}`,
+          duration: 5000,
+        });
+        await refetch();
+      } else {
+        toast.error('Falha ao reparar webhook', {
+          description: data?.error || 'Erro desconhecido',
+        });
+      }
+    } catch (err) {
+      console.error('Erro crítico:', err);
+      toast.error('Erro crítico ao reparar webhook');
+    } finally {
+      setIsFixingWebhook(false);
     }
   };
 
@@ -594,6 +629,42 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
                   </div>
 
                   <Separator />
+
+                  {/* Botão de Reparar Webhook */}
+                  {status?.status === 'conectado' && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1 space-y-2">
+                          <div>
+                            <p className="text-sm font-medium text-amber-500">Mensagens não chegando?</p>
+                            <p className="text-xs text-muted-foreground">
+                              Se as mensagens enviadas pelo celular não aparecem no CRM, clique para reparar a configuração do webhook.
+                            </p>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleFixWebhook}
+                            disabled={isFixingWebhook}
+                            className="border-amber-500/50 text-amber-500 hover:bg-amber-500/20"
+                          >
+                            {isFixingWebhook ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Reparando...
+                              </>
+                            ) : (
+                              <>
+                                <Wrench className="w-4 h-4 mr-2" />
+                                Reparar Webhook
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     {status?.status === 'conectado' ? (
