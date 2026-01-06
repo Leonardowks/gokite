@@ -33,6 +33,9 @@ export interface ContatoComUltimaMensagem {
   proxima_acao_sugerida: string | null;
   probabilidade_conversao: number | null;
   sentimento_geral: string | null;
+  // Status de análise IA
+  analise_status: 'pendente' | 'processando' | 'recente' | null;
+  classificado_em: string | null;
 }
 
 export interface MensagemChat {
@@ -82,7 +85,8 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
           engajamento_score,
           conversas_analisadas,
           ultimo_contato,
-          created_at
+          created_at,
+          classificado_em
         `)
         .not('ultima_mensagem', 'is', null)
         .order('ultima_mensagem', { ascending: false });
@@ -92,6 +96,13 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
 
       // Buscar todas as últimas mensagens e contagens em batch
       const contatoIds = contatos.map(c => c.id);
+      
+      // Buscar status de análise IA na fila
+      const { data: analiseQueueData } = await supabase
+        .from('analise_queue')
+        .select('contato_id, status')
+        .in('contato_id', contatoIds)
+        .in('status', ['pendente', 'processando']);
       
       // Buscar insights de todos os contatos
       const { data: insightsData } = await supabase
@@ -135,6 +146,27 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
         }
       });
 
+      // Criar map para status de análise IA
+      const analiseQueueMap = new Map<string, 'pendente' | 'processando'>();
+      analiseQueueData?.forEach(item => {
+        if (item.contato_id) {
+          analiseQueueMap.set(item.contato_id, item.status as 'pendente' | 'processando');
+        }
+      });
+
+      // Determinar status de análise IA para cada contato
+      const getAnaliseStatus = (contatoId: string, classificadoEm: string | null): 'pendente' | 'processando' | 'recente' | null => {
+        const queueStatus = analiseQueueMap.get(contatoId);
+        if (queueStatus) return queueStatus;
+        
+        // Verificar se foi classificado recentemente (últimos 5 minutos)
+        if (classificadoEm) {
+          const diff = Date.now() - new Date(classificadoEm).getTime();
+          if (diff < 5 * 60 * 1000) return 'recente';
+        }
+        return null;
+      };
+
       // Montar resultado
       let resultado = contatos.map(contato => {
         const ultimaMsg = ultimaMsgMap.get(contato.id);
@@ -150,6 +182,7 @@ export const useContatosComMensagens = (filtro: ConversaFiltro = 'todos', ordena
           proxima_acao_sugerida: insights?.proxima_acao_sugerida || null,
           probabilidade_conversao: insights?.probabilidade_conversao || null,
           sentimento_geral: insights?.sentimento_geral || null,
+          analise_status: getAnaliseStatus(contato.id, contato.classificado_em),
         } as ContatoComUltimaMensagem;
       });
 
