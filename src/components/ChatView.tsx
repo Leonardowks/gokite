@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -40,6 +40,7 @@ import {
 import { QuickActionsBar } from '@/components/conversas/QuickActionsBar';
 import { ChatContextPanel } from '@/components/conversas/ChatContextPanel';
 import { MessageBubble } from '@/components/conversas/MessageBubble';
+import { EmojiPicker } from '@/components/conversas/EmojiPicker';
 
 interface ChatViewProps {
   contato: ContatoComUltimaMensagem | null;
@@ -191,6 +192,28 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
       mensagem,
     });
   };
+
+  // Inserir emoji na posição do cursor
+  const handleEmojiSelect = useCallback((emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setNovaMensagem(prev => prev + emoji);
+      return;
+    }
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newValue = novaMensagem.slice(0, start) + emoji + novaMensagem.slice(end);
+    
+    setNovaMensagem(newValue);
+    
+    // Restaurar foco e posição do cursor após o emoji
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const newPosition = start + emoji.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    });
+  }, [novaMensagem]);
 
   // Navegação da busca
   const handleSearchPrev = () => {
@@ -540,6 +563,11 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
           >
             <Paperclip className="h-5 w-5" />
           </Button>
+
+          <EmojiPicker 
+            onEmojiSelect={handleEmojiSelect}
+            disabled={enviarMensagem.isPending || uploadMedia.isPending}
+          />
 
           <Textarea
             ref={textareaRef}
