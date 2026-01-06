@@ -65,6 +65,8 @@ import { ptBR } from "date-fns/locale";
 import { useTransacoes, useTransacoesSummary, Transacao } from "@/hooks/useTransacoes";
 import { TransacaoDetalheDialog } from "@/components/TransacaoDetalheDialog";
 import { useContasAPagarSummary } from "@/hooks/useContasAPagar";
+import { QuickFinancialEntry, type ParsedTransaction } from "@/components/QuickFinancialEntry";
+import { NovaTransacaoDialog } from "@/components/NovaTransacaoDialog";
 
 interface FinanceiroStats {
   receitaTotal: number;
@@ -133,6 +135,14 @@ export default function Financeiro() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
   const [isDetalheOpen, setIsDetalheOpen] = useState(false);
+  const [novaTransacaoOpen, setNovaTransacaoOpen] = useState(false);
+  const [parsedTransacaoData, setParsedTransacaoData] = useState<ParsedTransaction | null>(null);
+
+  // Handler para quando a IA parsear uma transação
+  const handleParsedTransaction = (data: ParsedTransaction) => {
+    setParsedTransacaoData(data);
+    setNovaTransacaoOpen(true);
+  };
 
   // Fetch transações from Supabase
   const { data: transacoes = [], isLoading: isLoadingTransacoes } = useTransacoes({ limit: 10 });
@@ -483,6 +493,9 @@ export default function Financeiro() {
           </PremiumBadge>
         </div>
       </div>
+
+      {/* Quick Financial Entry - Lançamento Rápido com IA */}
+      <QuickFinancialEntry onParsed={handleParsedTransaction} />
 
       {/* KPIs Premium - Grid Responsivo */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
@@ -1254,6 +1267,16 @@ export default function Financeiro() {
         transacao={selectedTransacao}
         open={isDetalheOpen}
         onOpenChange={setIsDetalheOpen}
+      />
+
+      {/* Nova Transação Dialog - com dados pré-preenchidos da IA */}
+      <NovaTransacaoDialog
+        open={novaTransacaoOpen}
+        onOpenChange={(open) => {
+          setNovaTransacaoOpen(open);
+          if (!open) setParsedTransacaoData(null);
+        }}
+        initialData={parsedTransacaoData}
       />
     </div>
   );
