@@ -3,6 +3,7 @@ import { ConversasList } from '@/components/ConversasList';
 import { ChatView } from '@/components/ChatView';
 import { InsightsIADrawer } from '@/components/InsightsIADrawer';
 import { ContatoContextPanel } from '@/components/ContatoContextPanel';
+import { ConnectionRequiredOverlay } from '@/components/ConnectionRequiredOverlay';
 import { toast } from 'sonner';
 import {
   useContatosComMensagens,
@@ -49,14 +50,23 @@ const Conversas = () => {
   // Fase 3: IA Proativa
   useAnaliseAutomatica(true);
 
-  // Health check e polling fallback
-  const { reconfigureWebhook } = useEvolutionHealth(evolutionStatus?.status === 'conectado');
-  
-  // Polling específico quando visualizando uma conversa
-  useContatoPolling(selectedContatoId, evolutionStatus?.status === 'conectado');
-
   // Status de conexão
   const isConnected = evolutionStatus?.status === 'conectado';
+
+  // Health check e polling fallback
+  const { reconfigureWebhook } = useEvolutionHealth(isConnected);
+  
+  // Polling específico quando visualizando uma conversa
+  useContatoPolling(selectedContatoId, isConnected);
+
+  // Determinar status para privacy mode
+  const privacyStatus = isConnected 
+    ? null 
+    : (evolutionStatus?.status === 'conectando' 
+      ? 'conectando' 
+      : (evolutionStatus?.status === 'qrcode' 
+        ? 'qrcode' 
+        : 'desconectado')) as 'desconectado' | 'conectando' | 'qrcode' | null;
 
   // Contato selecionado
   const contatoSelecionado = contatos.find((c) => c.id === selectedContatoId) || null;
@@ -181,22 +191,29 @@ const Conversas = () => {
 
         {/* Container Principal */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Lista - Desktop */}
-          <aside className={cn(
-            'w-full lg:w-80 xl:w-[350px] border-r border-border/50 flex-shrink-0',
-            selectedContatoId ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'
-          )}>
-            <ConversasList
-              contatos={contatos}
-              isLoading={loadingContatos}
-              selectedId={selectedContatoId}
-              onSelect={handleSelect}
-              filtro={filtro}
-              onFiltroChange={setFiltro}
-              ordenacao={ordenacao}
-              onOrdenacaoChange={setOrdenacao}
-            />
-          </aside>
+          {/* Privacy Mode: Overlay quando desconectado */}
+          {privacyStatus ? (
+            <div className="flex-1">
+              <ConnectionRequiredOverlay status={privacyStatus} />
+            </div>
+          ) : (
+            <>
+              {/* Lista - Desktop */}
+              <aside className={cn(
+                'w-full lg:w-80 xl:w-[350px] border-r border-border/50 flex-shrink-0',
+                selectedContatoId ? 'hidden lg:flex lg:flex-col' : 'flex flex-col'
+              )}>
+                <ConversasList
+                  contatos={contatos}
+                  isLoading={loadingContatos}
+                  selectedId={selectedContatoId}
+                  onSelect={handleSelect}
+                  filtro={filtro}
+                  onFiltroChange={setFiltro}
+                  ordenacao={ordenacao}
+                  onOrdenacaoChange={setOrdenacao}
+                />
+              </aside>
 
           {/* Chat - Desktop (70% quando painel aberto, 100% quando fechado) */}
           <main className={cn(
@@ -270,6 +287,8 @@ const Conversas = () => {
                 />
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
 

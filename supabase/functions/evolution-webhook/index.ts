@@ -661,8 +661,18 @@ serve(async (req) => {
         const state = data.state || data.status;
         let status = "desconectado";
         
-        if (state === "open" || state === "connected") status = "conectado";
+        const wasConnected = state === "open" || state === "connected";
+        if (wasConnected) status = "conectado";
         else if (state === "connecting") status = "conectando";
+
+        // Verificar status anterior para detectar nova conexão
+        const { data: prevConfig } = await supabase
+          .from("evolution_config")
+          .select("status")
+          .eq("instance_name", instance)
+          .single();
+
+        const wasDisconnected = prevConfig?.status !== "conectado";
 
         await supabase
           .from("evolution_config")
@@ -670,6 +680,43 @@ serve(async (req) => {
           .eq("instance_name", instance);
 
         console.log(`[Evolution Webhook] ✅ Conexão: ${status}`);
+
+        // AUTO-SYNC: Disparar import-history quando conectar
+        if (wasConnected && wasDisconnected) {
+          console.log(`[Evolution Webhook] 🚀 Nova conexão detectada! Disparando auto-sync...`);
+          
+          // Disparar import-history em background (fire-and-forget)
+          // Não aguardar resposta para não bloquear o webhook
+          const autoSyncPromise = (async () => {
+            try {
+              // Pequeno delay para estabilização
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              // Chamar import-history com limit 300
+              const functionUrl = `${supabaseUrl}/functions/v1/import-history`;
+              const importResponse = await fetch(functionUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${supabaseServiceKey}`,
+                },
+                body: JSON.stringify({ limit: 300 }),
+              });
+
+              if (importResponse.ok) {
+                const result = await importResponse.json();
+                console.log(`[Evolution Webhook] ✅ Auto-sync concluído:`, result);
+              } else {
+                console.error(`[Evolution Webhook] ❌ Auto-sync falhou:`, await importResponse.text());
+              }
+            } catch (err) {
+              console.error(`[Evolution Webhook] ❌ Erro no auto-sync:`, err);
+            }
+          })();
+          
+          // Ignorar a promise (fire-and-forget)
+          autoSyncPromise.catch(() => {});
+        }
         break;
       }
 

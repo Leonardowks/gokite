@@ -314,42 +314,44 @@ serve(async (req) => {
             const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(messageObj);
             const timestamp = extractTimestamp(msgData);
 
-            // Verificar duplicata
-            const { data: msgExistente } = await supabase
+            // UPSERT para evitar duplicatas e atualizar se já existir
+            const { error: upsertError, data: upsertResult } = await supabase
               .from("conversas_whatsapp")
-              .select("id")
-              .eq("message_id", messageId)
-              .maybeSingle();
+              .upsert(
+                {
+                  contato_id: contato.id,
+                  telefone: contato.telefone,
+                  message_id: messageId,
+                  instance_name: instanceName,
+                  is_from_me: isFromMe,
+                  push_name: pushName,
+                  data_mensagem: timestamp.toISOString(),
+                  remetente: isFromMe ? "empresa" : "cliente",
+                  conteudo: content,
+                  tipo_midia: tipoMidia,
+                  media_url: mediaUrl,
+                  media_mimetype: mediaMimetype,
+                  lida: true,
+                },
+                { 
+                  onConflict: "message_id",
+                  ignoreDuplicates: true 
+                }
+              )
+              .select("id");
 
-            if (msgExistente) {
-              totalDuplicadas++;
-              continue;
-            }
-
-            // Inserir mensagem
-            const { error: insertError } = await supabase
-              .from("conversas_whatsapp")
-              .insert({
-                contato_id: contato.id,
-                telefone: contato.telefone,
-                message_id: messageId,
-                instance_name: instanceName,
-                is_from_me: isFromMe,
-                push_name: pushName,
-                data_mensagem: timestamp.toISOString(),
-                remetente: isFromMe ? "empresa" : "cliente",
-                conteudo: content,
-                tipo_midia: tipoMidia,
-                media_url: mediaUrl,
-                media_mimetype: mediaMimetype,
-                lida: true, // Mensagens importadas são marcadas como lidas
-              });
-
-            if (insertError) {
-              console.error(`[Import History] ⚠️ Erro ao inserir msg:`, insertError.message);
-              totalErros++;
-            } else {
+            if (upsertError) {
+              if (upsertError.code === "23505") {
+                // Duplicata - não é erro
+                totalDuplicadas++;
+              } else {
+                console.error(`[Import History] ⚠️ Erro ao upsert msg:`, upsertError.message);
+                totalErros++;
+              }
+            } else if (upsertResult && upsertResult.length > 0) {
               totalImportadas++;
+            } else {
+              totalDuplicadas++;
             }
           } catch (msgError) {
             console.error(`[Import History] ❌ Erro processando msg:`, msgError);
