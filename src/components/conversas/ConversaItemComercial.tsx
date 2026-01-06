@@ -108,10 +108,10 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
     <div
       style={style}
       className={cn(
-        'flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer border-b border-border/30',
+        'flex items-center gap-4 px-4 py-3.5 text-left transition-colors cursor-pointer border-b border-border/30',
         'hover:bg-muted/50 active:bg-muted/70',
-        'min-h-[60px]',
-        isSelected && 'bg-primary/5 hover:bg-primary/10 border-l-2 border-l-primary',
+        'min-h-[80px]',
+        isSelected && 'bg-primary/5 hover:bg-primary/10 border-l-3 border-l-primary',
         hasUnread && !isSelected && 'bg-primary/5'
       )}
       onClick={onSelect}
@@ -124,16 +124,16 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
           onAvatarClick?.();
         }}
       >
-        <Avatar className="h-11 w-11 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+        <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
           <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+          <AvatarFallback className="bg-primary/10 text-primary text-base font-medium">
             {displayName.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         
         {/* Badge de não lidas */}
         {hasUnread && (
-          <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold px-1">
+          <div className="absolute -top-1 -right-1 min-w-[20px] h-[20px] rounded-full bg-primary text-primary-foreground text-[11px] flex items-center justify-center font-semibold px-1.5">
             {contato.nao_lidas > 99 ? '99+' : contato.nao_lidas}
           </div>
         )}
@@ -149,47 +149,47 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
       {/* Conteúdo principal */}
       <div className="flex-1 min-w-0">
         {/* Linha 1: Nome + Indicadores + Timestamp */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className={cn(
-              'font-medium truncate text-sm',
+              'font-medium truncate text-base',
               hasUnread && 'font-semibold'
             )}>
               {displayName}
             </span>
             {contato.is_business && (
-              <Building2 className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+              <Building2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
             )}
             {isHot && (
-              <Flame className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+              <Flame className="h-4 w-4 text-orange-500 flex-shrink-0" />
             )}
             
             {/* Indicador de status de análise IA */}
             {analiseStatus === 'pendente' && (
               <div className="flex items-center gap-0.5" title="Aguardando análise IA">
-                <Sparkles className="h-3 w-3 text-muted-foreground animate-pulse" />
+                <Sparkles className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
               </div>
             )}
             {analiseStatus === 'processando' && (
               <div className="flex items-center gap-0.5" title="Analisando com IA...">
-                <Loader2 className="h-3 w-3 text-primary animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
               </div>
             )}
             {analiseStatus === 'recente' && (
               <div className="flex items-center gap-0.5" title="Análise IA concluída">
-                <CheckCircle2 className="h-3 w-3 text-green-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
               </div>
             )}
           </div>
           
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Tempo sem resposta */}
             {showTempoAlerta && (
               <div className={cn(
-                'flex items-center gap-0.5 text-[10px]',
+                'flex items-center gap-0.5 text-xs',
                 tempoSemResposta >= 24 ? 'text-red-500' : 'text-amber-500'
               )}>
-                <Clock className="h-3 w-3" />
+                <Clock className="h-3.5 w-3.5" />
                 <span>{tempoSemResposta >= 24 ? `${Math.floor(tempoSemResposta / 24)}d` : `${tempoSemResposta}h`}</span>
               </div>
             )}
@@ -197,7 +197,7 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
             {/* Timestamp */}
             {contato.ultima_mensagem && (
               <span className={cn(
-                'text-[11px]',
+                'text-xs',
                 hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'
               )}>
                 {formatTimestamp(new Date(contato.ultima_mensagem))}
@@ -206,14 +206,14 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
           </div>
         </div>
 
-        {/* Linha 2: Preview da mensagem */}
-        <div className="flex items-center gap-1.5 mt-0.5">
+        {/* Linha 2: Preview da mensagem - até 2 linhas */}
+        <div className="flex items-start gap-2">
           {isFromMe && (
-            <span className="text-xs text-muted-foreground flex-shrink-0">Você:</span>
+            <span className="text-sm text-muted-foreground flex-shrink-0">Você:</span>
           )}
           {midiaIcon}
           <p className={cn(
-            'text-xs truncate',
+            'text-sm line-clamp-2 leading-relaxed',
             hasUnread ? 'text-foreground' : 'text-muted-foreground'
           )}>
             {contato.ultima_mensagem_texto || 'Sem mensagens'}
