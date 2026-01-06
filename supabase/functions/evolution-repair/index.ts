@@ -44,19 +44,21 @@ serve(async (req) => {
     // URL do webhook
     const webhookUrl = `${supabaseUrl}/functions/v1/evolution-webhook`;
 
-    // Payload OBRIGATÓRIO para forçar configuração
+    // Payload com estrutura correta para Evolution API V2
     const webhookPayload = {
-      enabled: true,
-      url: webhookUrl,
-      webhookByEvents: false,
-      events: [
-        "MESSAGES_UPSERT",
-        "SEND_MESSAGE", 
-        "CONNECTION_UPDATE",
-        "MESSAGES_UPDATE",
-        "CONTACTS_UPSERT",
-        "CONTACTS_UPDATE"
-      ]
+      webhook: {
+        enabled: true,
+        url: webhookUrl,
+        webhookByEvents: false,
+        events: [
+          "MESSAGES_UPSERT",
+          "SEND_MESSAGE", 
+          "CONNECTION_UPDATE",
+          "MESSAGES_UPDATE",
+          "CONTACTS_UPSERT",
+          "CONTACTS_UPDATE"
+        ]
+      }
     };
 
     console.log('[Evolution Repair] Payload do webhook:', JSON.stringify(webhookPayload));
@@ -101,7 +103,7 @@ serve(async (req) => {
       .from('evolution_config')
       .update({
         webhook_url: webhookUrl,
-        eventos_ativos: webhookPayload.events,
+        eventos_ativos: webhookPayload.webhook.events,
         updated_at: new Date().toISOString()
       })
       .eq('id', config.id);
@@ -117,7 +119,7 @@ serve(async (req) => {
         success: true, 
         message: 'Webhook configurado com sucesso',
         webhookUrl: webhookUrl,
-        events: webhookPayload.events,
+        events: webhookPayload.webhook.events,
         apiResponse: responseData
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
