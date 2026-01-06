@@ -192,6 +192,11 @@ async function enrichContactData(
 }
 
 serve(async (req) => {
+  // === DEBUG LOG - Primeira linha ===
+  console.log(`[Evolution Webhook] 🔔 Webhook received at ${new Date().toISOString()}`);
+  console.log(`[Evolution Webhook] Method: ${req.method}, URL: ${req.url}`);
+  console.log(`[Evolution Webhook] Headers:`, JSON.stringify(Object.fromEntries(req.headers.entries())));
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -201,9 +206,15 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    // ✅ Usando SERVICE_ROLE_KEY para ignorar RLS
+    console.log(`[Evolution Webhook] ✅ Usando supabaseAdmin (Service Role) - RLS ignorado`);
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload = await req.json();
+    
+    // === DEBUG LOG - Payload completo ===
+    console.log(`[Evolution Webhook] 📦 Payload recebido:`, JSON.stringify(payload).slice(0, 3000));
     
     // Extrair dados do payload - suporta múltiplos formatos
     const rawEvent = payload.event || payload.type || "";
@@ -213,8 +224,7 @@ serve(async (req) => {
     // Normalizar nome do evento
     const event = normalizeEventName(rawEvent);
     
-    console.log(`[Evolution Webhook] ${new Date().toISOString()} - Evento: ${rawEvent} -> ${event}, Instance: ${instance}`);
-    console.log(`[Evolution Webhook] Payload:`, JSON.stringify(payload).slice(0, 1500));
+    console.log(`[Evolution Webhook] 📍 Evento: ${rawEvent} -> ${event}, Instance: ${instance}`);
 
     // Buscar configuração
     const { data: evolutionConfig } = await supabase
