@@ -6,6 +6,8 @@ import { PremiumCard, PremiumCardContent } from "@/components/ui/premium-card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export interface ParsedTransaction {
   tipo: "receita" | "despesa";
@@ -36,6 +38,8 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
   const audioChunksRef = useRef<Blob[]>([]);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  
+  const isMobile = useIsMobile();
 
   // Voice recording with Jarvis
   const startListening = async () => {
@@ -231,14 +235,51 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
   const isVoiceSupported = typeof navigator !== "undefined" && "mediaDevices" in navigator;
   const isAnyLoading = isLoading || isListening || isProcessingImage;
 
+  // Mobile action button component
+  const ActionButton = ({
+    icon: Icon,
+    label,
+    onClick,
+    disabled,
+    variant = "outline",
+    className,
+    isRecording,
+  }: {
+    icon: React.ElementType;
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    variant?: "outline" | "destructive" | "default";
+    className?: string;
+    isRecording?: boolean;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "flex flex-col items-center justify-center gap-1 rounded-xl border p-3 min-h-[64px] min-w-[64px] transition-all active:scale-95",
+        variant === "outline" && "border-border bg-background/80 hover:bg-muted",
+        variant === "destructive" && "border-destructive bg-destructive/10 text-destructive",
+        isRecording && "animate-pulse border-destructive ring-2 ring-destructive/30",
+        disabled && "opacity-50 cursor-not-allowed",
+        className
+      )}
+      aria-label={label}
+    >
+      <Icon className={cn("h-5 w-5", isRecording && "text-destructive")} />
+      <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+    </button>
+  );
+
   // Show image preview mode
   if (capturedImage) {
     return (
       <PremiumCard featured gradient="accent" className="overflow-hidden">
-        <PremiumCardContent className="p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            {/* Image Preview */}
-            <div className="relative w-32 h-32 sm:w-24 sm:h-24 rounded-lg overflow-hidden border-2 border-accent/30 shrink-0">
+        <PremiumCardContent className="p-4">
+          <div className="flex flex-col items-center gap-4">
+            {/* Image Preview - Larger on mobile */}
+            <div className="relative w-48 h-48 md:w-32 md:h-32 rounded-xl overflow-hidden border-2 border-accent/30">
               <img 
                 src={capturedImage} 
                 alt="Nota fiscal" 
@@ -246,44 +287,40 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
               />
               {isProcessingImage && (
                 <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-accent" />
+                  <Loader2 className="h-8 w-8 animate-spin text-accent" />
                 </div>
               )}
             </div>
 
-            {/* Actions */}
-            <div className="flex-1 flex flex-col gap-2">
-              <p className="text-sm text-muted-foreground text-center sm:text-left">
-                Confirma a imagem para processar?
-              </p>
-              <div className="flex gap-2 justify-center sm:justify-start">
-                <Button
-                  variant="outline"
-                  onClick={clearImage}
-                  disabled={isProcessingImage}
-                  className="gap-2"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Refazer
-                </Button>
-                <Button
-                  onClick={confirmImage}
-                  disabled={isProcessingImage}
-                  className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
-                >
-                  {isProcessingImage ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Processando...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Confirmar
-                    </>
-                  )}
-                </Button>
-              </div>
+            <p className="text-sm text-muted-foreground text-center">
+              {isProcessingImage ? "Processando imagem..." : "Confirma a imagem para processar?"}
+            </p>
+
+            {/* Actions - Full width on mobile */}
+            <div className="grid grid-cols-2 gap-3 w-full">
+              <Button
+                variant="outline"
+                onClick={clearImage}
+                disabled={isProcessingImage}
+                className="gap-2 min-h-[48px] text-base"
+              >
+                <RotateCcw className="h-5 w-5" />
+                Refazer
+              </Button>
+              <Button
+                onClick={confirmImage}
+                disabled={isProcessingImage}
+                className="gap-2 min-h-[48px] text-base bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
+                {isProcessingImage ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="h-5 w-5" />
+                    Confirmar
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </PremiumCardContent>
@@ -291,10 +328,108 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
     );
   }
 
+  // Mobile Layout
+  if (isMobile) {
+    return (
+      <PremiumCard featured gradient="accent" className="overflow-hidden">
+        <PremiumCardContent className="p-4">
+          {/* Header */}
+          <div className="flex items-center gap-2 text-accent mb-3">
+            <Sparkles className="h-5 w-5" />
+            <span className="font-semibold text-sm">Lançamento Rápido com IA</span>
+          </div>
+
+          {/* Text Input - Full width */}
+          <Input
+            placeholder={isListening ? "🎤 Ouvindo..." : "Ex: Vendi Kite 12m por 5000..."}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isAnyLoading}
+            className={cn(
+              "w-full mb-3 min-h-[48px] text-base bg-background/80 border-accent/30 focus:border-accent placeholder:text-muted-foreground/60",
+              isListening && "border-destructive ring-2 ring-destructive/30"
+            )}
+          />
+
+          {/* Action Buttons Grid */}
+          <div className="grid grid-cols-4 gap-2">
+            {isVoiceSupported && (
+              <ActionButton
+                icon={isListening ? X : Mic}
+                label={isListening ? "Parar" : "Voz"}
+                onClick={isListening ? stopListening : startListening}
+                disabled={isLoading || isProcessingImage}
+                variant={isListening ? "destructive" : "outline"}
+                isRecording={isListening}
+              />
+            )}
+
+            <ActionButton
+              icon={Camera}
+              label="Foto"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={isAnyLoading}
+            />
+
+            <ActionButton
+              icon={Image}
+              label="Galeria"
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={isAnyLoading}
+            />
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isAnyLoading || text.trim().length < 10}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 rounded-xl p-3 min-h-[64px] min-w-[64px] transition-all active:scale-95",
+                "bg-accent text-accent-foreground hover:bg-accent/90",
+                (isAnyLoading || text.trim().length < 10) && "opacity-50 cursor-not-allowed"
+              )}
+              aria-label="Lançar transação"
+            >
+              {isLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Sparkles className="h-5 w-5" />
+              )}
+              <span className="text-[10px] font-medium">Lançar</span>
+            </button>
+          </div>
+
+          {/* Help text - always visible on mobile */}
+          <p className="text-[11px] text-muted-foreground text-center mt-3">
+            Use voz, foto de nota fiscal ou digite — A IA extrai tudo!
+          </p>
+
+          {/* Hidden inputs */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoCapture}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoCapture}
+          />
+        </PremiumCardContent>
+      </PremiumCard>
+    );
+  }
+
+  // Desktop Layout
   return (
     <PremiumCard featured gradient="accent" className="overflow-hidden">
       <PremiumCardContent className="p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+        <div className="flex flex-row gap-3 items-center">
           <div className="flex items-center gap-2 text-accent shrink-0">
             <Sparkles className="h-5 w-5" />
             <span className="font-semibold text-sm">Lançamento Rápido com IA</span>
@@ -312,7 +447,7 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
                       size="icon"
                       onClick={isListening ? stopListening : startListening}
                       disabled={isLoading || isProcessingImage}
-                      className="shrink-0"
+                      className={cn("shrink-0", isListening && "animate-pulse")}
                     >
                       {isListening ? (
                         <X className="h-4 w-4" />
@@ -392,7 +527,10 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isAnyLoading}
-                className="flex-1 bg-background/80 border-accent/30 focus:border-accent placeholder:text-muted-foreground/60"
+                className={cn(
+                  "flex-1 bg-background/80 border-accent/30 focus:border-accent placeholder:text-muted-foreground/60",
+                  isListening && "border-destructive ring-2 ring-destructive/30"
+                )}
               />
 
               {/* Submit Button */}
@@ -406,13 +544,12 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
                     {isLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="hidden sm:inline">Processando...</span>
+                        <span>Processando...</span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="h-4 w-4" />
-                        <span className="hidden sm:inline">Lançar</span>
-                        <Send className="h-4 w-4 sm:hidden" />
+                        <span>Lançar</span>
                       </>
                     )}
                   </Button>
@@ -426,7 +563,7 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
           </TooltipProvider>
         </div>
 
-        <p className="text-xs text-muted-foreground mt-2 hidden sm:block">
+        <p className="text-xs text-muted-foreground mt-2">
           <Mic className="h-3 w-3 inline mr-1" /> Voz
           <span className="mx-2">•</span>
           <Camera className="h-3 w-3 inline mr-1" /> Câmera
