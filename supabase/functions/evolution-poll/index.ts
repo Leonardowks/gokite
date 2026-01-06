@@ -185,8 +185,17 @@ serve(async (req) => {
       );
 
       if (response.ok) {
-        const chats = await response.json();
-        console.log(`[Evolution Poll] ${chats.length || 0} chats encontrados`);
+        const responseData = await response.json();
+        // A API pode retornar um array ou um objeto
+        let chats: any[] = [];
+        if (Array.isArray(responseData)) {
+          chats = responseData;
+        } else if (responseData?.chats && Array.isArray(responseData.chats)) {
+          chats = responseData.chats;
+        } else if (responseData?.data && Array.isArray(responseData.data)) {
+          chats = responseData.data;
+        }
+        console.log(`[Evolution Poll] ${chats.length} chats encontrados`);
         
         // Atualizar última sincronização
         await supabase
