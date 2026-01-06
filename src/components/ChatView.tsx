@@ -214,46 +214,46 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-3 py-2.5 border-b bg-card/80 backdrop-blur-sm shrink-0">
-        <div className="flex items-center justify-between gap-3">
+      <div className="px-4 py-3 border-b bg-card/80 backdrop-blur-sm shrink-0 min-h-[64px]">
+        <div className="flex items-center justify-between gap-4">
           {/* Info do contato */}
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="relative flex-shrink-0">
-              <Avatar className="h-9 w-9">
+              <Avatar className="h-11 w-11">
                 <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
+                <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
                   {displayName.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               {isPriority && (
                 <div className="absolute -top-0.5 -right-0.5">
-                  <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
                 </div>
               )}
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <h2 className="font-semibold truncate text-sm">{displayName}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold truncate text-base">{displayName}</h2>
                 {contato.is_business && (
-                  <Building2 className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                  <Building2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground truncate">{contato.telefone}</p>
+              <p className="text-sm text-muted-foreground truncate">{contato.telefone}</p>
             </div>
           </div>
 
           {/* Ações do Header */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Botão de Insights (abre Sheet em todas as telas) */}
             <Sheet open={insightsOpen} onOpenChange={setInsightsOpen}>
               <SheetTrigger asChild>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-9 min-w-[44px] gap-1.5"
+                  className="h-10 min-w-[44px] gap-2"
                 >
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="hidden sm:inline text-xs">Insights</span>
+                  <span className="hidden sm:inline text-sm">Insights</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-full sm:w-80 p-0">
@@ -270,23 +270,23 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-9 w-9">
-                  <MoreVertical className="h-4 w-4" />
+                <Button size="icon" variant="ghost" className="h-10 w-10">
+                  <MoreVertical className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuLabel className="text-xs">Ações</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onAnalisar} disabled={isAnalisando} className="min-h-[40px]">
+                <DropdownMenuItem onClick={onAnalisar} disabled={isAnalisando} className="min-h-[44px]">
                   <Brain className={cn('h-4 w-4 mr-2', isAnalisando && 'animate-pulse')} />
                   Analisar conversa
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/admin/inteligencia')} className="min-h-[40px]">
+                <DropdownMenuItem onClick={() => navigate('/admin/inteligencia')} className="min-h-[44px]">
                   <User className="h-4 w-4 mr-2" />
                   Ver perfil completo
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="min-h-[40px]">
+                <DropdownMenuItem asChild className="min-h-[44px]">
                   <a
                     href={`https://wa.me/${contato.telefone.replace(/\D/g, '')}`}
                     target="_blank"
@@ -296,7 +296,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                     Abrir no WhatsApp
                   </a>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="min-h-[40px]">
+                <DropdownMenuItem asChild className="min-h-[44px]">
                   <a href={`tel:${contato.telefone}`}>
                     <Phone className="h-4 w-4 mr-2" />
                     Ligar
@@ -319,14 +319,14 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
       {/* Mensagens */}
       <ScrollArea className="flex-1">
-        <div className="p-3 sm:p-4">
+        <div className="p-4 sm:p-6">
           {mensagens.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-16">
-              <MessageSquare className="h-10 w-10 opacity-30 mb-2" />
-              <p className="text-sm">Nenhuma mensagem ainda</p>
+            <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-20">
+              <MessageSquare className="h-12 w-12 opacity-30 mb-3" />
+              <p className="text-base">Nenhuma mensagem ainda</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {Object.entries(mensagensPorData).map(([dateKey, msgs]) => {
                 const date = parseISO(dateKey);
                 const isToday = isSameDay(date, new Date());
@@ -337,14 +337,14 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                 return (
                   <div key={dateKey}>
                     {/* Separador de data */}
-                    <div className="flex items-center justify-center my-3">
-                      <span className="text-[10px] text-muted-foreground bg-muted px-2.5 py-1 rounded-full">
+                    <div className="flex items-center justify-center my-4">
+                      <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full font-medium">
                         {dateLabel}
                       </span>
                     </div>
 
                     {/* Mensagens do dia */}
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       {msgs.map((msg) => {
                         const isFromMe = msg.is_from_me || msg.remetente === 'empresa';
                         const isImagem = msg.tipo_midia === 'imagem' || msg.tipo_midia === 'image';
@@ -362,11 +362,11 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                           >
                             <div
                               className={cn(
-                                'max-w-[85%] sm:max-w-[75%] rounded-2xl shadow-sm overflow-hidden',
+                                'max-w-[75%] lg:max-w-[65%] rounded-2xl shadow-sm overflow-hidden',
                                 isFromMe
-                                  ? 'bg-primary text-primary-foreground rounded-br-md'
-                                  : 'bg-card border rounded-bl-md',
-                                hasMedia ? 'p-1' : 'px-3 py-2'
+                                  ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                  : 'bg-card border rounded-bl-sm',
+                                hasMedia ? 'p-1.5' : 'px-4 py-2.5'
                               )}
                             >
                               {/* Mídia */}
@@ -449,8 +449,8 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                               {/* Texto */}
                               {showTextContent && (
                                 <p className={cn(
-                                  "text-sm whitespace-pre-wrap break-words",
-                                  hasMedia ? "px-2 py-1" : ""
+                                  "text-[15px] leading-relaxed whitespace-pre-wrap break-words",
+                                  hasMedia ? "px-2 py-1.5" : ""
                                 )}>
                                   {msg.conteudo}
                                 </p>
@@ -458,9 +458,9 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
                               {/* Horário e status */}
                               <div className={cn(
-                                'flex items-center justify-end gap-1 text-[10px]',
+                                'flex items-center justify-end gap-1.5 text-xs',
                                 isFromMe ? 'text-primary-foreground/60' : 'text-muted-foreground',
-                                hasMedia ? 'px-2 py-0.5' : 'mt-0.5'
+                                hasMedia ? 'px-2 py-1' : 'mt-1'
                               )}>
                                 <span>{format(parseISO(msg.data_mensagem), 'HH:mm')}</span>
                                 {isFromMe && getStatusIcon(msg.message_status)}
@@ -480,31 +480,31 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
       </ScrollArea>
 
       {/* Input de mensagem */}
-      <div className="p-2 sm:p-3 border-t bg-card/80 backdrop-blur-sm space-y-2 shrink-0">
+      <div className="p-3 sm:p-4 border-t bg-card/80 backdrop-blur-sm space-y-3 shrink-0">
         {/* Preview do arquivo */}
         {arquivoSelecionado && (
-          <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
             {previewUrl ? (
-              <img src={previewUrl} alt="Preview" className="h-10 w-10 object-cover rounded" />
+              <img src={previewUrl} alt="Preview" className="h-12 w-12 object-cover rounded-lg" />
             ) : (
-              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                <FileText className="h-4 w-4 text-muted-foreground" />
+              <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+                <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate">{arquivoSelecionado.name}</p>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-sm font-medium truncate">{arquivoSelecionado.name}</p>
+              <p className="text-xs text-muted-foreground">
                 {(arquivoSelecionado.size / 1024).toFixed(0)} KB
               </p>
             </div>
-            <Button size="icon" variant="ghost" onClick={handleRemoverArquivo} className="h-8 w-8">
-              <X className="h-4 w-4" />
+            <Button size="icon" variant="ghost" onClick={handleRemoverArquivo} className="h-10 w-10">
+              <X className="h-5 w-5" />
             </Button>
           </div>
         )}
 
         {/* Input de mensagem */}
-        <div className="flex items-end gap-1.5 sm:gap-2">
+        <div className="flex items-end gap-2 sm:gap-3">
           <input
             ref={fileInputRef}
             type="file"
@@ -519,7 +519,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             variant="ghost"
             onClick={() => fileInputRef.current?.click()}
             disabled={enviarMensagem.isPending || uploadMedia.isPending}
-            className="h-10 w-10 flex-shrink-0"
+            className="h-11 w-11 flex-shrink-0"
           >
             <Paperclip className="h-5 w-5" />
           </Button>
@@ -529,8 +529,8 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             value={novaMensagem}
             onChange={(e) => setNovaMensagem(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Mensagem..."
-            className="min-h-10 max-h-24 resize-none flex-1 text-sm"
+            placeholder="Digite uma mensagem..."
+            className="min-h-11 max-h-28 resize-none flex-1 text-[15px] py-3"
             rows={1}
             disabled={enviarMensagem.isPending || uploadMedia.isPending}
           />
@@ -539,7 +539,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             onClick={handleEnviar}
             size="icon"
             disabled={(!novaMensagem.trim() && !arquivoSelecionado) || enviarMensagem.isPending || uploadMedia.isPending}
-            className="h-10 w-10 flex-shrink-0"
+            className="h-11 w-11 flex-shrink-0"
           >
             {enviarMensagem.isPending || uploadMedia.isPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />

@@ -107,12 +107,12 @@ export function QuickActionsBar({
 
   return (
     <>
-      <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 border-t border-border/50 bg-muted/30 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 border-b border-border/50 bg-muted/20 overflow-x-auto scrollbar-none">
         {/* Ação Principal: Agendar */}
         <Button
           size="sm"
           variant="outline"
-          className="h-9 min-w-[44px] gap-1.5 text-xs shrink-0 bg-primary/5 hover:bg-primary/10 border-primary/30"
+          className="h-10 min-w-[44px] gap-2 text-sm shrink-0 bg-primary/5 hover:bg-primary/10 border-primary/30"
           onClick={onAgendarAula}
         >
           <Calendar className="h-4 w-4 text-primary" />
@@ -123,7 +123,7 @@ export function QuickActionsBar({
         <Button
           size="sm"
           variant="outline"
-          className="h-9 min-w-[44px] gap-1.5 text-xs shrink-0 bg-green-500/5 hover:bg-green-500/10 border-green-500/30"
+          className="h-10 min-w-[44px] gap-2 text-sm shrink-0 bg-green-500/5 hover:bg-green-500/10 border-green-500/30"
           onClick={onEnviarProposta}
         >
           <DollarSign className="h-4 w-4 text-green-600" />
@@ -134,7 +134,7 @@ export function QuickActionsBar({
         <Button
           size="sm"
           variant="outline"
-          className="h-9 min-w-[44px] gap-1.5 text-xs shrink-0 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/30"
+          className="h-10 min-w-[44px] gap-2 text-sm shrink-0 bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/30"
           onClick={() => toast.info('Follow-up agendado')}
         >
           <Clock className="h-4 w-4 text-amber-600" />
@@ -144,18 +144,18 @@ export function QuickActionsBar({
         {/* Menu Mais Ações (mobile) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline" className="h-9 min-w-[44px] gap-1 text-xs shrink-0 sm:hidden">
+            <Button size="sm" variant="outline" className="h-10 min-w-[44px] gap-1 text-sm shrink-0 sm:hidden">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-48">
             <DropdownMenuLabel className="text-xs">Ações</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => toast.info('Follow-up agendado')} className="min-h-[40px]">
+            <DropdownMenuItem onClick={() => toast.info('Follow-up agendado')} className="min-h-[44px]">
               <Clock className="h-4 w-4 mr-2 text-amber-600" />
               Follow-up
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleUpdateStatus('lead_quente')} className="min-h-[40px]">
+            <DropdownMenuItem onClick={() => handleUpdateStatus('lead_quente')} className="min-h-[44px]">
               <Tag className="h-4 w-4 mr-2" />
               Alterar Status
             </DropdownMenuItem>
@@ -165,40 +165,40 @@ export function QuickActionsBar({
         {/* Alterar Status (desktop) */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="outline" className="h-9 min-w-[44px] gap-1 text-xs shrink-0 hidden sm:flex">
+            <Button size="sm" variant="outline" className="h-10 min-w-[44px] gap-2 text-sm shrink-0 hidden sm:flex">
               <Tag className="h-4 w-4" />
               <span className="hidden md:inline">Status</span>
-              <ChevronDown className="h-3 w-3 opacity-50" />
+              <ChevronDown className="h-3.5 w-3.5 opacity-50" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44">
             <DropdownMenuLabel className="text-xs">Alterar Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => handleUpdateStatus('lead')} className="min-h-[40px]">
-              <Badge variant="outline" className="mr-2 text-[10px] border-blue-500/50 text-blue-600">Lead</Badge>
+            <DropdownMenuItem onClick={() => handleUpdateStatus('lead')} className="min-h-[44px]">
+              <Badge variant="outline" className="mr-2 text-xs border-blue-500/50 text-blue-600">Lead</Badge>
               Novo Lead
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleUpdateStatus('lead_quente')} className="min-h-[40px]">
-              <Badge variant="outline" className="mr-2 text-[10px] border-orange-500/50 text-orange-600">Quente</Badge>
+            <DropdownMenuItem onClick={() => handleUpdateStatus('lead_quente')} className="min-h-[44px]">
+              <Badge variant="outline" className="mr-2 text-xs border-orange-500/50 text-orange-600">Quente</Badge>
               Lead Quente
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleUpdateStatus('cliente_ativo')} className="min-h-[40px]">
-              <Badge variant="outline" className="mr-2 text-[10px] border-green-500/50 text-green-600">Cliente</Badge>
+            <DropdownMenuItem onClick={() => handleUpdateStatus('cliente_ativo')} className="min-h-[44px]">
+              <Badge variant="outline" className="mr-2 text-xs border-green-500/50 text-green-600">Cliente</Badge>
               Cliente Ativo
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
         {/* Separador */}
-        <div className="w-px h-6 bg-border/50 mx-1 shrink-0 hidden sm:block" />
+        <div className="w-px h-7 bg-border/50 mx-1.5 shrink-0 hidden sm:block" />
 
         {/* Respostas Rápidas */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" variant="ghost" className="h-9 min-w-[44px] gap-1.5 text-xs shrink-0">
+            <Button size="sm" variant="ghost" className="h-10 min-w-[44px] gap-2 text-sm shrink-0">
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="hidden sm:inline">Respostas</span>
-              <ChevronDown className="h-3 w-3 opacity-50 hidden sm:inline" />
+              <ChevronDown className="h-3.5 w-3.5 opacity-50 hidden sm:inline" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
@@ -208,9 +208,9 @@ export function QuickActionsBar({
               <DropdownMenuItem 
                 key={resp.id} 
                 onClick={() => handleSelectTemplate(resp.template)}
-                className="cursor-pointer min-h-[40px]"
+                className="cursor-pointer min-h-[44px]"
               >
-                <span className="text-xs">{resp.label}</span>
+                <span className="text-sm">{resp.label}</span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
