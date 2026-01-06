@@ -33,6 +33,32 @@ function formatPhone(phone: string): string {
   return phone;
 }
 
+// Verifica se o nome é válido (não é apenas números curtos)
+function isValidDisplayName(name: string): boolean {
+  if (!name) return false;
+  const cleanName = name.trim();
+  // Inválido se: muito curto, apenas números, ou menos de 3 caracteres
+  if (cleanName.length < 3) return false;
+  if (/^\d+$/.test(cleanName) && cleanName.length < 10) return false;
+  return true;
+}
+
+// Obter nome de exibição com fallback seguro
+function getDisplayName(contato: ContatoComUltimaMensagem): string {
+  // Prioridade: nome do perfil WhatsApp > nome cadastrado > telefone formatado
+  if (contato.whatsapp_profile_name && isValidDisplayName(contato.whatsapp_profile_name)) {
+    return contato.whatsapp_profile_name;
+  }
+  if (contato.nome && isValidDisplayName(contato.nome)) {
+    return contato.nome;
+  }
+  // Fallback: telefone formatado (se válido) ou "Contato desconhecido"
+  if (contato.telefone && contato.telefone.length >= 10) {
+    return formatPhone(contato.telefone);
+  }
+  return 'Contato desconhecido';
+}
+
 // Formatar timestamp de forma inteligente
 function formatTimestamp(date: Date): string {
   if (isToday(date)) {
@@ -73,7 +99,7 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
   onAvatarClick,
   style,
 }: ConversaItemComercialProps) {
-  const displayName = contato.whatsapp_profile_name || contato.nome || formatPhone(contato.telefone);
+  const displayName = getDisplayName(contato);
   const lastMessageTime = contato.ultimo_contato 
     ? formatTimestamp(new Date(contato.ultimo_contato))
     : '';

@@ -6,9 +6,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Normaliza telefone para formato consistente
-function normalizePhone(phone: string): string {
-  return phone.replace(/[@s.a-z]/gi, "").replace(/\D/g, "");
+// Valida se é um JID de contato WhatsApp válido (ignora grupos, broadcasts e IDs especiais)
+function isValidWhatsAppJid(jid: string): boolean {
+  if (!jid) return false;
+  // Apenas JIDs individuais no formato NÚMERO@s.whatsapp.net são válidos
+  return jid.endsWith('@s.whatsapp.net') && 
+         !jid.includes('@g.us') && 
+         !jid.includes('@broadcast') &&
+         !jid.includes('@lid');
+}
+
+// Normaliza telefone para formato consistente - apenas de JIDs válidos
+function normalizePhone(jid: string): string {
+  if (!isValidWhatsAppJid(jid)) return "";
+  // Extrair apenas a parte numérica antes do @s.whatsapp.net
+  const phone = jid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+  // Validar que tem pelo menos 10 dígitos (DDD + número)
+  return phone.length >= 10 ? phone : "";
 }
 
 serve(async (req) => {
@@ -199,11 +213,18 @@ serve(async (req) => {
         // Processar cada chat para buscar mensagens novas
         for (const chat of chats.slice(0, 10)) { // Limitar a 10 chats mais recentes
           const remoteJid = chat.id || chat.remoteJid || chat.jid;
-          if (!remoteJid || remoteJid.includes('@g.us') || remoteJid.includes('@broadcast')) {
-            continue; // Ignorar grupos e broadcasts
+          
+          // Validar que é um JID individual válido do WhatsApp
+          if (!isValidWhatsAppJid(remoteJid)) {
+            console.log(`[Evolution Poll] Ignorando JID inválido/grupo: ${remoteJid}`);
+            continue;
           }
 
           const telefone = normalizePhone(remoteJid);
+          if (!telefone) {
+            console.log(`[Evolution Poll] Telefone inválido extraído de: ${remoteJid}`);
+            continue;
+          }
           
           // Buscar ou criar contato
           let { data: contato } = await supabase
