@@ -524,3 +524,46 @@ export const useImportarHistorico = () => {
     },
   });
 };
+
+// ========== HOOK: Sincronizar Base Completa ==========
+export const useSincronizarBaseCompleta = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ action = 'contacts' }: { action?: 'contacts' | 'messages' | 'full' } = {}) => {
+      console.log('[useSincronizarBaseCompleta] Iniciando sincronização...', action);
+      
+      const { data, error } = await supabase.functions.invoke('evolution-sync', {
+        body: { action },
+      });
+
+      if (error) {
+        console.error('[useSincronizarBaseCompleta] Erro:', error);
+        throw new Error(error.message || 'Erro ao sincronizar');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      console.log('[useSincronizarBaseCompleta] Sucesso:', data);
+      
+      // Invalidar queries
+      queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+      queryClient.invalidateQueries({ queryKey: ['contatos-inteligencia'] });
+      
+      const stats = data?.stats || {};
+      toast.success(
+        `Sincronização concluída! ${stats.contatos_criados || 0} novos, ${stats.contatos_atualizados || 0} atualizados`,
+        { duration: 5000 }
+      );
+    },
+    onError: (error: Error) => {
+      console.error('[useSincronizarBaseCompleta] Erro:', error);
+      toast.error(error.message || 'Erro ao sincronizar base');
+    },
+  });
+};
