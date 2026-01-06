@@ -3,7 +3,8 @@ import { format, parseISO } from 'date-fns';
 import { Check, CheckCheck, FileText, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MensagemChat } from '@/hooks/useConversasPage';
-
+import { AudioPlayer } from './AudioPlayer';
+import { LinkPreview } from './LinkPreview';
 interface MessageBubbleProps {
   message: MensagemChat;
   isFirstInGroup?: boolean;
@@ -150,13 +151,8 @@ export const MessageBubble = memo(function MessageBubble({
             )}
 
             {isAudio && (
-              <div className="px-2 py-1">
-                <audio
-                  src={message.media_url!}
-                  controls
-                  className="w-full max-w-[240px]"
-                  preload="metadata"
-                />
+              <div className="px-1 py-1">
+                <AudioPlayer src={message.media_url!} isFromMe={isFromMe} />
               </div>
             )}
 
@@ -195,14 +191,30 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
-        {/* Texto */}
+        {/* Texto com detecção de links */}
         {showTextContent && (
-          <p className={cn(
-            "text-[15px] leading-relaxed whitespace-pre-wrap break-words",
-            hasMedia && "px-2 py-1"
-          )}>
-            {highlightText ? highlightSearchText(message.conteudo, highlightText) : message.conteudo}
-          </p>
+          <>
+            <p className={cn(
+              "text-[15px] leading-relaxed whitespace-pre-wrap break-words",
+              hasMedia && "px-2 py-1"
+            )}>
+              {highlightText ? highlightSearchText(message.conteudo, highlightText) : message.conteudo}
+            </p>
+            
+            {/* Link Preview - detectar primeira URL */}
+            {(() => {
+              const urlRegex = /(https?:\/\/[^\s]+)/g;
+              const urls = message.conteudo?.match(urlRegex) || [];
+              if (urls.length > 0) {
+                return (
+                  <div className={cn(hasMedia ? 'px-2' : '')}>
+                    <LinkPreview url={urls[0]} isFromMe={isFromMe} />
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </>
         )}
 
         {/* Horário e status - só na última mensagem do grupo ou sempre se for única */}
