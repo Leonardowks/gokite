@@ -1,3 +1,14 @@
+// 🛑 🛑 🛑 ARQUIVO CRÍTICO - ZONA DE PERIGO 🛑 🛑 🛑
+//
+// ESTE ARQUIVO É O CORAÇÃO DA INTEGRAÇÃO COM WHATSAPP (V3).
+// ELE ESTÁ FUNCIONANDO PERFEITAMENTE PARA ENTRADA E SAÍDA DE MENSAGENS.
+//
+// REGRA 1: NÃO FAÇA REFACTORING NESTE ARQUIVO.
+// REGRA 2: NÃO ADICIONE LÓGICAS DE NEGÓCIO AQUI (Use Database Triggers).
+// REGRA 3: SE PRECISAR MUDAR ALGO, PEÇA PERMISSÃO EXPLÍCITA AO USUÁRIO.
+//
+// ---------------------------------------------------------------------
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
