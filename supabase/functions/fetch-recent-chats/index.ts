@@ -47,12 +47,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
         'apikey': api_key,
       },
-      body: JSON.stringify({
-        where: {
-          // Buscar apenas chats individuais (não grupos)
-          id: { contains: '@s.whatsapp.net' }
-        }
-      }),
+      body: JSON.stringify({}), // Sem filtro, processamos no loop para aceitar @lid e @s.whatsapp.net
     });
 
     if (!evolutionResponse.ok) {
@@ -78,10 +73,12 @@ serve(async (req) => {
     for (const chat of recentChats) {
       try {
         const remoteJid = chat.id || chat.remoteJid;
-        if (!remoteJid || !remoteJid.includes('@s.whatsapp.net')) continue;
+        if (!remoteJid) continue;
+        // Ignorar apenas grupos (@g.us), aceitar @s.whatsapp.net e @lid (WhatsApp Business)
+        if (remoteJid.includes('@g.us')) continue;
 
-        // Extrair telefone do JID
-        const telefone = remoteJid.replace('@s.whatsapp.net', '');
+        // Extrair telefone do JID (funciona para ambos formatos)
+        const telefone = remoteJid.split('@')[0].replace(/\D/g, '');
         
         // Dados do contato
         const pushName = chat.pushName || chat.name || null;

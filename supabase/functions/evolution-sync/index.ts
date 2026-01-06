@@ -571,7 +571,7 @@ async function syncMessagesForContact(
     
     console.log(`[Sync] Buscando mensagens para JID: ${jid}`);
     
-    const findMessagesUrl = `${config.api_url}chat/findMessages/${config.instance_name}`;
+    const findMessagesUrl = `${config.api_url}/chat/findMessages/${config.instance_name}`;
     let currentPage = 1;
     let totalPages = 1;
     
@@ -734,11 +734,20 @@ async function syncMessagesForContact(
       .select("*", { count: "exact", head: true })
       .eq("contato_id", contatoId);
 
+    // Buscar timestamp da última mensagem REAL do contato
+    const { data: lastMsg } = await supabase
+      .from("conversas_whatsapp")
+      .select("data_mensagem")
+      .eq("contato_id", contatoId)
+      .order("data_mensagem", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     await supabase
       .from("contatos_inteligencia")
       .update({
         conversas_analisadas: count || 0,
-        ultima_mensagem: new Date().toISOString(),
+        ultima_mensagem: lastMsg?.data_mensagem || new Date().toISOString(),
       })
       .eq("id", contatoId);
 
