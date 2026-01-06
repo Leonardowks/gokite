@@ -6,23 +6,29 @@ import { MensagemChat } from '@/hooks/useConversasPage';
 
 interface MessageBubbleProps {
   message: MensagemChat;
+  isFirstInGroup?: boolean;
+  isLastInGroup?: boolean;
 }
 
 const getStatusIcon = (status: string | null, isFromMe: boolean) => {
   if (!isFromMe) return null;
   switch (status) {
     case 'READ':
-      return <CheckCheck className="h-4 w-4 text-cyan-500" />;
+      return <CheckCheck className="h-4 w-4 text-cyan-400" />;
     case 'DELIVERY_ACK':
-      return <CheckCheck className="h-4 w-4 text-muted-foreground" />;
+      return <CheckCheck className="h-4 w-4 text-white/70" />;
     case 'SERVER_ACK':
-      return <Check className="h-4 w-4 text-muted-foreground" />;
+      return <Check className="h-4 w-4 text-white/70" />;
     default:
-      return <Check className="h-4 w-4 text-muted-foreground/50" />;
+      return <Check className="h-4 w-4 text-white/50" />;
   }
 };
 
-export const MessageBubble = memo(function MessageBubble({ message }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ 
+  message, 
+  isFirstInGroup = true,
+  isLastInGroup = true 
+}: MessageBubbleProps) {
   const isFromMe = message.is_from_me || message.remetente === 'empresa';
   const isImagem = message.tipo_midia === 'imagem' || message.tipo_midia === 'image';
   const isVideo = message.tipo_midia === 'video';
@@ -33,17 +39,71 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
   const showTextContent = message.conteudo && !isMediaPlaceholder;
   const time = format(parseISO(message.data_mensagem), 'HH:mm');
 
+  // Mensagem de sistema
+  const isSystemMessage = message.conteudo?.startsWith('[Sistema]') || 
+    message.conteudo?.startsWith('🔒') ||
+    message.conteudo?.includes('criou este grupo');
+  
+  if (isSystemMessage) {
+    return (
+      <div className="flex justify-center my-3">
+        <span className="text-[11px] text-muted-foreground bg-muted/60 px-3 py-1.5 rounded-lg shadow-sm max-w-[85%] text-center">
+          {message.conteudo}
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <div className={cn('flex', isFromMe ? 'justify-end' : 'justify-start')}>
+    <div 
+      className={cn(
+        'flex',
+        isFromMe ? 'justify-end' : 'justify-start',
+        // Reduz espaçamento para mensagens agrupadas
+        !isFirstInGroup && 'mt-0.5',
+        isFirstInGroup && 'mt-2'
+      )}
+    >
       <div
         className={cn(
-          'max-w-[75%] lg:max-w-[65%] rounded-2xl shadow-sm',
+          'relative max-w-[75%] lg:max-w-[65%] shadow-sm',
           isFromMe
-            ? 'bg-[#005c4b] text-white rounded-tr-sm'
-            : 'bg-card border border-border/50 rounded-tl-sm',
-          hasMedia ? 'p-1' : 'px-3 py-2'
+            ? 'bg-[#005c4b] text-white'
+            : 'bg-card border border-border/30',
+          // Bordas arredondadas com tail
+          isFromMe ? (
+            isFirstInGroup 
+              ? 'rounded-2xl rounded-tr-md' 
+              : isLastInGroup 
+                ? 'rounded-2xl rounded-br-md'
+                : 'rounded-2xl rounded-r-md'
+          ) : (
+            isFirstInGroup 
+              ? 'rounded-2xl rounded-tl-md' 
+              : isLastInGroup 
+                ? 'rounded-2xl rounded-bl-md'
+                : 'rounded-2xl rounded-l-md'
+          ),
+          hasMedia ? 'p-1 overflow-hidden' : 'px-3 py-2'
         )}
       >
+        {/* Tail/Notch - só na primeira mensagem do grupo */}
+        {isFirstInGroup && (
+          <div
+            className={cn(
+              'absolute top-0 w-3 h-3',
+              isFromMe 
+                ? '-right-1.5 bg-[#005c4b]' 
+                : '-left-1.5 bg-card border-l border-t border-border/30'
+            )}
+            style={{
+              clipPath: isFromMe 
+                ? 'polygon(0 0, 100% 0, 0 100%)' 
+                : 'polygon(100% 0, 100% 100%, 0 0)'
+            }}
+          />
+        )}
+
         {/* Mídia */}
         {hasMedia && (
           <div className={cn(showTextContent && 'mb-1')}>
@@ -108,9 +168,7 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
                   <p className="text-sm font-medium truncate">
                     {message.conteudo !== '[Documento]' ? message.conteudo : 'Documento'}
                   </p>
-                  <p className={cn(
-                    'text-xs opacity-70'
-                  )}>
+                  <p className="text-xs opacity-70">
                     Clique para abrir
                   </p>
                 </div>
@@ -130,15 +188,17 @@ export const MessageBubble = memo(function MessageBubble({ message }: MessageBub
           </p>
         )}
 
-        {/* Horário e status */}
-        <div className={cn(
-          'flex items-center justify-end gap-1 mt-1',
-          hasMedia && 'px-2 pb-1',
-          isFromMe ? 'text-white/70' : 'text-muted-foreground'
-        )}>
-          <span className="text-[11px]">{time}</span>
-          {getStatusIcon(message.message_status, isFromMe)}
-        </div>
+        {/* Horário e status - só na última mensagem do grupo ou sempre se for única */}
+        {(isLastInGroup || (!isFirstInGroup && !isLastInGroup)) && (
+          <div className={cn(
+            'flex items-center justify-end gap-1 mt-1',
+            hasMedia && 'px-2 pb-1',
+            isFromMe ? 'text-white/70' : 'text-muted-foreground'
+          )}>
+            <span className="text-[11px]">{time}</span>
+            {getStatusIcon(message.message_status, isFromMe)}
+          </div>
+        )}
       </div>
     </div>
   );

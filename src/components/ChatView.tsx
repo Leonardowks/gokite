@@ -283,15 +283,22 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
       />
 
       {/* Mensagens */}
-      <ScrollArea className="flex-1">
-        <div className="p-4">
+      <ScrollArea className="flex-1 bg-[#efeae2] dark:bg-[#0b141a]">
+        <div 
+          className="min-h-full p-4"
+          style={{
+            backgroundImage: 'url(/chat-pattern.svg)',
+            backgroundRepeat: 'repeat',
+            backgroundSize: '412px 116px',
+          }}
+        >
           {mensagens.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-20">
               <MessageSquare className="h-12 w-12 opacity-30 mb-3" />
               <p className="text-sm">Nenhuma mensagem ainda</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-0.5">
               {Object.entries(mensagensPorData).map(([dateKey, msgs]) => {
                 const date = parseISO(dateKey);
                 const isToday = isSameDay(date, new Date());
@@ -303,16 +310,33 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                   <div key={dateKey}>
                     {/* Separador de data */}
                     <div className="flex items-center justify-center my-4">
-                      <span className="text-[11px] text-muted-foreground bg-card px-3 py-1 rounded-full shadow-sm">
+                      <span className="text-[11px] text-muted-foreground bg-white/90 dark:bg-card/90 px-3 py-1.5 rounded-lg shadow-sm">
                         {dateLabel}
                       </span>
                     </div>
 
-                    {/* Mensagens do dia */}
-                    <div className="space-y-1">
-                      {msgs.map((msg) => (
-                        <MessageBubble key={msg.id} message={msg} />
-                      ))}
+                    {/* Mensagens do dia com agrupamento */}
+                    <div className="space-y-0.5">
+                      {msgs.map((msg, index) => {
+                        const prevMsg = index > 0 ? msgs[index - 1] : null;
+                        const nextMsg = index < msgs.length - 1 ? msgs[index + 1] : null;
+                        
+                        const currentIsFromMe = msg.is_from_me || msg.remetente === 'empresa';
+                        const prevIsFromMe = prevMsg ? (prevMsg.is_from_me || prevMsg.remetente === 'empresa') : null;
+                        const nextIsFromMe = nextMsg ? (nextMsg.is_from_me || nextMsg.remetente === 'empresa') : null;
+                        
+                        const isFirstInGroup = prevIsFromMe !== currentIsFromMe;
+                        const isLastInGroup = nextIsFromMe !== currentIsFromMe;
+                        
+                        return (
+                          <MessageBubble 
+                            key={msg.id} 
+                            message={msg}
+                            isFirstInGroup={isFirstInGroup}
+                            isLastInGroup={isLastInGroup}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );
