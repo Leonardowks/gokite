@@ -52,6 +52,7 @@ export interface MensagemChat {
   is_from_me: boolean | null;
   push_name: string | null;
   message_status: string | null;
+  message_id: string | null;
 }
 
 export type ConversaFiltro = 'todos' | 'nao_lidos' | 'leads' | 'clientes';
@@ -222,7 +223,7 @@ export const useMensagensContato = (contatoId: string | null) => {
 
       const { data, error } = await supabase
         .from('conversas_whatsapp')
-        .select('id, contato_id, telefone, data_mensagem, remetente, conteudo, tipo_midia, media_url, media_mimetype, lida, is_from_me, push_name, message_status')
+        .select('id, contato_id, telefone, data_mensagem, remetente, conteudo, tipo_midia, media_url, media_mimetype, lida, is_from_me, push_name, message_status, message_id')
         .eq('contato_id', contatoId)
         .order('data_mensagem', { ascending: true });
 
@@ -272,6 +273,31 @@ export const useMensagensNaoLidas = () => {
   });
 };
 
+// Função auxiliar para ordenar mensagens cronologicamente
+const sortMessagesByTimestamp = (messages: MensagemChat[]): MensagemChat[] => {
+  return [...messages].sort((a, b) => {
+    const timeA = new Date(a.data_mensagem).getTime();
+    const timeB = new Date(b.data_mensagem).getTime();
+    if (timeA !== timeB) return timeA - timeB;
+    // Desempate por id se timestamps iguais
+    return a.id.localeCompare(b.id);
+  });
+};
+
+// Função para merge de mensagens removendo duplicatas e ordenando
+const mergeAndSortMessages = (existing: MensagemChat[], newMessage: MensagemChat): MensagemChat[] => {
+  // Verificar duplicata por id ou message_id
+  const isDuplicate = existing.some(m => 
+    m.id === newMessage.id || 
+    (m.message_id && newMessage.message_id && m.message_id === newMessage.message_id)
+  );
+  
+  if (isDuplicate) return existing;
+  
+  // Adicionar e ordenar cronologicamente
+  return sortMessagesByTimestamp([...existing, newMessage]);
+};
+
 // Hook para realtime de novas mensagens e atualizações de status
 export const useConversasRealtime = (onNovaMensagem?: (mensagem: any) => void) => {
   const queryClient = useQueryClient();
@@ -294,16 +320,14 @@ export const useConversasRealtime = (onNovaMensagem?: (mensagem: any) => void) =
           queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
           queryClient.invalidateQueries({ queryKey: ['mensagens-nao-lidas'] });
           
-          // Atualizar cache de mensagens diretamente para resposta instantânea
+          // Atualizar cache de mensagens com merge ordenado cronologicamente
           const newMessage = payload.new as MensagemChat;
           if (newMessage.contato_id) {
             queryClient.setQueryData(
               ['mensagens-chat', newMessage.contato_id],
               (old: MensagemChat[] | undefined) => {
                 if (!old) return [newMessage];
-                // Evitar duplicatas
-                if (old.some(m => m.id === newMessage.id)) return old;
-                return [...old, newMessage];
+                return mergeAndSortMessages(old, newMessage);
               }
             );
           }
@@ -329,16 +353,18 @@ export const useConversasRealtime = (onNovaMensagem?: (mensagem: any) => void) =
         (payload) => {
           console.log('[Realtime] Mensagem atualizada:', payload.new);
           
-          // Atualizar cache de mensagens com novo status
+          // Atualizar cache de mensagens com novo status e reordenar
           const updatedMessage = payload.new as MensagemChat;
           if (updatedMessage.contato_id) {
             queryClient.setQueryData(
               ['mensagens-chat', updatedMessage.contato_id],
               (old: MensagemChat[] | undefined) => {
                 if (!old) return old;
-                return old.map(m => 
+                const updated = old.map(m => 
                   m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m
                 );
+                // Reordenar caso data_mensagem tenha mudado
+                return sortMessagesByTimestamp(updated);
               }
             );
           }

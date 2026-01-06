@@ -89,7 +89,7 @@ export function useEvolutionHealth(enabled: boolean = true) {
     }
   }, [queryClient]);
 
-  // Configurar polling inteligente
+  // Configurar polling inteligente (menos agressivo para não bagunçar cronologia)
   useEffect(() => {
     if (!enabled) return;
 
@@ -106,21 +106,26 @@ export function useEvolutionHealth(enabled: boolean = true) {
         }
       }
       
-      // Se não recebeu mensagens há mais de 2 minutos, fazer poll
-      if (health && health.connected && health.messageGap && health.messageGap > 2) {
-        console.log('[useEvolutionHealth] Gap de mensagens detectado, fazendo poll...');
+      // Só fazer poll automático se:
+      // 1. Há um gap de mensagens > 5 minutos (era 2, aumentado para reduzir polling)
+      // 2. OU webhook não está configurado
+      const shouldPoll = health && health.connected && (
+        !health.webhookConfigured || 
+        (health.messageGap && health.messageGap > 5)
+      );
+      
+      if (shouldPoll) {
+        console.log('[useEvolutionHealth] Gap significativo ou sem webhook, fazendo poll...');
         await pollMessages();
       }
     };
 
-    // Executar imediatamente e depois a cada 60 segundos
+    // Executar imediatamente e depois a cada 90 segundos (era 60)
     runHealthCheck();
-    healthCheckIntervalRef.current = setInterval(runHealthCheck, 60000);
+    healthCheckIntervalRef.current = setInterval(runHealthCheck, 90000);
 
-    // Polling mais frequente como backup (30 segundos)
-    pollIntervalRef.current = setInterval(() => {
-      pollMessages();
-    }, 30000);
+    // REMOVIDO: Polling global a cada 30s era muito agressivo e causava reordenações
+    // O polling agora só acontece baseado no health check
 
     return () => {
       if (healthCheckIntervalRef.current) {
@@ -139,7 +144,7 @@ export function useEvolutionHealth(enabled: boolean = true) {
   };
 }
 
-// Hook para polling específico de um contato
+// Hook para polling específico de um contato (menos agressivo)
 export function useContatoPolling(contatoId: string | null, enabled: boolean = true) {
   const { pollMessages } = useEvolutionHealth(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -147,12 +152,12 @@ export function useContatoPolling(contatoId: string | null, enabled: boolean = t
   useEffect(() => {
     if (!enabled || !contatoId) return;
 
-    // Poll a cada 15 segundos quando visualizando uma conversa
+    // Poll a cada 30 segundos quando visualizando uma conversa (era 15s)
     const poll = () => pollMessages(contatoId);
     
-    // Poll inicial com delay
-    const timeout = setTimeout(poll, 2000);
-    intervalRef.current = setInterval(poll, 15000);
+    // Poll inicial com delay maior para evitar duplicação com webhook
+    const timeout = setTimeout(poll, 5000);
+    intervalRef.current = setInterval(poll, 30000);
 
     return () => {
       clearTimeout(timeout);
