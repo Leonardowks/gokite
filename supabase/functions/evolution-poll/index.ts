@@ -171,7 +171,7 @@ serve(async (req) => {
         }
       }
     } else {
-      // Poll geral - buscar chats recentes
+      // Poll geral - buscar chats recentes e suas mensagens
       const response = await fetch(
         `${config.api_url}/chat/findChats/${config.instance_name}`,
         {
@@ -186,7 +186,6 @@ serve(async (req) => {
 
       if (response.ok) {
         const responseData = await response.json();
-        // A API pode retornar um array ou um objeto
         let chats: any[] = [];
         if (Array.isArray(responseData)) {
           chats = responseData;
@@ -196,6 +195,156 @@ serve(async (req) => {
           chats = responseData.data;
         }
         console.log(`[Evolution Poll] ${chats.length} chats encontrados`);
+        
+        // Processar cada chat para buscar mensagens novas
+        for (const chat of chats.slice(0, 10)) { // Limitar a 10 chats mais recentes
+          const remoteJid = chat.id || chat.remoteJid || chat.jid;
+          if (!remoteJid || remoteJid.includes('@g.us') || remoteJid.includes('@broadcast')) {
+            continue; // Ignorar grupos e broadcasts
+          }
+
+          const telefone = normalizePhone(remoteJid);
+          
+          // Buscar ou criar contato
+          let { data: contato } = await supabase
+            .from("contatos_inteligencia")
+            .select("id, remote_jid")
+            .eq("remote_jid", remoteJid)
+            .maybeSingle();
+
+          if (!contato) {
+            // Criar contato
+            const { data: novoContato } = await supabase
+              .from("contatos_inteligencia")
+              .insert({
+                telefone,
+                remote_jid: remoteJid,
+                nome: chat.pushName || chat.name || null,
+                whatsapp_profile_name: chat.pushName || chat.name || null,
+                status: 'lead',
+                ultima_mensagem: new Date().toISOString(),
+              })
+              .select("id, remote_jid")
+              .single();
+            
+            contato = novoContato;
+          }
+
+          if (!contato) continue;
+
+          // Buscar mensagens deste chat
+          try {
+            const msgResponse = await fetch(
+              `${config.api_url}/chat/findMessages/${config.instance_name}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "apikey": config.api_key,
+                },
+                body: JSON.stringify({
+                  where: { key: { remoteJid } },
+                  limit: 20,
+                }),
+              }
+            );
+
+            if (!msgResponse.ok) continue;
+
+            const msgData = await msgResponse.json();
+            let messages: any[] = [];
+            if (Array.isArray(msgData)) {
+              messages = msgData;
+            } else if (msgData?.messages && Array.isArray(msgData.messages)) {
+              messages = msgData.messages;
+            } else if (msgData?.data && Array.isArray(msgData.data)) {
+              messages = msgData.data;
+            }
+
+            // Processar mensagens
+            for (const msg of messages) {
+              const messageId = msg.key?.id;
+              if (!messageId) continue;
+
+              // Verificar se já existe
+              const { data: existing } = await supabase
+                .from("conversas_whatsapp")
+                .select("id")
+                .eq("message_id", messageId)
+                .maybeSingle();
+
+              if (existing) continue; // Já existe
+
+              // Extrair conteúdo
+              const timestamp = msg.messageTimestamp
+                ? new Date(typeof msg.messageTimestamp === 'string' 
+                    ? parseInt(msg.messageTimestamp) * 1000 
+                    : (typeof msg.messageTimestamp === 'object' && msg.messageTimestamp.low
+                        ? msg.messageTimestamp.low * 1000
+                        : msg.messageTimestamp * 1000))
+                : new Date();
+
+              let content = "";
+              let tipoMidia = "texto";
+              
+              if (msg.message?.conversation) {
+                content = msg.message.conversation;
+              } else if (msg.message?.extendedTextMessage?.text) {
+                content = msg.message.extendedTextMessage.text;
+              } else if (msg.message?.imageMessage) {
+                content = msg.message.imageMessage.caption || "[Imagem]";
+                tipoMidia = "imagem";
+              } else if (msg.message?.audioMessage) {
+                content = "[Áudio]";
+                tipoMidia = "audio";
+              } else if (msg.message?.videoMessage) {
+                content = msg.message.videoMessage.caption || "[Vídeo]";
+                tipoMidia = "video";
+              } else if (msg.message?.documentMessage) {
+                content = msg.message.documentMessage.fileName || "[Documento]";
+                tipoMidia = "documento";
+              } else if (msg.message?.stickerMessage) {
+                content = "[Figurinha]";
+                tipoMidia = "sticker";
+              }
+
+              if (!content) continue;
+
+              // Inserir mensagem
+              const { error: insertError } = await supabase
+                .from("conversas_whatsapp")
+                .insert({
+                  contato_id: contato.id,
+                  telefone,
+                  message_id: messageId,
+                  instance_name: config.instance_name,
+                  is_from_me: msg.key?.fromMe || false,
+                  push_name: msg.pushName,
+                  data_mensagem: timestamp.toISOString(),
+                  remetente: msg.key?.fromMe ? "empresa" : "cliente",
+                  conteudo: content,
+                  tipo_midia: tipoMidia,
+                  lida: msg.key?.fromMe,
+                  message_status: msg.status ? String(msg.status) : null,
+                });
+
+              if (!insertError) {
+                mensagensNovas++;
+                
+                // Atualizar ultima_mensagem do contato
+                await supabase
+                  .from("contatos_inteligencia")
+                  .update({ 
+                    ultima_mensagem: timestamp.toISOString(),
+                    ultimo_contato: timestamp.toISOString(),
+                  })
+                  .eq("id", contato.id);
+              }
+            }
+          } catch (chatError) {
+            console.error(`[Evolution Poll] Erro ao processar chat ${remoteJid}:`, chatError);
+          }
+        }
         
         // Atualizar última sincronização
         await supabase
