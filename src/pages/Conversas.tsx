@@ -17,6 +17,7 @@ import {
 import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const Conversas = () => {
   const [selectedContatoId, setSelectedContatoId] = useState<string | null>(null);
@@ -90,16 +91,19 @@ const Conversas = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)]">
       <PageHeader
         title="Conversas"
-        description="Central de mensagens do WhatsApp em tempo real"
+        description="Central de mensagens WhatsApp"
       />
 
       {/* Layout de duas colunas */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 h-[calc(100vh-220px)] border rounded-xl overflow-hidden bg-card shadow-sm">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 border rounded-xl overflow-hidden bg-card shadow-sm mt-4 min-h-0">
         {/* Lista de conversas - Coluna esquerda */}
-        <div className="lg:col-span-4 xl:col-span-3 border-r border-border/50 overflow-hidden">
+        <div className={cn(
+          'lg:col-span-4 xl:col-span-3 border-r border-border/50 overflow-hidden',
+          selectedContatoId ? 'hidden lg:block' : 'block'
+        )}>
           <ConversasList
             contatos={contatos}
             isLoading={loadingContatos}
@@ -113,7 +117,7 @@ const Conversas = () => {
           />
         </div>
 
-        {/* Chat - Coluna direita */}
+        {/* Chat - Coluna direita (desktop) */}
         <div className="lg:col-span-8 xl:col-span-9 overflow-hidden hidden lg:block">
           <ChatView
             contato={contatoSelecionado}
@@ -124,30 +128,28 @@ const Conversas = () => {
           />
         </div>
 
-        {/* Mobile: mostrar chat em tela cheia quando selecionado */}
+        {/* Mobile: mostrar chat quando selecionado */}
         {selectedContatoId && (
-          <div className="fixed inset-0 z-50 bg-background lg:hidden">
-            <div className="h-full flex flex-col">
-              <div className="p-3 border-b flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedContatoId(null)}
-                  className="gap-1.5"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Voltar
-                </Button>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <ChatView
-                  contato={contatoSelecionado}
-                  mensagens={mensagens}
-                  isLoading={loadingMensagens}
-                  onAnalisar={handleAnalisar}
-                  isAnalisando={analisarMutation.isPending}
-                />
-              </div>
+          <div className="lg:hidden h-full flex flex-col">
+            <div className="p-2 border-b flex items-center gap-2 bg-card shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedContatoId(null)}
+                className="gap-1.5 h-9 min-w-[44px]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="sr-only sm:not-sr-only">Voltar</span>
+              </Button>
+            </div>
+            <div className="flex-1 overflow-hidden min-h-0">
+              <ChatView
+                contato={contatoSelecionado}
+                mensagens={mensagens}
+                isLoading={loadingMensagens}
+                onAnalisar={handleAnalisar}
+                isAnalisando={analisarMutation.isPending}
+              />
             </div>
           </div>
         )}

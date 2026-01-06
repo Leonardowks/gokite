@@ -10,6 +10,7 @@ import {
   Filter,
   ChevronDown,
   Flame,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContatoComUltimaMensagem, ConversaFiltro, ConversaOrdenacao } from '@/hooks/useConversasPage';
@@ -34,9 +35,9 @@ const filtroLabels: Record<ConversaFiltro, string> = {
 };
 
 const ordenacaoLabels: Record<ConversaOrdenacao, string> = {
-  recentes: 'Mais recentes',
-  nao_lidos: 'Não lidos primeiro',
-  nome: 'Por nome',
+  recentes: 'Recentes',
+  nao_lidos: 'Não lidos',
+  nome: 'Nome',
 };
 
 interface ConversasListProps {
@@ -99,24 +100,24 @@ export function ConversasList({
   const virtualizer = useVirtualizer({
     count: contatosFiltrados.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 88,
+    estimateSize: () => 76,
     overscan: 5,
   });
 
   if (isLoading) {
     return (
       <div className="h-full flex flex-col">
-        <div className="p-4 border-b space-y-3">
+        <div className="p-3 border-b space-y-3">
           <Skeleton className="h-10 w-full" />
           <div className="flex gap-2">
             <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-20" />
           </div>
         </div>
-        <div className="flex-1 p-4 space-y-3">
+        <div className="flex-1 p-3 space-y-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Skeleton className="h-12 w-12 rounded-full" />
+            <div key={i} className="flex items-center gap-3 p-2">
+              <Skeleton className="h-11 w-11 rounded-full flex-shrink-0" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-3 w-1/2" />
@@ -131,7 +132,7 @@ export function ConversasList({
   return (
     <div className="h-full flex flex-col bg-card">
       {/* Header com busca e filtros */}
-      <div className="p-3 border-b border-border/50 space-y-3">
+      <div className="p-3 border-b border-border/50 space-y-2">
         {/* Busca */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -139,38 +140,37 @@ export function ConversasList({
             placeholder="Buscar conversa..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            className="pl-9 bg-muted/50 border-0 h-9"
+            className="pl-9 bg-muted/50 border-0 h-10"
           />
         </div>
 
-        {/* Filtros e ordenação */}
+        {/* Filtros e Contador */}
         <div className="flex items-center gap-2">
           {/* Filtro */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
-                <Filter className="h-3 w-3" />
-                {filtroLabels[filtro]}
-                {totalNaoLidos > 0 && filtro !== 'nao_lidos' && (
-                  <Badge variant="secondary" className="h-4 px-1 text-[10px]">
-                    {totalNaoLidos}
+              <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs min-w-[44px]">
+                <Filter className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{filtroLabels[filtro]}</span>
+                {totalNaoLidos > 0 && (
+                  <Badge variant="destructive" className="h-4 min-w-[16px] px-1 text-[10px] ml-1">
+                    {totalNaoLidos > 99 ? '99+' : totalNaoLidos}
                   </Badge>
                 )}
-                <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="w-48">
               <DropdownMenuLabel className="text-xs">Filtrar por</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {Object.entries(filtroLabels).map(([key, label]) => (
                 <DropdownMenuItem
                   key={key}
                   onClick={() => onFiltroChange(key as ConversaFiltro)}
-                  className={cn(filtro === key && 'bg-accent')}
+                  className={cn('min-h-[40px]', filtro === key && 'bg-accent')}
                 >
                   {label}
                   {key === 'nao_lidos' && totalNaoLidos > 0 && (
-                    <Badge variant="secondary" className="ml-auto h-4 px-1 text-[10px]">
+                    <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-[10px]">
                       {totalNaoLidos}
                     </Badge>
                   )}
@@ -182,19 +182,19 @@ export function ConversasList({
           {/* Ordenação */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs text-muted-foreground">
-                {ordenacaoLabels[ordenacao]}
-                <ChevronDown className="h-3 w-3 opacity-50" />
+              <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs min-w-[44px]">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{ordenacaoLabels[ordenacao]}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
+            <DropdownMenuContent align="start" className="w-44">
               <DropdownMenuLabel className="text-xs">Ordenar por</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {Object.entries(ordenacaoLabels).map(([key, label]) => (
                 <DropdownMenuItem
                   key={key}
                   onClick={() => onOrdenacaoChange(key as ConversaOrdenacao)}
-                  className={cn(ordenacao === key && 'bg-accent')}
+                  className={cn('min-h-[40px]', ordenacao === key && 'bg-accent')}
                 >
                   {label}
                 </DropdownMenuItem>
@@ -202,18 +202,19 @@ export function ConversasList({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Indicador de oportunidades quentes */}
-          {totalQuentes > 0 && (
-            <div className="flex items-center gap-1 text-[11px] text-orange-600 ml-auto">
-              <Flame className="h-3.5 w-3.5" />
-              <span className="font-medium">{totalQuentes}</span>
-            </div>
-          )}
+          {/* Spacer */}
+          <div className="flex-1" />
 
-          {/* Contador */}
-          <span className={cn('text-xs text-muted-foreground', totalQuentes > 0 ? '' : 'ml-auto')}>
-            {contatosFiltrados.length} conversas
-          </span>
+          {/* Indicadores */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {totalQuentes > 0 && (
+              <div className="flex items-center gap-1 text-orange-600">
+                <Flame className="h-3.5 w-3.5" />
+                <span className="font-medium">{totalQuentes}</span>
+              </div>
+            )}
+            <span>{contatosFiltrados.length}</span>
+          </div>
         </div>
       </div>
 
