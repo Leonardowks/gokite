@@ -16,10 +16,18 @@ import {
 } from '@/hooks/useConversasPage';
 import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
 import { useAnaliseAutomatica } from '@/hooks/useAnaliseAutomatica';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { useEvolutionHealth, useContatoPolling } from '@/hooks/useEvolutionHealth';
+import { useEvolutionStatus } from '@/hooks/useEvolutionConfig';
+import { ArrowLeft, Sparkles, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const Conversas = () => {
   const [selectedContatoId, setSelectedContatoId] = useState<string | null>(null);
@@ -28,11 +36,13 @@ const Conversas = () => {
   const [contatoParaDetalhes, setContatoParaDetalhes] = useState<ContatoComUltimaMensagem | null>(null);
   const [filtro, setFiltro] = useState<ConversaFiltro>('todos');
   const [ordenacao, setOrdenacao] = useState<ConversaOrdenacao>('recentes');
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   // Queries
   const { data: contatos = [], isLoading: loadingContatos, refetch: refetchContatos } = useContatosComMensagens(filtro, ordenacao);
   const { data: mensagens = [], isLoading: loadingMensagens } = useMensagensContato(selectedContatoId);
   const { data: insights, isLoading: loadingInsights } = useInsightsContato(selectedContatoId);
+  const { data: evolutionStatus } = useEvolutionStatus();
 
   // Mutations
   const marcarComoLidaMutation = useMarcarComoLida();
@@ -41,8 +51,31 @@ const Conversas = () => {
   // Fase 3: IA Proativa - Análise automática em background
   useAnaliseAutomatica(true);
 
+  // Health check e polling fallback
+  const { reconfigureWebhook } = useEvolutionHealth(evolutionStatus?.status === 'conectado');
+  
+  // Polling específico quando visualizando uma conversa
+  useContatoPolling(selectedContatoId, evolutionStatus?.status === 'conectado');
+
+  // Status de conexão
+  const isConnected = evolutionStatus?.status === 'conectado';
+
   // Contato selecionado
   const contatoSelecionado = contatos.find((c) => c.id === selectedContatoId) || null;
+
+  // Handler para reconectar webhook
+  const handleReconnect = async () => {
+    setIsReconnecting(true);
+    try {
+      await reconfigureWebhook();
+      toast.success('Webhook reconfigurado!');
+      refetchContatos();
+    } catch (error) {
+      toast.error('Erro ao reconfigurar webhook');
+    } finally {
+      setIsReconnecting(false);
+    }
+  };
 
   // Realtime
   const handleNovaMensagem = useCallback((mensagem: any) => {
@@ -96,19 +129,61 @@ const Conversas = () => {
   };
 
   return (
+    <TooltipProvider>
     <div className="flex flex-col h-[calc(100vh-160px)] sm:h-[calc(100vh-180px)] lg:h-[calc(100vh-200px)]">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <PageHeader
           title="Conversas"
           description="Central de mensagens WhatsApp"
         />
-        <Badge variant="outline" className="gap-1.5 text-xs bg-primary/5 border-primary/20 text-primary">
-          <Sparkles className="h-3 w-3" />
-          IA Proativa
-        </Badge>
-      </div>
+        <div className="flex items-center gap-2">
+          {/* Indicador de status da conexão */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5">
+                {isConnected ? (
+                  <Badge variant="outline" className="gap-1 text-xs bg-green-500/10 border-green-500/30 text-green-600">
+                    <Wifi className="h-3 w-3" />
+                    <span className="hidden sm:inline">Conectado</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="gap-1 text-xs bg-destructive/10 border-destructive/30 text-destructive">
+                    <WifiOff className="h-3 w-3" />
+                    <span className="hidden sm:inline">Desconectado</span>
+                  </Badge>
+                )}
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isConnected ? 'WhatsApp conectado e sincronizando' : 'WhatsApp não conectado'}</p>
+            </TooltipContent>
+          </Tooltip>
 
-      {/* Layout de duas colunas */}
+          {isConnected && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={handleReconnect}
+                  disabled={isReconnecting}
+                >
+                  <RefreshCw className={cn('h-4 w-4', isReconnecting && 'animate-spin')} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Reconfigurar sincronização</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          <Badge variant="outline" className="gap-1.5 text-xs bg-primary/5 border-primary/20 text-primary">
+            <Sparkles className="h-3 w-3" />
+            IA Proativa
+          </Badge>
+        </div>
+      </div>
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 border rounded-xl overflow-hidden bg-card shadow-sm mt-4 min-h-0">
         {/* Lista de conversas - Coluna esquerda */}
         <div className={cn(
@@ -184,6 +259,7 @@ const Conversas = () => {
         contato={contatoParaDetalhes}
       />
     </div>
+    </TooltipProvider>
   );
 };
 

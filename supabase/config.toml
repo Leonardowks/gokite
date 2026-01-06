@@ -53,3 +53,9 @@ verify_jwt = false
 
 [functions.processar-analise-queue]
 verify_jwt = false
+
+[functions.evolution-poll]
+verify_jwt = false
+
+[functions.evolution-health]
+verify_jwt = false

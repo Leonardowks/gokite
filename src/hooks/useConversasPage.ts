@@ -272,13 +272,14 @@ export const useMensagensNaoLidas = () => {
   });
 };
 
-// Hook para realtime de novas mensagens
+// Hook para realtime de novas mensagens e atualizações de status
 export const useConversasRealtime = (onNovaMensagem?: (mensagem: any) => void) => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const channel = supabase
-      .channel('conversas-realtime')
+    // Canal para INSERT (novas mensagens)
+    const insertChannel = supabase
+      .channel('conversas-insert')
       .on(
         'postgres_changes',
         {
@@ -292,7 +293,20 @@ export const useConversasRealtime = (onNovaMensagem?: (mensagem: any) => void) =
           // Invalidar queries
           queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
           queryClient.invalidateQueries({ queryKey: ['mensagens-nao-lidas'] });
-          queryClient.invalidateQueries({ queryKey: ['mensagens-chat'] });
+          
+          // Atualizar cache de mensagens diretamente para resposta instantânea
+          const newMessage = payload.new as MensagemChat;
+          if (newMessage.contato_id) {
+            queryClient.setQueryData(
+              ['mensagens-chat', newMessage.contato_id],
+              (old: MensagemChat[] | undefined) => {
+                if (!old) return [newMessage];
+                // Evitar duplicatas
+                if (old.some(m => m.id === newMessage.id)) return old;
+                return [...old, newMessage];
+              }
+            );
+          }
 
           // Callback customizado
           if (onNovaMensagem && payload.new) {
@@ -302,8 +316,39 @@ export const useConversasRealtime = (onNovaMensagem?: (mensagem: any) => void) =
       )
       .subscribe();
 
+    // Canal para UPDATE (status de mensagens)
+    const updateChannel = supabase
+      .channel('conversas-update')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversas_whatsapp',
+        },
+        (payload) => {
+          console.log('[Realtime] Mensagem atualizada:', payload.new);
+          
+          // Atualizar cache de mensagens com novo status
+          const updatedMessage = payload.new as MensagemChat;
+          if (updatedMessage.contato_id) {
+            queryClient.setQueryData(
+              ['mensagens-chat', updatedMessage.contato_id],
+              (old: MensagemChat[] | undefined) => {
+                if (!old) return old;
+                return old.map(m => 
+                  m.id === updatedMessage.id ? { ...m, ...updatedMessage } : m
+                );
+              }
+            );
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(insertChannel);
+      supabase.removeChannel(updateChannel);
     };
   }, [queryClient, onNovaMensagem]);
 };

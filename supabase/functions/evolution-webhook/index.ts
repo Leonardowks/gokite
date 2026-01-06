@@ -57,15 +57,7 @@ interface EvolutionContact {
 interface WebhookPayload {
   event: string;
   instance: string;
-  data: {
-    key?: EvolutionMessage["key"];
-    pushName?: string;
-    message?: EvolutionMessage["message"];
-    messageTimestamp?: number | string;
-    status?: string;
-    contact?: EvolutionContact;
-    contacts?: EvolutionContact[];
-  };
+  data: any;
 }
 
 interface EvolutionConfig {
@@ -82,7 +74,6 @@ function normalizePhone(phone: string): string {
 function isPhoneNumber(str: string): boolean {
   if (!str) return false;
   const cleaned = str.replace(/\D/g, '');
-  // Se tem mais de 8 dígitos e é quase todo números, é telefone
   return cleaned.length >= 8 && cleaned.length / str.length > 0.7;
 }
 
@@ -141,8 +132,6 @@ function extractMessageContent(message: EvolutionMessage["message"]): { content:
 async function fetchProfilePicture(config: EvolutionConfig, instanceName: string, remoteJid: string): Promise<string | null> {
   try {
     const url = `${config.api_url}/chat/fetchProfilePictureUrl/${instanceName}`;
-    console.log(`[Evolution Webhook] Buscando foto de perfil para ${remoteJid}`);
-    
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -152,13 +141,8 @@ async function fetchProfilePicture(config: EvolutionConfig, instanceName: string
       body: JSON.stringify({ number: remoteJid }),
     });
 
-    if (!response.ok) {
-      console.log(`[Evolution Webhook] Erro ao buscar foto: ${response.status}`);
-      return null;
-    }
-
+    if (!response.ok) return null;
     const data = await response.json();
-    console.log(`[Evolution Webhook] Foto encontrada: ${data.profilePictureUrl ? "sim" : "não"}`);
     return data.profilePictureUrl || null;
   } catch (error) {
     console.error("[Evolution Webhook] Erro ao buscar foto de perfil:", error);
@@ -170,8 +154,6 @@ async function fetchProfilePicture(config: EvolutionConfig, instanceName: string
 async function fetchContactInfo(config: EvolutionConfig, instanceName: string, remoteJid: string): Promise<{ pushName?: string; isBusiness?: boolean; businessName?: string } | null> {
   try {
     const url = `${config.api_url}/chat/fetchProfile/${instanceName}`;
-    console.log(`[Evolution Webhook] Buscando perfil para ${remoteJid}`);
-    
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -181,13 +163,8 @@ async function fetchContactInfo(config: EvolutionConfig, instanceName: string, r
       body: JSON.stringify({ number: remoteJid }),
     });
 
-    if (!response.ok) {
-      console.log(`[Evolution Webhook] Erro ao buscar perfil: ${response.status}`);
-      return null;
-    }
-
+    if (!response.ok) return null;
     const data = await response.json();
-    console.log(`[Evolution Webhook] Perfil encontrado:`, JSON.stringify(data).slice(0, 200));
     
     return {
       pushName: data.name || data.pushName,
@@ -210,7 +187,6 @@ async function enrichContactData(
   currentPushName?: string
 ): Promise<void> {
   try {
-    // Buscar dados atuais do contato
     const { data: contato } = await supabase
       .from("contatos_inteligencia")
       .select("whatsapp_profile_picture, whatsapp_profile_name, is_business, business_name")
@@ -222,7 +198,6 @@ async function enrichContactData(
     const updates: Record<string, any> = {};
     let needsUpdate = false;
 
-    // Se não tem foto, buscar
     if (!contato.whatsapp_profile_picture) {
       const profilePicture = await fetchProfilePicture(config, instanceName, remoteJid);
       if (profilePicture) {
@@ -231,9 +206,8 @@ async function enrichContactData(
       }
     }
 
-    // Se não tem nome ou é genérico, buscar perfil completo
     if (!contato.whatsapp_profile_name || contato.whatsapp_profile_name.startsWith("Contato ")) {
-      if (currentPushName) {
+      if (currentPushName && !isPhoneNumber(currentPushName)) {
         updates.whatsapp_profile_name = currentPushName;
         updates.nome = currentPushName;
         needsUpdate = true;
@@ -251,7 +225,6 @@ async function enrichContactData(
       }
     }
 
-    // Aplicar atualizações se houver
     if (needsUpdate && Object.keys(updates).length > 0) {
       console.log(`[Evolution Webhook] Enriquecendo contato ${contatoId}:`, updates);
       await supabase
@@ -264,21 +237,41 @@ async function enrichContactData(
   }
 }
 
+// Mapear status da Evolution para status interno
+function mapMessageStatus(evolutionStatus: number | string): string {
+  const statusMap: Record<string, string> = {
+    "0": "PENDING",
+    "1": "SERVER_ACK",
+    "2": "DELIVERY_ACK",
+    "3": "READ",
+    "4": "PLAYED",
+    "PENDING": "PENDING",
+    "SERVER_ACK": "SERVER_ACK",
+    "DELIVERY_ACK": "DELIVERY_ACK",
+    "READ": "READ",
+    "PLAYED": "PLAYED",
+  };
+  return statusMap[String(evolutionStatus)] || "PENDING";
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
+  // Handle CORS preflight - responder IMEDIATAMENTE
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: WebhookPayload = await req.json();
-    console.log(`[Evolution Webhook] Evento recebido: ${payload.event}`, JSON.stringify(payload).slice(0, 500));
-
     const { event, instance, data } = payload;
+    
+    console.log(`[Evolution Webhook] ${new Date().toISOString()} - Evento: ${event}, Instance: ${instance}`);
+    console.log(`[Evolution Webhook] Payload:`, JSON.stringify(data).slice(0, 1000));
 
     // Buscar configuração da instância para API calls
     const { data: evolutionConfig } = await supabase
@@ -321,10 +314,8 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!contato) {
-          // Validar pushName - ignorar se for um número de telefone
           const validPushName = pushName && !isPhoneNumber(pushName) ? pushName : null;
           
-          // Criar novo contato
           const { data: novoContato, error: createError } = await supabase
             .from("contatos_inteligencia")
             .insert({
@@ -343,7 +334,7 @@ serve(async (req) => {
             break;
           }
           contato = novoContato;
-          console.log(`[Evolution Webhook] Novo contato criado: ${contato.id} com nome: ${validPushName || 'genérico'}`);
+          console.log(`[Evolution Webhook] Novo contato criado: ${contato.id}`);
         }
 
         // Verificar se mensagem já existe
@@ -374,7 +365,8 @@ serve(async (req) => {
             tipo_midia: tipoMidia,
             media_url: mediaUrl,
             media_mimetype: mediaMimetype,
-            lida: isFromMe, // Mensagens enviadas já são consideradas lidas
+            lida: isFromMe,
+            message_status: isFromMe ? "SERVER_ACK" : null,
           });
 
         if (insertError) {
@@ -383,7 +375,6 @@ serve(async (req) => {
         }
 
         // Atualizar última mensagem no contato
-        // Validar pushName - só atualizar se for nome real (não telefone)
         const validPushName = pushName && !isPhoneNumber(pushName) ? pushName : undefined;
         
         const contatoUpdates: Record<string, any> = {
@@ -391,7 +382,6 @@ serve(async (req) => {
           remote_jid: remoteJid,
         };
         
-        // Só atualizar nome se temos um nome válido
         if (validPushName) {
           contatoUpdates.whatsapp_profile_name = validPushName;
         }
@@ -409,11 +399,10 @@ serve(async (req) => {
           })
           .eq("instance_name", instance);
 
-        console.log(`[Evolution Webhook] Mensagem ${messageId} salva com sucesso`);
+        console.log(`[Evolution Webhook] Mensagem ${messageId} salva (${Date.now() - startTime}ms)`);
 
-        // FASE 3: IA Proativa - Enfileirar análise automática para mensagens de clientes
+        // IA Proativa - Enfileirar análise automática para mensagens de clientes
         if (!isFromMe) {
-          // Adicionar à fila de análise com debounce (evita análise a cada mensagem)
           const { data: existingQueue } = await supabase
             .from("analise_queue")
             .select("id, tentativas")
@@ -422,7 +411,6 @@ serve(async (req) => {
             .maybeSingle();
 
           if (!existingQueue) {
-            // Inserir na fila com prioridade baseada em histórico
             const { data: contatoInfo } = await supabase
               .from("contatos_inteligencia")
               .select("score_interesse, prioridade")
@@ -441,18 +429,107 @@ serve(async (req) => {
               });
             
             console.log(`[Evolution Webhook] Contato ${contato.id} adicionado à fila de análise IA`);
-          } else {
-            console.log(`[Evolution Webhook] Contato ${contato.id} já está na fila de análise`);
           }
         }
 
-        // Enriquecer dados do contato em background (não bloqueia resposta)
-        // Só enriquecer se não for mensagem nossa e tivermos config
+        // Enriquecer dados do contato em background
         if (!isFromMe && evolutionConfig) {
-          // Usar EdgeRuntime.waitUntil para processar em background
           enrichContactData(supabase, evolutionConfig, instance, contato.id, remoteJid, pushName)
             .catch(err => console.error("[Evolution Webhook] Erro no enriquecimento:", err));
         }
+        break;
+      }
+
+      case "MESSAGES_UPDATE": {
+        // Atualizar status de mensagens (entregue, lida, etc.)
+        console.log("[Evolution Webhook] MESSAGES_UPDATE recebido:", JSON.stringify(data));
+        
+        const updates = Array.isArray(data) ? data : [data];
+        
+        for (const update of updates) {
+          const messageId = update.key?.id;
+          const newStatus = update.update?.status;
+          
+          if (!messageId || newStatus === undefined) continue;
+
+          const mappedStatus = mapMessageStatus(newStatus);
+          
+          const { error } = await supabase
+            .from("conversas_whatsapp")
+            .update({ message_status: mappedStatus })
+            .eq("message_id", messageId);
+
+          if (error) {
+            console.error("[Evolution Webhook] Erro ao atualizar status:", error);
+          } else {
+            console.log(`[Evolution Webhook] Status da mensagem ${messageId} atualizado para ${mappedStatus}`);
+          }
+        }
+        break;
+      }
+
+      case "SEND_MESSAGE": {
+        // Confirmação de mensagem enviada via Evolution API
+        console.log("[Evolution Webhook] SEND_MESSAGE recebido:", JSON.stringify(data).slice(0, 500));
+        
+        const messageId = data.key?.id;
+        const remoteJid = data.key?.remoteJid;
+        
+        if (messageId && remoteJid) {
+          const phone = normalizePhone(remoteJid);
+          
+          // Verificar se já existe (pode ter sido inserida pelo send-whatsapp)
+          const { data: existingMsg } = await supabase
+            .from("conversas_whatsapp")
+            .select("id")
+            .eq("message_id", messageId)
+            .maybeSingle();
+
+          if (!existingMsg) {
+            // Buscar contato
+            const { data: contato } = await supabase
+              .from("contatos_inteligencia")
+              .select("id")
+              .eq("telefone", phone)
+              .maybeSingle();
+
+            if (contato) {
+              const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(data.message);
+              
+              await supabase
+                .from("conversas_whatsapp")
+                .insert({
+                  contato_id: contato.id,
+                  telefone: phone,
+                  message_id: messageId,
+                  instance_name: instance,
+                  is_from_me: true,
+                  data_mensagem: new Date().toISOString(),
+                  remetente: "empresa",
+                  conteudo: content || "[Mensagem enviada]",
+                  tipo_midia: tipoMidia,
+                  media_url: mediaUrl,
+                  media_mimetype: mediaMimetype,
+                  lida: true,
+                  message_status: "SERVER_ACK",
+                });
+              
+              console.log(`[Evolution Webhook] Mensagem enviada ${messageId} registrada`);
+            }
+          } else {
+            // Atualizar status se já existe
+            await supabase
+              .from("conversas_whatsapp")
+              .update({ message_status: "SERVER_ACK" })
+              .eq("message_id", messageId);
+          }
+        }
+        break;
+      }
+
+      case "MESSAGES_DELETE": {
+        console.log("[Evolution Webhook] MESSAGES_DELETE recebido:", JSON.stringify(data));
+        // Opcional: marcar mensagem como deletada em vez de remover
         break;
       }
 
@@ -464,7 +541,6 @@ serve(async (req) => {
 
           const phone = normalizePhone(contact.id);
           
-          // Atualizar ou inserir contato
           const { data: existingContact } = await supabase
             .from("contatos_inteligencia")
             .select("id")
@@ -501,7 +577,6 @@ serve(async (req) => {
           }
         }
 
-        // Atualizar contagem de contatos sync
         await supabase
           .from("evolution_config")
           .update({
@@ -514,7 +589,7 @@ serve(async (req) => {
       }
 
       case "CONNECTION_UPDATE": {
-        const state = (data as any).state;
+        const state = data.state;
         let status = "desconectado";
         
         if (state === "open") status = "conectado";
@@ -531,7 +606,7 @@ serve(async (req) => {
       }
 
       case "QRCODE_UPDATED": {
-        const qrcode = (data as any).qrcode?.base64;
+        const qrcode = data.qrcode?.base64;
         
         if (qrcode) {
           await supabase
@@ -550,6 +625,8 @@ serve(async (req) => {
       default:
         console.log(`[Evolution Webhook] Evento não tratado: ${event}`);
     }
+
+    console.log(`[Evolution Webhook] Processamento concluído em ${Date.now() - startTime}ms`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
