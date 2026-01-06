@@ -74,82 +74,99 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
   style,
 }: ConversaItemComercialProps) {
   const displayName = contato.whatsapp_profile_name || contato.nome || formatPhone(contato.telefone);
-  const hasUnread = contato.nao_lidas > 0;
+  const lastMessageTime = contato.ultimo_contato 
+    ? formatTimestamp(new Date(contato.ultimo_contato))
+    : '';
+  
+  const unreadCount = contato.nao_lidas || 0;
+  const midiaIcon = getMidiaIcon(contato.ultima_mensagem_tipo_midia || null);
+  
   const isFromMe = contato.ultima_mensagem_is_from_me;
-  const midiaIcon = getMidiaIcon(contato.ultima_mensagem_tipo_midia);
+  const messagePrefix = isFromMe ? 'Você: ' : '';
+  
+  // Interesse visual
+  const scoreInteresse = contato.score_interesse || 0;
+  const isHotLead = scoreInteresse >= 70;
+  const isWarmLead = scoreInteresse >= 40 && scoreInteresse < 70;
+
+  const handleAvatarClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAvatarClick?.();
+  };
 
   return (
     <div
       style={style}
-      className={cn(
-        'flex items-center gap-3 px-4 cursor-pointer transition-colors',
-        'hover:bg-muted/50 active:bg-muted/70',
-        'h-[72px]',
-        isSelected && 'bg-muted/80 hover:bg-muted/80'
-      )}
       onClick={onSelect}
+      className={cn(
+        'flex items-center gap-3 px-4 py-3 cursor-pointer transition-all duration-150',
+        'h-[72px] border-b border-border/30',
+        // Hover sofisticado com gradiente
+        'hover:bg-gradient-to-r hover:from-muted/40 hover:to-muted/60',
+        // Estado selecionado com borda lateral
+        isSelected && 'bg-muted/60 border-l-[3px] border-l-primary shadow-sm',
+        !isSelected && 'border-l-[3px] border-l-transparent'
+      )}
     >
-      {/* Avatar */}
+      {/* Avatar com indicadores */}
       <div 
-        className="relative flex-shrink-0"
-        onClick={(e) => {
-          e.stopPropagation();
-          onAvatarClick?.();
-        }}
+        className="relative shrink-0 cursor-pointer group"
+        onClick={handleAvatarClick}
       >
-        <Avatar className="h-12 w-12 cursor-pointer">
+        <Avatar className={cn(
+          'h-12 w-12 transition-transform group-hover:scale-105',
+          isHotLead && 'ring-2 ring-orange-500/50',
+          isWarmLead && 'ring-2 ring-yellow-500/40'
+        )}>
           <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary font-medium">
+          <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
             {displayName.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
+        
+        {/* Badge de não lidos no avatar */}
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 h-5 w-5 flex items-center justify-center rounded-full bg-green-500 text-[10px] font-bold text-white ring-2 ring-background">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+        
+        {/* Indicador de lead quente */}
+        {isHotLead && (
+          <span className="absolute -bottom-0.5 -right-0.5 text-[10px]">🔥</span>
+        )}
       </div>
 
       {/* Conteúdo */}
-      <div className="flex-1 min-w-0 py-2.5 border-b border-border/30">
-        {/* Linha 1: Nome + Timestamp */}
+      <div className="flex-1 min-w-0 py-0.5">
         <div className="flex items-center justify-between gap-2 mb-0.5">
           <span className={cn(
-            'text-base truncate',
-            hasUnread ? 'font-semibold text-foreground' : 'font-normal text-foreground'
+            'font-medium text-[15px] truncate',
+            unreadCount > 0 && 'font-semibold'
           )}>
             {displayName}
           </span>
-          
-          {contato.ultima_mensagem && (
-            <span className={cn(
-              'text-xs flex-shrink-0',
-              hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'
-            )}>
-              {formatTimestamp(new Date(contato.ultima_mensagem))}
-            </span>
-          )}
+          <span className={cn(
+            'text-xs shrink-0',
+            unreadCount > 0 ? 'text-green-500 font-medium' : 'text-muted-foreground'
+          )}>
+            {lastMessageTime}
+          </span>
         </div>
-
-        {/* Linha 2: Preview + Badge */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            {/* Status de leitura para mensagens enviadas */}
-            {isFromMe && (
-              <CheckCheck className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-            )}
-            
-            {midiaIcon}
-            
-            <p className={cn(
-              'text-sm truncate',
-              hasUnread ? 'text-foreground' : 'text-muted-foreground'
-            )}>
-              {contato.ultima_mensagem_texto || 'Sem mensagens'}
-            </p>
-          </div>
-          
-          {/* Badge de não lidas */}
-          {hasUnread && (
-            <div className="min-w-[20px] h-5 rounded-full bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center px-1.5 flex-shrink-0">
-              {contato.nao_lidas > 99 ? '99+' : contato.nao_lidas}
-            </div>
+        
+        {/* Preview da mensagem */}
+        <div className="flex items-center gap-1.5">
+          {midiaIcon && (
+            <span className="text-muted-foreground shrink-0">{midiaIcon}</span>
           )}
+          <p className={cn(
+            'text-sm line-clamp-1',
+            unreadCount > 0 
+              ? 'text-foreground font-medium' 
+              : 'text-muted-foreground'
+          )}>
+            {messagePrefix}{contato.ultima_mensagem || 'Sem mensagens'}
+          </p>
         </div>
       </div>
     </div>
