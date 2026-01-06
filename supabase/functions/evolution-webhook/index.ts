@@ -6,849 +6,443 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ========== UTILITÁRIOS BLINDADOS ==========
+// ========== UTILITÁRIOS SIMPLES ==========
 
-/**
- * Valida se é um JID de contato WhatsApp válido
- */
-function isValidWhatsAppJid(jid: string | null | undefined): boolean {
-  if (!jid || typeof jid !== 'string') return false;
-  const isIndividual = jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
-  if (!isIndividual) return false;
-  if (jid.includes("@g.us") || jid.includes("@broadcast")) return false;
-  return true;
+function extractPhone(jid: string): string {
+  if (!jid) return "";
+  return jid.replace(/\D/g, "");
 }
 
-/**
- * Extrai telefone do JID - remove TUDO que não é número
- */
-function extractPhone(jid: string | null | undefined): string {
-  if (!jid || typeof jid !== 'string') return "";
-  // Remove sufixos e qualquer caractere não numérico
-  const phone = jid.replace(/\D/g, "");
-  return phone.length >= 8 ? phone : "";
+function isValidJid(jid: string): boolean {
+  if (!jid) return false;
+  if (jid.includes("@g.us") || jid.includes("@broadcast") || jid.includes("status@")) return false;
+  return jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
 }
 
-/**
- * Formata telefone para exibição
- */
-function formatPhoneDisplay(phone: string): string {
-  if (!phone) return "Contato";
-  if (phone.length >= 10) {
-    const ddd = phone.slice(-10, -8);
-    const p1 = phone.slice(-8, -4);
-    const p2 = phone.slice(-4);
-    return `(${ddd}) ${p1}-${p2}`;
-  }
-  return phone.slice(-8);
-}
+function extractContent(message: any): { content: string; tipoMidia: string; mediaUrl?: string } {
+  if (!message) return { content: "📩 Nova mensagem", tipoMidia: "texto" };
 
-/**
- * Verifica se string parece telefone (não nome válido)
- */
-function looksLikePhone(str: string | null | undefined): boolean {
-  if (!str || typeof str !== 'string') return true;
-  const digits = str.replace(/\D/g, '');
-  return digits.length >= 8 && digits.length / str.length > 0.7;
-}
+  if (message.conversation) return { content: message.conversation, tipoMidia: "texto" };
+  if (message.extendedTextMessage?.text) return { content: message.extendedTextMessage.text, tipoMidia: "texto" };
+  if (message.imageMessage) return { content: message.imageMessage.caption || "📷 Imagem", tipoMidia: "imagem", mediaUrl: message.imageMessage.url };
+  if (message.audioMessage) return { content: `🎤 Áudio (${message.audioMessage.seconds || 0}s)`, tipoMidia: "audio", mediaUrl: message.audioMessage.url };
+  if (message.videoMessage) return { content: message.videoMessage.caption || "🎬 Vídeo", tipoMidia: "video", mediaUrl: message.videoMessage.url };
+  if (message.documentMessage) return { content: `📄 ${message.documentMessage.fileName || "Documento"}`, tipoMidia: "documento", mediaUrl: message.documentMessage.url };
+  if (message.stickerMessage) return { content: "🎭 Sticker", tipoMidia: "sticker" };
+  if (message.locationMessage) return { content: "📍 Localização", tipoMidia: "localizacao" };
+  if (message.contactMessage) return { content: `👤 ${message.contactMessage.displayName || "Contato"}`, tipoMidia: "contato" };
 
-/**
- * EXTRAÇÃO BLINDADA DE NOME - múltiplos caminhos do payload Evolution v2
- */
-function extractName(payload: any, msgData: any, phone: string): string {
-  // Caminhos possíveis para pushName na Evolution v2
-  const paths = [
-    msgData?.pushName,
-    payload?.data?.pushName,
-    payload?.pushName,
-    payload?.data?.data?.pushName,
-    msgData?.key?.pushName,
-    payload?.sender?.pushName,
-    payload?.data?.sender?.pushName,
-    payload?.data?.data?.sender?.pushName,
-  ];
-
-  for (const name of paths) {
-    if (name && typeof name === 'string' && name.trim().length > 1) {
-      if (!looksLikePhone(name)) {
-        return name.trim();
-      }
-    }
-  }
-
-  return formatPhoneDisplay(phone);
-}
-
-/**
- * EXTRAÇÃO BLINDADA DE remoteJid - múltiplos caminhos
- */
-function extractRemoteJid(payload: any, msgData: any): string | null {
-  // Caminhos possíveis na Evolution v2
-  const paths = [
-    msgData?.key?.remoteJid,
-    payload?.data?.key?.remoteJid,
-    payload?.data?.data?.key?.remoteJid,
-    payload?.key?.remoteJid,
-    msgData?.remoteJid,
-    payload?.remoteJid,
-    payload?.data?.remoteJid,
-  ];
-
-  for (const jid of paths) {
-    if (jid && typeof jid === 'string' && jid.length > 5) {
-      return jid;
-    }
-  }
-  return null;
-}
-
-/**
- * EXTRAÇÃO BLINDADA DE messageId
- */
-function extractMessageId(payload: any, msgData: any): string {
-  const paths = [
-    msgData?.key?.id,
-    payload?.data?.key?.id,
-    payload?.data?.data?.key?.id,
-    payload?.key?.id,
-    msgData?.id,
-  ];
-
-  for (const id of paths) {
-    if (id && typeof id === 'string') {
-      return id;
-    }
-  }
-  return `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-/**
- * EXTRAÇÃO BLINDADA DE fromMe
- */
-function extractFromMe(payload: any, msgData: any): boolean {
-  const paths = [
-    msgData?.key?.fromMe,
-    payload?.data?.key?.fromMe,
-    payload?.data?.data?.key?.fromMe,
-    payload?.key?.fromMe,
-  ];
-
-  for (const val of paths) {
-    if (typeof val === 'boolean') {
-      return val;
-    }
-  }
-  return false;
-}
-
-/**
- * EXTRAÇÃO BLINDADA DE message object
- */
-function extractMessageObject(payload: any, msgData: any): any {
-  const paths = [
-    msgData?.message,
-    payload?.data?.message,
-    payload?.data?.data?.message,
-    payload?.message,
-  ];
-
-  for (const msg of paths) {
-    if (msg && typeof msg === 'object') {
-      return msg;
-    }
-  }
-  return {};
-}
-
-/**
- * EXTRAÇÃO BLINDADA DE CONTEÚDO da mensagem
- */
-function extractMessageContent(message: any): { 
-  content: string; 
-  tipoMidia: string; 
-  mediaUrl?: string; 
-  mediaMimetype?: string 
-} {
-  if (!message || typeof message !== 'object') {
-    return { content: "📩 Nova mensagem", tipoMidia: "texto" };
-  }
-
-  // 1. Texto simples
-  if (message.conversation && typeof message.conversation === 'string') {
-    return { content: message.conversation, tipoMidia: "texto" };
-  }
-
-  // 2. Texto estendido
-  if (message.extendedTextMessage?.text) {
-    return { content: message.extendedTextMessage.text, tipoMidia: "texto" };
-  }
-
-  // 3. Imagem
-  if (message.imageMessage) {
-    const caption = message.imageMessage.caption;
-    return {
-      content: caption && caption.trim() ? caption : "📷 Imagem",
-      tipoMidia: "imagem",
-      mediaUrl: message.imageMessage.url,
-      mediaMimetype: message.imageMessage.mimetype,
-    };
-  }
-
-  // 4. Áudio
-  if (message.audioMessage) {
-    const seconds = message.audioMessage.seconds || 0;
-    return {
-      content: `🎤 Áudio (${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')})`,
-      tipoMidia: "audio",
-      mediaUrl: message.audioMessage.url,
-      mediaMimetype: message.audioMessage.mimetype,
-    };
-  }
-
-  // 5. Vídeo
-  if (message.videoMessage) {
-    const caption = message.videoMessage.caption;
-    return {
-      content: caption && caption.trim() ? caption : "🎬 Vídeo",
-      tipoMidia: "video",
-      mediaUrl: message.videoMessage.url,
-      mediaMimetype: message.videoMessage.mimetype,
-    };
-  }
-
-  // 6. Documento
-  if (message.documentMessage) {
-    return {
-      content: `📄 ${message.documentMessage.fileName || "Documento"}`,
-      tipoMidia: "documento",
-      mediaUrl: message.documentMessage.url,
-      mediaMimetype: message.documentMessage.mimetype,
-    };
-  }
-
-  // 7. Sticker
-  if (message.stickerMessage) {
-    return { content: "🎭 Sticker", tipoMidia: "sticker" };
-  }
-
-  // 8. Localização
-  if (message.locationMessage) {
-    return { content: "📍 Localização", tipoMidia: "localizacao" };
-  }
-
-  // 9. Contato
-  if (message.contactMessage) {
-    return { content: `👤 ${message.contactMessage.displayName || "Contato"}`, tipoMidia: "contato" };
-  }
-
-  // 10. Reação
-  if (message.reactionMessage) {
-    return { content: `${message.reactionMessage.text || '👍'} Reação`, tipoMidia: "reacao" };
-  }
-
-  // 11. View once
-  if (message.viewOnceMessage || message.viewOnceMessageV2) {
-    return { content: "🔒 Mídia temporária", tipoMidia: "viewonce" };
-  }
-
-  // Fallback - procurar qualquer texto
-  for (const key of Object.keys(message)) {
-    const val = message[key];
-    if (val && typeof val === 'object') {
-      if (val.text && typeof val.text === 'string') {
-        return { content: val.text, tipoMidia: "texto" };
-      }
-      if (val.caption && typeof val.caption === 'string') {
-        return { content: val.caption, tipoMidia: "midia" };
-      }
-    }
-  }
-
-  return { content: "📩 Mensagem recebida", tipoMidia: "outro" };
-}
-
-/**
- * Extrai timestamp
- */
-function extractTimestamp(msgData: any): Date {
-  const ts = msgData?.messageTimestamp;
-  if (!ts) return new Date();
-  
-  let tsNum: number;
-  if (typeof ts === 'object' && ts.low !== undefined) {
-    tsNum = ts.low;
-  } else if (typeof ts === 'string') {
-    tsNum = parseInt(ts, 10);
-  } else if (typeof ts === 'number') {
-    tsNum = ts;
-  } else {
-    return new Date();
-  }
-  
-  if (tsNum > 1577836800 && tsNum < 1893456000) {
-    return new Date(tsNum * 1000);
-  }
-  return new Date();
-}
-
-/**
- * Mapear status
- */
-function mapStatus(status: any): string {
-  const map: Record<string, string> = {
-    "0": "PENDING", "1": "SERVER_ACK", "2": "DELIVERY_ACK", "3": "READ", "4": "PLAYED",
-    "PENDING": "PENDING", "SERVER_ACK": "SERVER_ACK", "DELIVERY_ACK": "DELIVERY_ACK", "READ": "READ", "PLAYED": "PLAYED",
-  };
-  return map[String(status)] || "PENDING";
-}
-
-/**
- * Normalizar evento
- */
-function normalizeEvent(event: string | null | undefined): string {
-  if (!event || typeof event !== 'string') return "";
-  return event.toUpperCase().replace(/\./g, "_").replace(/-/g, "_");
+  return { content: "📩 Mensagem", tipoMidia: "outro" };
 }
 
 // ========== HANDLER PRINCIPAL ==========
 
 serve(async (req) => {
-  // ==================== DEBUG EXTREMO - TOPO DA FUNÇÃO ====================
-  console.log(`>>> WEBHOOK ACIONADO - ${new Date().toISOString()}`);
-  console.log(`>>> METHOD: ${req.method}`);
-  console.log(`>>> URL: ${req.url}`);
-  // =========================================================================
+  console.log("========================================");
+  console.log(">>> 1. WEBHOOK ACIONADO:", new Date().toISOString());
+  console.log(">>> METHOD:", req.method);
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const startTime = Date.now();
-  
-  let reqBody: any = {};
-  
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Ler payload
-    reqBody = await req.json();
+    const body = await req.json();
     
-    // ==================== DEBUG EXTREMO - EVENTO E INSTANCE ====================
-    console.log(`>>> WEBHOOK ACIONADO. Evento: ${reqBody.event || reqBody.type || 'N/A'}, Instance: ${reqBody.instance || reqBody.instanceName || 'N/A'}`);
-    console.log(`>>> PAYLOAD COMPLETO:`, JSON.stringify(reqBody).slice(0, 5000));
-    // ===========================================================================
+    // ========== PASSO 1: SANITIZAÇÃO DO PAYLOAD ==========
+    console.log(">>> 2. PAYLOAD BRUTO:", JSON.stringify(body).slice(0, 2000));
     
-    // EXTRAÇÃO ROBUSTA - Evolution v2 pode envolver em data ou data.data
-    const rawEvent = reqBody.event || reqBody.type || "";
-    const instance = reqBody.instance || reqBody.instanceName || "";
+    const rawEvent = body.event || body.type || "";
+    const instance = body.instance || body.instanceName || "";
     
-    // Tentar múltiplos níveis de data
-    let data = reqBody.data || reqBody;
-    
-    // Se data.data existe (Evolution v2), usar esse nível
-    if (data.data && typeof data.data === 'object') {
-      console.log(`[Evolution Webhook] 🔍 Detectado formato Evolution v2 (data.data)`);
+    // Detectar se payload está em body.data ou body.data.data (Evolution v2)
+    let data = body.data || body;
+    if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
+      console.log(">>> DETECTADO Evolution v2 (data.data)");
       data = data.data;
     }
     
-    const event = normalizeEvent(rawEvent);
-    console.log(`[Evolution Webhook] 📍 Evento: ${rawEvent} -> ${event}, Instance: ${instance}`);
-    
-    // LOG CRÍTICO para debug de mensagens enviadas
-    const hasFromMe = JSON.stringify(reqBody).includes('"fromMe":true') || JSON.stringify(reqBody).includes('"fromMe": true');
-    if (hasFromMe) {
-      console.log(`[Evolution Webhook] 🚨 DETECTADO fromMe:true no payload! Evento: ${event}`);
-    }
+    const event = rawEvent.toUpperCase().replace(/\./g, "_").replace(/-/g, "_");
+    console.log(">>> 3. EVENTO NORMALIZADO:", event, "| INSTANCE:", instance);
 
-    switch (event) {
-      case "MESSAGES_UPSERT":
-      case "MESSAGE_UPSERT":
-      case "MESSAGES_CREATE": {
-        // Construir array de mensagens - múltiplos formatos
-        let messages: any[] = [];
+    // ========== PROCESSAR EVENTOS DE MENSAGEM ==========
+    if (event === "MESSAGES_UPSERT" || event === "MESSAGE_UPSERT" || event === "SEND_MESSAGE") {
+      console.log(">>> 4. PROCESSANDO EVENTO DE MENSAGEM:", event);
+      
+      // Construir array de mensagens
+      let messages: any[] = [];
+      if (Array.isArray(data.messages)) {
+        messages = data.messages;
+      } else if (Array.isArray(data)) {
+        messages = data;
+      } else if (data.key || data.message) {
+        messages = [data];
+      } else if (body.data?.key || body.data?.message) {
+        messages = [body.data];
+      }
+      
+      console.log(">>> 5. TOTAL DE MENSAGENS:", messages.length);
+      
+      if (messages.length === 0) {
+        console.log(">>> NENHUMA MENSAGEM ENCONTRADA. Estrutura:", JSON.stringify(data).slice(0, 500));
+        return new Response(JSON.stringify({ success: true, noMessages: true }), { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        });
+      }
+
+      for (let i = 0; i < messages.length; i++) {
+        const msgData = messages[i];
+        console.log(`>>> 6. PROCESSANDO MENSAGEM ${i + 1}/${messages.length}`);
         
-        if (Array.isArray(data.messages)) {
-          messages = data.messages;
-        } else if (Array.isArray(data)) {
-          messages = data;
-        } else if (data.key || data.message) {
-          messages = [data];
-        } else if (reqBody.data?.key || reqBody.data?.message) {
-          messages = [reqBody.data];
-        }
-        
-        console.log(`[Evolution Webhook] 📨 Processando ${messages.length} mensagem(s)`);
-
-        if (messages.length === 0) {
-          console.log(`[Evolution Webhook] ⚠️ Nenhuma mensagem encontrada no payload`);
-          console.log(`[Evolution Webhook] 🔍 Estrutura data:`, JSON.stringify(data).slice(0, 500));
-        }
-
-        for (const msgData of messages) {
-          try {
-            // EXTRAÇÃO BLINDADA de remoteJid
-            const remoteJid = extractRemoteJid(reqBody, msgData);
-            
-            if (!remoteJid) {
-              console.log("[Evolution Webhook] ❌ remoteJid não encontrado");
-              continue;
-            }
-            
-            // Validar JID
-            if (!isValidWhatsAppJid(remoteJid)) {
-              console.log("[Evolution Webhook] ❌ JID inválido/grupo:", remoteJid);
-              continue;
-            }
-
-            // EXTRAÇÃO DE TELEFONE - remove TUDO que não é número
-            const phone = extractPhone(remoteJid);
-            if (!phone) {
-              console.log("[Evolution Webhook] ❌ Telefone inválido:", remoteJid);
-              continue;
-            }
-
-            // EXTRAÇÃO BLINDADA dos demais campos
-            const messageId = extractMessageId(reqBody, msgData);
-            const isFromMe = extractFromMe(reqBody, msgData);
-            const pushName = extractName(reqBody, msgData, phone);
-            const messageObj = extractMessageObject(reqBody, msgData);
-            const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(messageObj);
-            const timestamp = extractTimestamp(msgData);
-
-            console.log(`[Evolution Webhook] 📝 Dados extraídos:`);
-            console.log(`  - Phone: ${phone}`);
-            console.log(`  - Name: ${pushName}`);
-            console.log(`  - Content: "${content.slice(0, 50)}"`);
-            console.log(`  - FromMe: ${isFromMe}`);
-            console.log(`  - MsgID: ${messageId}`);
-
-            // ========== UPSERT em contatos_inteligencia ==========
-            let { data: contato, error: selectError } = await supabase
-              .from("contatos_inteligencia")
-              .select("id, whatsapp_profile_name")
-              .eq("telefone", phone)
-              .maybeSingle();
-
-            if (selectError) {
-              console.error("[Evolution Webhook] ❌ Erro SELECT contato:", selectError);
-            }
-
-            if (!contato) {
-              // CRIAR novo contato
-              const { data: novoContato, error: insertError } = await supabase
-                .from("contatos_inteligencia")
-                .insert({
-                  telefone: phone,
-                  nome: pushName,
-                  whatsapp_profile_name: !looksLikePhone(pushName) ? pushName : null,
-                  remote_jid: remoteJid,
-                  origem: "evolution",
-                  status: "nao_classificado",
-                  ultima_mensagem: timestamp.toISOString(),
-                })
-                .select("id, whatsapp_profile_name")
-                .single();
-
-              if (insertError) {
-                console.error("[Evolution Webhook] ❌ Erro INSERT contato:", JSON.stringify(insertError));
-                continue;
-              }
-              contato = novoContato;
-              console.log(`[Evolution Webhook] ✅ Contato CRIADO: ${contato.id}`);
-            } else {
-              // ATUALIZAR contato existente
-              const updates: Record<string, any> = {
-                ultima_mensagem: timestamp.toISOString(),
-                remote_jid: remoteJid,
-              };
-              
-              if (!looksLikePhone(pushName) && 
-                  (!contato.whatsapp_profile_name || contato.whatsapp_profile_name.startsWith("Contato "))) {
-                updates.whatsapp_profile_name = pushName;
-                updates.nome = pushName;
-              }
-              
-              const { error: updateError } = await supabase
-                .from("contatos_inteligencia")
-                .update(updates)
-                .eq("id", contato.id);
-
-              if (updateError) {
-                console.error("[Evolution Webhook] ⚠️ Erro UPDATE contato:", updateError);
-              }
-            }
-
-            // Verificar duplicata
-            const { data: msgExistente } = await supabase
-              .from("conversas_whatsapp")
-              .select("id")
-              .eq("message_id", messageId)
-              .maybeSingle();
-
-            if (msgExistente) {
-              console.log(`[Evolution Webhook] ⏭️ Msg duplicada: ${messageId}`);
-              continue;
-            }
-
-            // ========== INSERT em conversas_whatsapp ==========
-            const { error: msgInsertError } = await supabase
-              .from("conversas_whatsapp")
-              .insert({
-                contato_id: contato.id,
-                telefone: phone,
-                message_id: messageId,
-                instance_name: instance,
-                is_from_me: isFromMe,
-                push_name: pushName,
-                data_mensagem: timestamp.toISOString(),
-                remetente: isFromMe ? "empresa" : "cliente",
-                conteudo: content,
-                tipo_midia: tipoMidia,
-                media_url: mediaUrl,
-                media_mimetype: mediaMimetype,
-                lida: isFromMe,
-                message_status: isFromMe ? "SERVER_ACK" : null,
-              });
-
-            if (msgInsertError) {
-              console.error("[Evolution Webhook] ❌ Erro INSERT mensagem:", JSON.stringify(msgInsertError));
-              continue;
-            }
-
-            console.log(`[Evolution Webhook] ✅ Mensagem SALVA: ${messageId}`);
-
-            // Enfileirar análise IA
-            if (!isFromMe) {
-              const { data: inQueue } = await supabase
-                .from("analise_queue")
-                .select("id")
-                .eq("contato_id", contato.id)
-                .eq("status", "pendente")
-                .maybeSingle();
-
-              if (!inQueue) {
-                await supabase.from("analise_queue").insert({
-                  contato_id: contato.id,
-                  status: "pendente",
-                  prioridade: 2,
-                });
-              }
-            }
-          } catch (msgError) {
-            console.error("[Evolution Webhook] ❌ Erro processando msg:", msgError);
+        try {
+          // ========== EXTRAIR remoteJid ==========
+          const remoteJid = 
+            msgData?.key?.remoteJid ||
+            data?.key?.remoteJid ||
+            body?.data?.key?.remoteJid ||
+            body?.key?.remoteJid ||
+            null;
+          
+          console.log(">>> 7. remoteJid EXTRAÍDO:", remoteJid);
+          
+          if (!remoteJid || !isValidJid(remoteJid)) {
+            console.log(">>> PULANDO: JID inválido ou grupo");
+            continue;
           }
-        }
 
-        // Atualizar sync
-        if (instance) {
-          await supabase
-            .from("evolution_config")
-            .update({ ultima_sincronizacao: new Date().toISOString() })
-            .eq("instance_name", instance);
-        }
-        break;
-      }
-
-      case "MESSAGES_UPDATE":
-      case "MESSAGE_UPDATE": {
-        const updates = Array.isArray(data) ? data : [data];
-        
-        for (const update of updates) {
-          const messageId = update.key?.id || update.keyId || update.messageId;
-          const newStatus = update.update?.status || update.status;
+          // ========== EXTRAIR fromMe ==========
+          const fromMe = 
+            msgData?.key?.fromMe === true ||
+            data?.key?.fromMe === true ||
+            body?.data?.key?.fromMe === true ||
+            body?.key?.fromMe === true ||
+            false;
           
-          if (!messageId) continue;
+          console.log(">>> 8. fromMe:", fromMe);
 
-          await supabase
-            .from("conversas_whatsapp")
-            .update({ message_status: mapStatus(newStatus) })
-            .eq("message_id", messageId);
-
-          console.log(`[Evolution Webhook] ✅ Status ${messageId} atualizado`);
-        }
-        break;
-      }
-
-      case "SEND_MESSAGE": {
-        // ==================== DEBUG EXTREMO - SEND_MESSAGE ====================
-        console.log(`>>> ENTRANDO NO BLOCO SEND_MESSAGE`);
-        console.log(`>>> SEND_MESSAGE data:`, JSON.stringify(data).slice(0, 2000));
-        // ======================================================================
-        
-        const remoteJid = extractRemoteJid(reqBody, data);
-        const messageId = extractMessageId(reqBody, data);
-        
-        console.log(`>>> SEND_MESSAGE - JID: ${remoteJid}, MsgID: ${messageId}`);
-        
-        if (!remoteJid || !messageId) {
-          console.log(`>>> SEND_MESSAGE ABORTADO: sem JID (${remoteJid}) ou MsgID (${messageId})`);
-          break;
-        }
-        if (!isValidWhatsAppJid(remoteJid)) {
-          console.log(`>>> SEND_MESSAGE ABORTADO: JID inválido: ${remoteJid}`);
-          break;
-        }
-
-        const phone = extractPhone(remoteJid);
-        if (!phone) {
-          console.log(`>>> SEND_MESSAGE ABORTADO: telefone inválido`);
-          break;
-        }
-        
-        console.log(`>>> SEND_MESSAGE telefone extraído: ${phone}`);
-
-        // Verificar duplicata
-        const { data: existing, error: existingError } = await supabase
-          .from("conversas_whatsapp")
-          .select("id")
-          .eq("message_id", messageId)
-          .maybeSingle();
-
-        if (existingError) {
-          console.error(`>>> SEND_MESSAGE erro ao verificar duplicata:`, JSON.stringify(existingError));
-        }
-
-        if (existing) {
-          console.log(`>>> SEND_MESSAGE duplicada, atualizando status: ${messageId}`);
-          await supabase
-            .from("conversas_whatsapp")
-            .update({ message_status: "SERVER_ACK" })
-            .eq("message_id", messageId);
-          break;
-        }
-
-        // Buscar ou CRIAR contato
-        let { data: contato, error: contatoError } = await supabase
-          .from("contatos_inteligencia")
-          .select("id, telefone")
-          .eq("telefone", phone)
-          .maybeSingle();
-
-        if (contatoError) {
-          console.error(`>>> SEND_MESSAGE erro ao buscar contato:`, JSON.stringify(contatoError));
-        }
-
-        const now = new Date().toISOString();
-
-        if (!contato) {
-          console.log(`>>> SEND_MESSAGE contato não existe, CRIANDO...`);
-          // CRIAR contato se não existir
-          const { data: novoContato, error: insertError } = await supabase
-            .from("contatos_inteligencia")
-            .insert({
-              telefone: phone,
-              nome: formatPhoneDisplay(phone),
-              remote_jid: remoteJid,
-              origem: "evolution",
-              status: "nao_classificado",
-              ultima_mensagem: now,
-            })
-            .select("id, telefone")
-            .single();
-
-          if (insertError) {
-            console.error(`>>> SEND_MESSAGE ERRO ao criar contato:`, JSON.stringify(insertError));
-            break;
+          // ========== DETERMINAR TELEFONE ==========
+          // Se fromMe=true, o remoteJid é o DESTINATÁRIO (número do cliente)
+          // Se fromMe=false, o remoteJid é o REMETENTE (número do cliente)
+          // Em ambos os casos, o telefone do contato é o remoteJid
+          const telefone = extractPhone(remoteJid);
+          
+          if (!telefone || telefone.length < 8) {
+            console.log(">>> PULANDO: Telefone inválido:", telefone);
+            continue;
           }
-          contato = novoContato;
-          console.log(`>>> SEND_MESSAGE contato CRIADO: ${contato.id}`);
-        } else {
-          console.log(`>>> SEND_MESSAGE contato já existe: ${contato.id}`);
-        }
-
-        // Extrair conteúdo da mensagem
-        const msgObj = extractMessageObject(reqBody, data);
-        const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(msgObj);
-        
-        // ==================== DEBUG EXTREMO - DADOS ANTES DO INSERT ====================
-        const messageData = {
-          contato_id: contato.id,
-          telefone: contato.telefone,
-          message_id: messageId,
-          instance_name: instance,
-          is_from_me: true,
-          data_mensagem: now,
-          remetente: "empresa",
-          conteudo: content || "Mensagem enviada",
-          tipo_midia: tipoMidia,
-          media_url: mediaUrl,
-          media_mimetype: mediaMimetype,
-          lida: true,
-          message_status: "SERVER_ACK",
-        };
-        console.log(`>>> TENTANDO SALVAR MENSAGEM:`, JSON.stringify(messageData));
-        // ===============================================================================
-
-        // INSERIR mensagem
-        const { error: msgError } = await supabase
-          .from("conversas_whatsapp")
-          .insert(messageData);
-
-        if (msgError) {
-          console.error(`>>> SEND_MESSAGE ERRO AO INSERIR MENSAGEM:`, JSON.stringify(msgError));
-          break;
-        }
-
-        // ATUALIZAR ultima_mensagem do contato para subir na lista
-        const { error: updateError } = await supabase
-          .from("contatos_inteligencia")
-          .update({ ultima_mensagem: now })
-          .eq("id", contato.id);
           
-        if (updateError) {
-          console.error(`>>> SEND_MESSAGE erro ao atualizar ultima_mensagem:`, JSON.stringify(updateError));
-        }
+          console.log(">>> 9. TELEFONE LIMPO:", telefone);
 
-        console.log(`>>> SEND_MESSAGE SUCESSO! Mensagem salva: ${messageId}`);
-        break;
-      }
-
-      case "CONTACTS_UPSERT":
-      case "CONTACTS_UPDATE": {
-        const contacts = data.contacts || (data.contact ? [data.contact] : Array.isArray(data) ? data : []);
-        
-        for (const contact of contacts) {
-          const jid = contact.id || contact.remoteJid;
-          if (!jid) continue;
-
-          const phone = extractPhone(jid);
-          if (!phone) continue;
+          // ========== EXTRAIR pushName ==========
+          const pushName = 
+            msgData?.pushName ||
+            data?.pushName ||
+            body?.data?.pushName ||
+            body?.pushName ||
+            null;
           
-          const { data: existing } = await supabase
+          const nomeContato = pushName && pushName.trim().length > 1 ? pushName.trim() : `Contato ${telefone.slice(-4)}`;
+          console.log(">>> 10. NOME DO CONTATO:", nomeContato);
+
+          // ========== EXTRAIR messageId ==========
+          const messageId = 
+            msgData?.key?.id ||
+            data?.key?.id ||
+            body?.data?.key?.id ||
+            `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          
+          console.log(">>> 11. MESSAGE_ID:", messageId);
+
+          // ========== EXTRAIR CONTEÚDO ==========
+          const messageObj = msgData?.message || data?.message || body?.data?.message || {};
+          const { content, tipoMidia, mediaUrl } = extractContent(messageObj);
+          console.log(">>> 12. CONTEÚDO:", content.slice(0, 100), "| TIPO:", tipoMidia);
+
+          // ========== EXTRAIR TIMESTAMP ==========
+          let timestamp = new Date();
+          const ts = msgData?.messageTimestamp || data?.messageTimestamp;
+          if (ts) {
+            const tsNum = typeof ts === 'object' ? ts.low : (typeof ts === 'string' ? parseInt(ts, 10) : ts);
+            if (tsNum > 1577836800 && tsNum < 2000000000) {
+              timestamp = new Date(tsNum * 1000);
+            }
+          }
+          console.log(">>> 13. TIMESTAMP:", timestamp.toISOString());
+
+          // ==========================================
+          // PASSO 2: UPSERT DO CONTATO (OBRIGATÓRIO)
+          // ==========================================
+          console.log(">>> 14. INICIANDO UPSERT DO CONTATO...");
+          
+          // Primeiro, tentar buscar o contato existente
+          const { data: contatoExistente, error: selectError } = await supabase
             .from("contatos_inteligencia")
-            .select("id")
-            .eq("telefone", phone)
+            .select("id, nome, whatsapp_profile_name")
+            .eq("telefone", telefone)
             .maybeSingle();
-
-          const contactData = {
-            whatsapp_profile_name: contact.pushName || contact.name,
-            whatsapp_profile_picture: contact.profilePictureUrl,
-            is_business: contact.isBusiness,
-            business_name: contact.businessName,
-            remote_jid: jid,
-          };
-
-          if (existing) {
-            await supabase
+          
+          if (selectError) {
+            console.error(">>> ERRO SELECT CONTATO:", JSON.stringify(selectError));
+          }
+          
+          let contatoId: string;
+          
+          if (contatoExistente) {
+            // Contato existe - atualizar
+            contatoId = contatoExistente.id;
+            console.log(">>> 15. CONTATO EXISTENTE ENCONTRADO:", contatoId);
+            
+            const updateData: Record<string, any> = {
+              ultima_mensagem: timestamp.toISOString(),
+              remote_jid: remoteJid,
+            };
+            
+            // Atualizar nome se pushName for válido e diferente
+            if (pushName && pushName.trim().length > 1 && !pushName.match(/^\d+$/)) {
+              if (!contatoExistente.whatsapp_profile_name || contatoExistente.whatsapp_profile_name.startsWith("Contato ")) {
+                updateData.nome = pushName.trim();
+                updateData.whatsapp_profile_name = pushName.trim();
+              }
+            }
+            
+            const { error: updateError } = await supabase
               .from("contatos_inteligencia")
-              .update(contactData)
-              .eq("id", existing.id);
+              .update(updateData)
+              .eq("id", contatoId);
+            
+            if (updateError) {
+              console.error(">>> ERRO UPDATE CONTATO:", JSON.stringify(updateError));
+            } else {
+              console.log(">>> 16. CONTATO ATUALIZADO COM SUCESSO");
+            }
           } else {
-            await supabase
+            // Contato não existe - criar
+            console.log(">>> 15. CONTATO NÃO EXISTE. CRIANDO...");
+            
+            const { data: novoContato, error: insertError } = await supabase
               .from("contatos_inteligencia")
               .insert({
-                ...contactData,
-                telefone: phone,
-                nome: contact.pushName || formatPhoneDisplay(phone),
+                telefone: telefone,
+                nome: nomeContato,
+                whatsapp_profile_name: pushName && !pushName.match(/^\d+$/) ? pushName.trim() : null,
+                remote_jid: remoteJid,
                 origem: "evolution",
                 status: "nao_classificado",
-              });
-          }
-        }
-        console.log(`[Evolution Webhook] ✅ ${contacts.length} contatos processados`);
-        break;
-      }
-
-      case "CONNECTION_UPDATE": {
-        const state = data.state || data.status;
-        let status = "desconectado";
-        
-        const wasConnected = state === "open" || state === "connected";
-        if (wasConnected) status = "conectado";
-        else if (state === "connecting") status = "conectando";
-
-        // Verificar status anterior para detectar nova conexão
-        const { data: prevConfig } = await supabase
-          .from("evolution_config")
-          .select("status")
-          .eq("instance_name", instance)
-          .single();
-
-        const wasDisconnected = prevConfig?.status !== "conectado";
-
-        await supabase
-          .from("evolution_config")
-          .update({ status })
-          .eq("instance_name", instance);
-
-        console.log(`[Evolution Webhook] ✅ Conexão: ${status}`);
-
-        // AUTO-SYNC: Disparar import-history quando conectar
-        if (wasConnected && wasDisconnected) {
-          console.log(`[Evolution Webhook] 🚀 Nova conexão detectada! Disparando auto-sync...`);
-          
-          // Disparar import-history em background (fire-and-forget)
-          // Não aguardar resposta para não bloquear o webhook
-          const autoSyncPromise = (async () => {
-            try {
-              // Pequeno delay para estabilização
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              
-              // Chamar import-history com limit 300
-              const functionUrl = `${supabaseUrl}/functions/v1/import-history`;
-              const importResponse = await fetch(functionUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "Authorization": `Bearer ${supabaseServiceKey}`,
-                },
-                body: JSON.stringify({ limit: 300 }),
-              });
-
-              if (importResponse.ok) {
-                const result = await importResponse.json();
-                console.log(`[Evolution Webhook] ✅ Auto-sync concluído:`, result);
-              } else {
-                console.error(`[Evolution Webhook] ❌ Auto-sync falhou:`, await importResponse.text());
-              }
-            } catch (err) {
-              console.error(`[Evolution Webhook] ❌ Erro no auto-sync:`, err);
+                prioridade: "media",
+                ultima_mensagem: timestamp.toISOString(),
+              })
+              .select("id")
+              .single();
+            
+            if (insertError) {
+              console.error(">>> ERRO INSERT CONTATO:", JSON.stringify(insertError));
+              console.log(">>> ABORTANDO MENSAGEM - SEM CONTATO_ID");
+              continue;
             }
-          })();
+            
+            contatoId = novoContato.id;
+            console.log(">>> 16. CONTATO CRIADO COM SUCESSO:", contatoId);
+          }
+
+          // ==========================================
+          // PASSO 3: SALVAR MENSAGEM
+          // ==========================================
+          console.log(">>> 17. VERIFICANDO DUPLICATA...");
           
-          // Ignorar a promise (fire-and-forget)
-          autoSyncPromise.catch(() => {});
-        }
-        break;
-      }
+          // Verificar se mensagem já existe
+          const { data: msgExistente } = await supabase
+            .from("conversas_whatsapp")
+            .select("id")
+            .eq("message_id", messageId)
+            .maybeSingle();
+          
+          if (msgExistente) {
+            console.log(">>> MENSAGEM DUPLICADA. PULANDO:", messageId);
+            continue;
+          }
+          
+          console.log(">>> 18. INSERINDO MENSAGEM...");
+          
+          const messageData = {
+            contato_id: contatoId,
+            telefone: telefone,
+            remetente: fromMe ? "suporte" : "cliente",
+            conteudo: content,
+            tipo_midia: tipoMidia,
+            is_from_me: fromMe,
+            data_mensagem: timestamp.toISOString(),
+            message_id: messageId,
+            instance_name: instance,
+            push_name: pushName || null,
+            media_url: mediaUrl || null,
+            lida: fromMe,
+          };
+          
+          console.log(">>> 19. DADOS DA MENSAGEM:", JSON.stringify(messageData));
+          
+          const { error: msgError } = await supabase
+            .from("conversas_whatsapp")
+            .insert(messageData);
+          
+          if (msgError) {
+            console.error(">>> ERRO INSERT MENSAGEM:", JSON.stringify(msgError));
+          } else {
+            console.log(">>> 20. MENSAGEM SALVA COM SUCESSO!");
+          }
 
-      case "QRCODE_UPDATED":
-      case "QR_CODE": {
-        const qr = data.qrcode?.base64 || data.base64 || data.qr;
-        if (qr) {
+          // Enfileirar para análise de IA
           await supabase
-            .from("evolution_config")
-            .update({ qrcode_base64: qr, status: "qrcode" })
-            .eq("instance_name", instance);
+            .from("analise_queue")
+            .upsert({
+              contato_id: contatoId,
+              status: "pendente",
+              prioridade: 1,
+            }, { onConflict: "contato_id" });
+          
+          console.log(">>> 21. CONTATO ENFILEIRADO PARA ANÁLISE");
+          
+        } catch (msgError) {
+          console.error(">>> ERRO PROCESSANDO MENSAGEM:", msgError);
         }
-        break;
       }
 
-      default:
-        console.log(`[Evolution Webhook] ⚠️ Evento não tratado: ${rawEvent}`);
+      return new Response(JSON.stringify({ success: true, processed: messages.length }), { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
     }
 
-    console.log(`[Evolution Webhook] ⏱️ Concluído em ${Date.now() - startTime}ms`);
+    // ========== MESSAGES_UPDATE - Atualizar status ==========
+    if (event === "MESSAGES_UPDATE" || event === "MESSAGE_UPDATE") {
+      console.log(">>> PROCESSANDO MESSAGES_UPDATE");
+      
+      const updates = Array.isArray(data) ? data : [data];
+      
+      for (const update of updates) {
+        const messageId = update?.key?.id;
+        const status = update?.update?.status || update?.status;
+        
+        if (messageId && status) {
+          const statusMap: Record<string, string> = {
+            "0": "PENDING", "1": "SERVER_ACK", "2": "DELIVERY_ACK", "3": "READ", "4": "PLAYED",
+          };
+          
+          await supabase
+            .from("conversas_whatsapp")
+            .update({ message_status: statusMap[String(status)] || String(status) })
+            .eq("message_id", messageId);
+        }
+      }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ success: true }), { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    // ========== CONNECTION_UPDATE ==========
+    if (event === "CONNECTION_UPDATE") {
+      console.log(">>> PROCESSANDO CONNECTION_UPDATE");
+      
+      const state = data?.state || data?.status || body?.state;
+      console.log(">>> CONNECTION STATE:", state);
+      
+      let newStatus = "desconectado";
+      if (state === "open" || state === "connected") {
+        newStatus = "conectado";
+      } else if (state === "connecting" || state === "qrcode") {
+        newStatus = "conectando";
+      }
+      
+      // Atualizar status na tabela
+      const { error: updateError } = await supabase
+        .from("evolution_config")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("instance_name", instance);
+      
+      if (updateError) {
+        console.error(">>> ERRO UPDATE CONFIG:", updateError);
+      }
+      
+      // Se conectou, disparar sync automático
+      if (newStatus === "conectado") {
+        console.log(">>> CONEXÃO ESTABELECIDA! Disparando import-history...");
+        
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          
+          fetch(`${supabaseUrl}/functions/v1/import-history`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: JSON.stringify({ 
+              instanceName: instance,
+              limit: 100,
+            }),
+          }).catch(e => console.error(">>> Erro chamando import-history:", e));
+          
+        } catch (e) {
+          console.error(">>> Erro disparando sync:", e);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, status: newStatus }), { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    // ========== QRCODE_UPDATED ==========
+    if (event === "QRCODE_UPDATED" || event === "QR_CODE") {
+      console.log(">>> PROCESSANDO QRCODE_UPDATED");
+      
+      const qrcode = data?.qrcode?.base64 || data?.qrcode || data?.base64;
+      
+      if (qrcode) {
+        await supabase
+          .from("evolution_config")
+          .update({
+            qrcode_base64: qrcode,
+            status: "conectando",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("instance_name", instance);
+      }
+
+      return new Response(JSON.stringify({ success: true }), { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    // ========== OUTROS EVENTOS ==========
+    console.log(">>> EVENTO NÃO TRATADO:", event);
+    
+    return new Response(JSON.stringify({ success: true, event: event }), { 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
 
-  } catch (error) {
-    // ==================== DEBUG EXTREMO - CATCH COMPLETO ====================
-    console.error(`>>> ERRO CRÍTICO NO WEBHOOK!`);
-    console.error(`>>> Tipo do erro:`, typeof error);
-    console.error(`>>> Erro completo:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
-    console.error(`>>> Message:`, error instanceof Error ? error.message : String(error));
-    console.error(`>>> Stack:`, error instanceof Error ? error.stack : "N/A");
-    console.error(`>>> Payload que causou erro:`, JSON.stringify(reqBody).slice(0, 1000));
-    // ========================================================================
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
     
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("========================================");
+    console.error(">>> ERRO CRÍTICO NO WEBHOOK:", errorMessage);
+    console.error(">>> STACK:", errorStack);
+    console.error("========================================");
+    
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: errorMessage 
+    }), { 
+      status: 200, // Retornar 200 para Evolution não retentar
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
 });
