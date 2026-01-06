@@ -24,11 +24,12 @@ import {
   ChevronUp,
   ChevronDown,
   Download,
+  History,
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem, useUploadMedia, useImportarHistorico } from '@/hooks/useConversasPage';
+import { MensagemChat, ContatoComUltimaMensagem, useEnviarMensagem, useUploadMedia, useImportarHistorico, useFetchMessagesHistory } from '@/hooks/useConversasPage';
 import { useTypingStatus } from '@/hooks/useTypingStatus';
 import { toast } from 'sonner';
 import {
@@ -52,6 +53,9 @@ interface ChatViewProps {
   isAnalisando: boolean;
 }
 
+// Threshold para baixar histórico automaticamente
+const MIN_MESSAGES_THRESHOLD = 5;
+
 export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisando }: ChatViewProps) {
   const navigate = useNavigate();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -62,6 +66,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [insightsOpen, setInsightsOpen] = useState(false);
+  const [historyFetched, setHistoryFetched] = useState<Set<string>>(new Set());
   
   // Estado da busca
   const [searchOpen, setSearchOpen] = useState(false);
@@ -71,6 +76,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const enviarMensagem = useEnviarMensagem();
   const uploadMedia = useUploadMedia();
   const importarHistorico = useImportarHistorico();
+  const fetchMessagesHistory = useFetchMessagesHistory();
   
   // Status de digitando
   const { isTyping, typingStatus } = useTypingStatus(contato?.telefone);
@@ -107,6 +113,37 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     setSearchTerm('');
     setCurrentSearchIndex(0);
   }, [contato?.id]);
+
+  // Download inteligente de histórico quando poucas mensagens
+  useEffect(() => {
+    if (!contato?.id || isLoading || fetchMessagesHistory.isPending) return;
+    
+    // Se já buscamos histórico deste contato nesta sessão, não buscar novamente
+    if (historyFetched.has(contato.id)) return;
+    
+    // Se tem poucas mensagens, baixar histórico automaticamente
+    if (mensagens.length < MIN_MESSAGES_THRESHOLD) {
+      console.log(`[ChatView] Poucas mensagens (${mensagens.length}), baixando histórico...`);
+      
+      fetchMessagesHistory.mutate(
+        { contatoId: contato.id, limit: 50 },
+        {
+          onSuccess: () => {
+            // Marcar que já buscamos histórico deste contato
+            setHistoryFetched(prev => new Set(prev).add(contato.id));
+          },
+          onError: (error) => {
+            console.error('[ChatView] Erro ao baixar histórico:', error);
+            // Mesmo com erro, marcar para não ficar tentando em loop
+            setHistoryFetched(prev => new Set(prev).add(contato.id));
+          }
+        }
+      );
+    } else {
+      // Marcar como já verificado mesmo se não precisou baixar
+      setHistoryFetched(prev => new Set(prev).add(contato.id));
+    }
+  }, [contato?.id, mensagens.length, isLoading, historyFetched, fetchMessagesHistory]);
 
   // Preview de arquivo
   useEffect(() => {
@@ -282,8 +319,8 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
   const displayName = contato.whatsapp_profile_name || contato.nome || contato.telefone;
 
-  // Loading
-  if (isLoading) {
+  // Loading (incluindo download de histórico)
+  if (isLoading || fetchMessagesHistory.isPending) {
     return (
       <div className="h-full flex flex-col">
         <div className="h-16 px-4 flex items-center gap-3 border-b">
@@ -293,12 +330,11 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             <Skeleton className="h-3 w-24" />
           </div>
         </div>
-        <div className="flex-1 p-4 space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className={cn('flex', i % 2 === 0 ? 'justify-end' : 'justify-start')}>
-              <Skeleton className="h-12 w-48 rounded-2xl" />
-            </div>
-          ))}
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm">
+            {fetchMessagesHistory.isPending ? 'Baixando histórico...' : 'Carregando mensagens...'}
+          </p>
         </div>
       </div>
     );

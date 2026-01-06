@@ -65,3 +65,15 @@ verify_jwt = false
 
 [functions.evolution-repair]
 verify_jwt = false
+
+[functions.fetch-recent-chats]
+verify_jwt = false
+
+[functions.fetch-messages-history]
+verify_jwt = false
+
+[functions.analyze-conversation]
+verify_jwt = false
+
+[functions.send-message]
+verify_jwt = false
