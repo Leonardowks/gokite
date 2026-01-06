@@ -83,10 +83,16 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     );
   }, [mensagens, searchTerm]);
 
-  // Auto scroll
+  // Auto scroll para novas mensagens
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [mensagens]);
+    if (mensagens.length > 0) {
+      // Pequeno delay para garantir que o DOM foi atualizado
+      const timer = setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [mensagens.length, mensagens[mensagens.length - 1]?.id]);
 
   // Focus no input de busca quando abre
   useEffect(() => {

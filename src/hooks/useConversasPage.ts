@@ -231,6 +231,10 @@ export const useMensagensContato = (contatoId: string | null) => {
       return (data || []) as MensagemChat[];
     },
     enabled: !!contatoId,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
   });
 };
 

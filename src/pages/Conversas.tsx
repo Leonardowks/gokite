@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { ConversasList } from '@/components/ConversasList';
 import { ChatView } from '@/components/ChatView';
 import { InsightsIADrawer } from '@/components/InsightsIADrawer';
@@ -113,10 +114,13 @@ const Conversas = () => {
     }
   }, [selectedContatoId, contatoSelecionado?.nao_lidas]);
 
+  const queryClient = useQueryClient();
+  
   const handleSelect = (id: string) => {
     setSelectedContatoId(id);
-    // Abre o painel de contexto automaticamente ao selecionar contato
     setContextPanelOpen(true);
+    // Força refetch das mensagens para garantir dados atualizados
+    queryClient.invalidateQueries({ queryKey: ['mensagens-chat', id] });
   };
 
   const handleAnalisar = () => {
