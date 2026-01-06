@@ -213,7 +213,7 @@ serve(async (req) => {
             .maybeSingle();
 
           if (!contato) {
-            // Criar contato
+            // Criar contato SEM ultima_mensagem (será definido após processar mensagens reais)
             const { data: novoContato } = await supabase
               .from("contatos_inteligencia")
               .insert({
@@ -222,7 +222,7 @@ serve(async (req) => {
                 nome: chat.pushName || chat.name || null,
                 whatsapp_profile_name: chat.pushName || chat.name || null,
                 status: 'lead',
-                ultima_mensagem: new Date().toISOString(),
+                // NÃO setar ultima_mensagem aqui - será definido pelo timestamp real das mensagens
               })
               .select("id, remote_jid")
               .single();
@@ -261,10 +261,27 @@ serve(async (req) => {
               messages = msgData.data;
             }
 
+            // Rastrear o timestamp mais recente das mensagens deste chat
+            let maxTimestamp: Date | null = null;
+
             // Processar mensagens
             for (const msg of messages) {
               const messageId = msg.key?.id;
               if (!messageId) continue;
+
+              // Extrair timestamp da mensagem
+              const timestamp = msg.messageTimestamp
+                ? new Date(typeof msg.messageTimestamp === 'string' 
+                    ? parseInt(msg.messageTimestamp) * 1000 
+                    : (typeof msg.messageTimestamp === 'object' && msg.messageTimestamp.low
+                        ? msg.messageTimestamp.low * 1000
+                        : msg.messageTimestamp * 1000))
+                : new Date();
+
+              // Atualizar maxTimestamp se esta mensagem for mais recente
+              if (!maxTimestamp || timestamp > maxTimestamp) {
+                maxTimestamp = timestamp;
+              }
 
               // Verificar se já existe
               const { data: existing } = await supabase
@@ -274,15 +291,6 @@ serve(async (req) => {
                 .maybeSingle();
 
               if (existing) continue; // Já existe
-
-              // Extrair conteúdo
-              const timestamp = msg.messageTimestamp
-                ? new Date(typeof msg.messageTimestamp === 'string' 
-                    ? parseInt(msg.messageTimestamp) * 1000 
-                    : (typeof msg.messageTimestamp === 'object' && msg.messageTimestamp.low
-                        ? msg.messageTimestamp.low * 1000
-                        : msg.messageTimestamp * 1000))
-                : new Date();
 
               let content = "";
               let tipoMidia = "texto";
@@ -330,16 +338,18 @@ serve(async (req) => {
 
               if (!insertError) {
                 mensagensNovas++;
-                
-                // Atualizar ultima_mensagem do contato
-                await supabase
-                  .from("contatos_inteligencia")
-                  .update({ 
-                    ultima_mensagem: timestamp.toISOString(),
-                    ultimo_contato: timestamp.toISOString(),
-                  })
-                  .eq("id", contato.id);
               }
+            }
+
+            // Após processar todas as mensagens, atualizar contato com o timestamp real mais recente
+            if (maxTimestamp) {
+              await supabase
+                .from("contatos_inteligencia")
+                .update({ 
+                  ultima_mensagem: maxTimestamp.toISOString(),
+                  ultimo_contato: maxTimestamp.toISOString(),
+                })
+                .eq("id", contato.id);
             }
           } catch (chatError) {
             console.error(`[Evolution Poll] Erro ao processar chat ${remoteJid}:`, chatError);
