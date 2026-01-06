@@ -10,6 +10,9 @@ import {
   Star,
   Flame,
   Clock,
+  Sparkles,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react';
 import { isToday, isYesterday, format, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -91,6 +94,7 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
   const midiaIcon = getMidiaIcon(contato.ultima_mensagem_tipo_midia);
   const isPriority = contato.prioridade === 'alta' || contato.prioridade === 'urgente';
   const isHot = isHotLead(contato);
+  const analiseStatus = contato.analise_status;
 
   // Calcular tempo sem resposta (apenas se última msg é do cliente)
   const tempoSemResposta = contato.ultima_mensagem && !isFromMe
@@ -158,6 +162,23 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
             )}
             {isHot && (
               <Flame className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+            )}
+            
+            {/* Indicador de status de análise IA */}
+            {analiseStatus === 'pendente' && (
+              <div className="flex items-center gap-0.5" title="Aguardando análise IA">
+                <Sparkles className="h-3 w-3 text-muted-foreground animate-pulse" />
+              </div>
+            )}
+            {analiseStatus === 'processando' && (
+              <div className="flex items-center gap-0.5" title="Analisando com IA...">
+                <Loader2 className="h-3 w-3 text-primary animate-spin" />
+              </div>
+            )}
+            {analiseStatus === 'recente' && (
+              <div className="flex items-center gap-0.5" title="Análise IA concluída">
+                <CheckCircle2 className="h-3 w-3 text-green-500" />
+              </div>
             )}
           </div>
           
