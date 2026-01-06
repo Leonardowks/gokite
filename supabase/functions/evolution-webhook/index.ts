@@ -349,6 +349,12 @@ serve(async (req) => {
     
     const event = normalizeEvent(rawEvent);
     console.log(`[Evolution Webhook] 📍 Evento: ${rawEvent} -> ${event}, Instance: ${instance}`);
+    
+    // LOG CRÍTICO para debug de mensagens enviadas
+    const hasFromMe = JSON.stringify(reqBody).includes('"fromMe":true') || JSON.stringify(reqBody).includes('"fromMe": true');
+    if (hasFromMe) {
+      console.log(`[Evolution Webhook] 🚨 DETECTADO fromMe:true no payload! Evento: ${event}`);
+    }
 
     switch (event) {
       case "MESSAGES_UPSERT":
