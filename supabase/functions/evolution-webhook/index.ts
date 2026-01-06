@@ -560,15 +560,29 @@ serve(async (req) => {
       }
 
       case "SEND_MESSAGE": {
+        console.log(`[Evolution Webhook] 📤 Processando SEND_MESSAGE...`);
+        
         const remoteJid = extractRemoteJid(reqBody, data);
         const messageId = extractMessageId(reqBody, data);
         
-        if (!remoteJid || !messageId) break;
-        if (!isValidWhatsAppJid(remoteJid)) break;
+        console.log(`[Evolution Webhook] 📤 SEND_MESSAGE - JID: ${remoteJid}, MsgID: ${messageId}`);
+        
+        if (!remoteJid || !messageId) {
+          console.log(`[Evolution Webhook] ⚠️ SEND_MESSAGE sem JID ou MsgID`);
+          break;
+        }
+        if (!isValidWhatsAppJid(remoteJid)) {
+          console.log(`[Evolution Webhook] ⚠️ SEND_MESSAGE JID inválido: ${remoteJid}`);
+          break;
+        }
 
         const phone = extractPhone(remoteJid);
-        if (!phone) break;
+        if (!phone) {
+          console.log(`[Evolution Webhook] ⚠️ SEND_MESSAGE telefone inválido`);
+          break;
+        }
 
+        // Verificar duplicata
         const { data: existing } = await supabase
           .from("conversas_whatsapp")
           .select("id")
@@ -576,38 +590,83 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existing) {
+          console.log(`[Evolution Webhook] ⏭️ SEND_MESSAGE duplicada: ${messageId}`);
           await supabase
             .from("conversas_whatsapp")
             .update({ message_status: "SERVER_ACK" })
             .eq("message_id", messageId);
-        } else {
-          const { data: contato } = await supabase
-            .from("contatos_inteligencia")
-            .select("id, telefone")
-            .eq("telefone", phone)
-            .maybeSingle();
-
-          if (contato) {
-            const msgObj = extractMessageObject(reqBody, data);
-            const { content, tipoMidia } = extractMessageContent(msgObj);
-            
-            await supabase
-              .from("conversas_whatsapp")
-              .insert({
-                contato_id: contato.id,
-                telefone: contato.telefone,
-                message_id: messageId,
-                instance_name: instance,
-                is_from_me: true,
-                data_mensagem: new Date().toISOString(),
-                remetente: "empresa",
-                conteudo: content || "Mensagem enviada",
-                tipo_midia: tipoMidia,
-                lida: true,
-                message_status: "SERVER_ACK",
-              });
-          }
+          break;
         }
+
+        // Buscar ou CRIAR contato
+        let { data: contato } = await supabase
+          .from("contatos_inteligencia")
+          .select("id, telefone")
+          .eq("telefone", phone)
+          .maybeSingle();
+
+        const now = new Date().toISOString();
+
+        if (!contato) {
+          // CRIAR contato se não existir
+          const { data: novoContato, error: insertError } = await supabase
+            .from("contatos_inteligencia")
+            .insert({
+              telefone: phone,
+              nome: formatPhoneDisplay(phone),
+              remote_jid: remoteJid,
+              origem: "evolution",
+              status: "nao_classificado",
+              ultima_mensagem: now,
+            })
+            .select("id, telefone")
+            .single();
+
+          if (insertError) {
+            console.error("[Evolution Webhook] ❌ Erro criar contato SEND_MESSAGE:", insertError);
+            break;
+          }
+          contato = novoContato;
+          console.log(`[Evolution Webhook] ✅ Contato CRIADO via SEND_MESSAGE: ${contato.id}`);
+        }
+
+        // Extrair conteúdo da mensagem
+        const msgObj = extractMessageObject(reqBody, data);
+        const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(msgObj);
+        
+        console.log(`[Evolution Webhook] 📤 SEND_MESSAGE conteúdo: "${content.slice(0, 50)}"`);
+
+        // INSERIR mensagem
+        const { error: msgError } = await supabase
+          .from("conversas_whatsapp")
+          .insert({
+            contato_id: contato.id,
+            telefone: contato.telefone,
+            message_id: messageId,
+            instance_name: instance,
+            is_from_me: true,
+            data_mensagem: now,
+            remetente: "empresa",
+            conteudo: content || "Mensagem enviada",
+            tipo_midia: tipoMidia,
+            media_url: mediaUrl,
+            media_mimetype: mediaMimetype,
+            lida: true,
+            message_status: "SERVER_ACK",
+          });
+
+        if (msgError) {
+          console.error("[Evolution Webhook] ❌ Erro inserir SEND_MESSAGE:", msgError);
+          break;
+        }
+
+        // ATUALIZAR ultima_mensagem do contato para subir na lista
+        await supabase
+          .from("contatos_inteligencia")
+          .update({ ultima_mensagem: now })
+          .eq("id", contato.id);
+
+        console.log(`[Evolution Webhook] ✅ SEND_MESSAGE salva: ${messageId}`);
         break;
       }
 
