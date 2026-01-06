@@ -105,32 +105,58 @@ serve(async (req) => {
           );
         }
 
-        // Criar instância na Evolution API
-        const createResponse = await fetch(`${config.api_url}/instance/create`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": config.api_key,
-          },
-          body: JSON.stringify({
-            instanceName: config.instance_name,
-            qrcode: true,
-            integration: "WHATSAPP-BAILEYS",
-          }),
-        });
+        let instanceExists = false;
 
-        const createData = await createResponse.json();
-        console.log("[Evolution Connect] Create response:", createData);
+        // Primeiro, verificar se a instância já existe
+        try {
+          const checkResponse = await fetch(`${config.api_url}/instance/connectionState/${config.instance_name}`, {
+            method: "GET",
+            headers: { "apikey": config.api_key },
+          });
+          
+          if (checkResponse.ok) {
+            const checkData = await checkResponse.json();
+            console.log("[Evolution Connect] Instance check:", checkData);
+            instanceExists = true;
+          }
+        } catch (e) {
+          console.log("[Evolution Connect] Instance does not exist, will create");
+        }
 
-        if (!createResponse.ok) {
-          // Se instância já existe, tenta conectar
-          if (createData.message?.includes("already") || createData.error?.includes("already")) {
-            console.log("[Evolution Connect] Instância já existe, tentando conectar...");
-          } else {
+        // Se não existe, criar
+        if (!instanceExists) {
+          const createResponse = await fetch(`${config.api_url}/instance/create`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": config.api_key,
+            },
+            body: JSON.stringify({
+              instanceName: config.instance_name,
+              qrcode: true,
+              integration: "WHATSAPP-BAILEYS",
+            }),
+          });
+
+          const createData = await createResponse.json();
+          console.log("[Evolution Connect] Create response:", createData);
+
+          // Verificar se o erro é porque já existe
+          const errorMessage = Array.isArray(createData.message) 
+            ? createData.message.join(' ') 
+            : (createData.message || '');
+          
+          if (!createResponse.ok && !errorMessage.toLowerCase().includes('already')) {
             return new Response(
-              JSON.stringify({ error: createData.message || "Erro ao criar instância" }),
+              JSON.stringify({ error: errorMessage || "Erro ao criar instância" }),
               { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
+          }
+          
+          // Se chegou aqui, instância foi criada ou já existe
+          if (errorMessage.toLowerCase().includes('already')) {
+            instanceExists = true;
+            console.log("[Evolution Connect] Instância já existe, continuando...");
           }
         }
 
@@ -167,15 +193,16 @@ serve(async (req) => {
           })
           .eq("instance_name", config.instance_name);
 
-        // Buscar QR Code
+        // Buscar QR Code ou status de conexão
         const qrResponse = await fetch(`${config.api_url}/instance/connect/${config.instance_name}`, {
           method: "GET",
           headers: { "apikey": config.api_key },
         });
 
         const qrData = await qrResponse.json();
-        console.log("[Evolution Connect] QR response:", JSON.stringify(qrData).slice(0, 200));
+        console.log("[Evolution Connect] QR/Connect response:", JSON.stringify(qrData).slice(0, 300));
 
+        // Se tem QR code, retornar
         if (qrData.base64) {
           await supabase
             .from("evolution_config")
@@ -191,24 +218,64 @@ serve(async (req) => {
           );
         }
 
-        // Se já está conectado
-        if (qrData.instance?.state === "open") {
+        // Verificar se já está conectado
+        const statusResponse = await fetch(`${config.api_url}/instance/connectionState/${config.instance_name}`, {
+          method: "GET",
+          headers: { "apikey": config.api_key },
+        });
+        
+        const statusData = await statusResponse.json();
+        console.log("[Evolution Connect] Status check:", statusData);
+
+        if (statusData.instance?.state === "open") {
           await supabase
             .from("evolution_config")
             .update({
               status: "conectado",
-              numero_conectado: qrData.instance?.owner,
+              numero_conectado: statusData.instance?.owner || qrData.instance?.owner,
+              qrcode_base64: null,
             })
             .eq("instance_name", config.instance_name);
 
           return new Response(
-            JSON.stringify({ success: true, status: "conectado", numero: qrData.instance?.owner }),
+            JSON.stringify({ 
+              success: true, 
+              status: "conectado", 
+              numero: statusData.instance?.owner || qrData.instance?.owner 
+            }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
 
+        // Se está desconectado, tentar reconectar
+        if (statusData.instance?.state === "close") {
+          // Forçar reconexão
+          const reconnectResponse = await fetch(`${config.api_url}/instance/connect/${config.instance_name}`, {
+            method: "GET",
+            headers: { "apikey": config.api_key },
+          });
+          
+          const reconnectData = await reconnectResponse.json();
+          console.log("[Evolution Connect] Reconnect response:", JSON.stringify(reconnectData).slice(0, 300));
+          
+          if (reconnectData.base64) {
+            await supabase
+              .from("evolution_config")
+              .update({
+                qrcode_base64: reconnectData.base64,
+                status: "qrcode",
+              })
+              .eq("instance_name", config.instance_name);
+
+            return new Response(
+              JSON.stringify({ success: true, qrcode: reconnectData.base64, status: "qrcode" }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            );
+          }
+        }
+
         return new Response(
-          JSON.stringify({ success: true, data: qrData }),
+          JSON.stringify({ success: true, data: qrData, status: statusData.instance?.state || "unknown" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
