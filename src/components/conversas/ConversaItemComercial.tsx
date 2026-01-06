@@ -59,14 +59,14 @@ function getMidiaIcon(tipo: string | null) {
   switch (tipo) {
     case 'imagem':
     case 'image':
-      return <Image className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
+      return <Image className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
     case 'audio':
-      return <Mic className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
+      return <Mic className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
     case 'video':
-      return <Video className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
+      return <Video className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
     case 'documento':
     case 'document':
-      return <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
+      return <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />;
     default:
       return null;
   }
