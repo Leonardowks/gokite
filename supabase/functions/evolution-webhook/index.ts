@@ -52,9 +52,12 @@ serve(async (req) => {
 
     // 2. DETECÇÃO DE MENSAGEM (Qualquer tipo)
     // Procura a mensagem dentro da estrutura complexa da Evolution
+    // Suporte para MESSAGES_UPSERT e SEND_MESSAGE (estruturas diferentes)
     const msgData = payload.data || payload
-    const key = msgData.key || {}
-    const messageContent = msgData.message || {}
+    
+    // SEND_MESSAGE vem com key diretamente no data, MESSAGES_UPSERT vem mais aninhado
+    const key = msgData.key || payload.key || {}
+    const messageContent = msgData.message || payload.message || {}
     
     // Se não tiver remoteJid, não é mensagem válida
     if (!key.remoteJid) {
