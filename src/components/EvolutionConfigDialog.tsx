@@ -282,7 +282,10 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
   };
 
   const handleConnect = useCallback(async () => {
-    await connect.mutateAsync(formData.instanceName || status?.instanceName || undefined);
+    // Sempre usar instanceName do status (banco) se existir, para evitar usar dados em cache
+    const instanceToUse = status?.instanceName || formData.instanceName;
+    console.log('[EvolutionConfigDialog] Conectando instância:', instanceToUse);
+    await connect.mutateAsync(instanceToUse);
   }, [connect, formData.instanceName, status?.instanceName]);
 
   const handleRefreshQR = useCallback(async () => {
