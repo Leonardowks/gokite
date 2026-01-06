@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// ========== UTILITÁRIOS SIMPLES ==========
+// ========== UTILITÁRIOS ==========
 
 function extractPhone(jid: string): string {
   if (!jid) return "";
@@ -35,12 +35,248 @@ function extractContent(message: any): { content: string; tipoMidia: string; med
   return { content: "📩 Mensagem", tipoMidia: "outro" };
 }
 
+// ========== EXTRATORES UNIVERSAIS (BLINDAGEM) ==========
+
+interface ExtractedMessage {
+  remoteJid: string;
+  fromMe: boolean;
+  messageId: string;
+  pushName: string | null;
+  messageObj: any;
+  timestamp: Date;
+}
+
+function tryExtractMessage(payload: any): ExtractedMessage | null {
+  // Tenta extrair mensagem de QUALQUER estrutura de payload
+  // Funciona para MESSAGES_UPSERT, SEND_MESSAGE, e qualquer variação
+  
+  const paths = [
+    payload,
+    payload?.data,
+    payload?.data?.data,
+    payload?.message,
+    payload?.data?.message,
+  ];
+  
+  for (const p of paths) {
+    if (!p) continue;
+    
+    // Verificar se é um array de mensagens
+    const messages = p.messages || (Array.isArray(p) ? p : null);
+    if (messages && messages.length > 0) {
+      return extractFromMessageObject(messages[0], payload);
+    }
+    
+    // Verificar se tem key + message (formato direto)
+    if (p.key && p.message) {
+      return extractFromMessageObject(p, payload);
+    }
+    
+    // Verificar se tem key.remoteJid + message em algum lugar
+    if (p.key?.remoteJid) {
+      const msgObj = p.message || payload?.data?.message || {};
+      return extractFromMessageObject({ ...p, message: msgObj }, payload);
+    }
+  }
+  
+  return null;
+}
+
+function extractFromMessageObject(msgData: any, rootPayload: any): ExtractedMessage | null {
+  // Extração blindada de todos os campos necessários
+  
+  const remoteJid = 
+    msgData?.key?.remoteJid ||
+    rootPayload?.data?.key?.remoteJid ||
+    rootPayload?.key?.remoteJid ||
+    null;
+  
+  if (!remoteJid || !isValidJid(remoteJid)) {
+    return null;
+  }
+  
+  const fromMe = 
+    msgData?.key?.fromMe === true ||
+    rootPayload?.data?.key?.fromMe === true ||
+    rootPayload?.key?.fromMe === true ||
+    false;
+  
+  const messageId = 
+    msgData?.key?.id ||
+    rootPayload?.data?.key?.id ||
+    rootPayload?.key?.id ||
+    `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  
+  const pushName = 
+    msgData?.pushName ||
+    rootPayload?.data?.pushName ||
+    rootPayload?.pushName ||
+    null;
+  
+  const messageObj = 
+    msgData?.message ||
+    rootPayload?.data?.message ||
+    rootPayload?.message ||
+    {};
+  
+  // Extrair timestamp
+  let timestamp = new Date();
+  const ts = msgData?.messageTimestamp || rootPayload?.data?.messageTimestamp;
+  if (ts) {
+    const tsNum = typeof ts === 'object' ? ts.low : (typeof ts === 'string' ? parseInt(ts, 10) : ts);
+    if (tsNum > 1577836800 && tsNum < 2000000000) {
+      timestamp = new Date(tsNum * 1000);
+    }
+  }
+  
+  return {
+    remoteJid,
+    fromMe,
+    messageId,
+    pushName,
+    messageObj,
+    timestamp,
+  };
+}
+
+// ========== PROCESSADOR DE MENSAGEM UNIFICADO ==========
+
+async function processMessage(
+  supabase: any,
+  extracted: ExtractedMessage,
+  instance: string
+): Promise<{ success: boolean; contactId?: string; error?: string }> {
+  
+  const { remoteJid, fromMe, messageId, pushName, messageObj, timestamp } = extracted;
+  
+  // PASSO A: Extrair telefone limpo
+  const telefone = extractPhone(remoteJid);
+  if (!telefone || telefone.length < 8) {
+    return { success: false, error: "Telefone inválido" };
+  }
+  
+  console.log(`>>> MSG ${fromMe ? "ENVIADA" : "RECEBIDA"}. FromMe: ${fromMe}. Tel: ${telefone}`);
+  
+  // PASSO B: Determinar remetente baseado em fromMe
+  const remetente = fromMe ? "suporte" : "cliente";
+  const nomeContato = (pushName && pushName.trim().length > 1 && !pushName.match(/^\d+$/)) 
+    ? pushName.trim() 
+    : `Contato ${telefone.slice(-4)}`;
+  
+  // PASSO C: UPSERT do contato (OBRIGATÓRIO antes de salvar mensagem)
+  let contatoId: string;
+  
+  const { data: contatoExistente } = await supabase
+    .from("contatos_inteligencia")
+    .select("id, nome, whatsapp_profile_name")
+    .eq("telefone", telefone)
+    .maybeSingle();
+  
+  if (contatoExistente) {
+    contatoId = contatoExistente.id;
+    
+    const updateData: Record<string, any> = {
+      ultima_mensagem: timestamp.toISOString(),
+      remote_jid: remoteJid,
+    };
+    
+    // Atualizar nome se pushName for válido
+    if (pushName && pushName.trim().length > 1 && !pushName.match(/^\d+$/)) {
+      if (!contatoExistente.whatsapp_profile_name || contatoExistente.whatsapp_profile_name.startsWith("Contato ")) {
+        updateData.nome = pushName.trim();
+        updateData.whatsapp_profile_name = pushName.trim();
+      }
+    }
+    
+    await supabase
+      .from("contatos_inteligencia")
+      .update(updateData)
+      .eq("id", contatoId);
+    
+    console.log(`>>> Contato atualizado: ${contatoId}`);
+  } else {
+    // Criar novo contato
+    const { data: novoContato, error: insertError } = await supabase
+      .from("contatos_inteligencia")
+      .insert({
+        telefone: telefone,
+        nome: nomeContato,
+        whatsapp_profile_name: (pushName && !pushName.match(/^\d+$/)) ? pushName.trim() : null,
+        remote_jid: remoteJid,
+        origem: "evolution",
+        status: "nao_classificado",
+        prioridade: "media",
+        ultima_mensagem: timestamp.toISOString(),
+      })
+      .select("id")
+      .single();
+    
+    if (insertError) {
+      console.error(">>> ERRO criando contato:", JSON.stringify(insertError));
+      return { success: false, error: "Falha ao criar contato" };
+    }
+    
+    contatoId = novoContato.id;
+    console.log(`>>> Contato criado: ${contatoId}`);
+  }
+  
+  // PASSO D: Verificar duplicata e salvar mensagem
+  const { data: msgExistente } = await supabase
+    .from("conversas_whatsapp")
+    .select("id")
+    .eq("message_id", messageId)
+    .maybeSingle();
+  
+  if (msgExistente) {
+    console.log(`>>> Msg duplicada: ${messageId}`);
+    return { success: true, contactId: contatoId };
+  }
+  
+  // Extrair conteúdo
+  const { content, tipoMidia, mediaUrl } = extractContent(messageObj);
+  
+  // Inserir mensagem
+  const { error: msgError } = await supabase
+    .from("conversas_whatsapp")
+    .insert({
+      contato_id: contatoId,
+      telefone: telefone,
+      remetente: remetente,
+      conteudo: content,
+      tipo_midia: tipoMidia,
+      is_from_me: fromMe,
+      data_mensagem: timestamp.toISOString(),
+      message_id: messageId,
+      instance_name: instance,
+      push_name: pushName || null,
+      media_url: mediaUrl || null,
+      lida: fromMe, // Mensagens enviadas já são lidas
+    });
+  
+  if (msgError) {
+    console.error(">>> ERRO salvando msg:", JSON.stringify(msgError));
+    return { success: false, contactId: contatoId, error: "Falha ao salvar mensagem" };
+  }
+  
+  console.log(`>>> Msg salva! Contato: ${contatoId}`);
+  
+  // Enfileirar para análise
+  await supabase
+    .from("analise_queue")
+    .upsert({
+      contato_id: contatoId,
+      status: "pendente",
+      prioridade: 1,
+    }, { onConflict: "contato_id" });
+  
+  return { success: true, contactId: contatoId };
+}
+
 // ========== HANDLER PRINCIPAL ==========
 
 serve(async (req) => {
   console.log("========================================");
-  console.log(">>> 1. WEBHOOK ACIONADO:", new Date().toISOString());
-  console.log(">>> METHOD:", req.method);
+  console.log(">>> WEBHOOK:", new Date().toISOString());
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -53,276 +289,62 @@ serve(async (req) => {
 
     const body = await req.json();
     
-    // ========== PASSO 1: SANITIZAÇÃO DO PAYLOAD ==========
-    console.log(">>> 2. PAYLOAD BRUTO:", JSON.stringify(body).slice(0, 2000));
+    // Log do payload (limitado)
+    console.log(">>> PAYLOAD:", JSON.stringify(body).slice(0, 1500));
     
     const rawEvent = body.event || body.type || "";
     const instance = body.instance || body.instanceName || "";
-    
-    // Detectar se payload está em body.data ou body.data.data (Evolution v2)
-    let data = body.data || body;
-    if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
-      console.log(">>> DETECTADO Evolution v2 (data.data)");
-      data = data.data;
-    }
-    
     const event = rawEvent.toUpperCase().replace(/\./g, "_").replace(/-/g, "_");
-    console.log(">>> 3. EVENTO NORMALIZADO:", event, "| INSTANCE:", instance);
+    
+    console.log(">>> EVENTO:", event, "| INSTANCE:", instance);
 
-    // ========== PROCESSAR EVENTOS DE MENSAGEM ==========
-    if (event === "MESSAGES_UPSERT" || event === "MESSAGE_UPSERT" || event === "SEND_MESSAGE") {
-      console.log(">>> 4. PROCESSANDO EVENTO DE MENSAGEM:", event);
+    // =========================================================
+    // LÓGICA UNIFICADA: DETECTAR MENSAGEM POR CONTEÚDO, NÃO POR EVENTO
+    // =========================================================
+    
+    // Primeiro: Tentar extrair mensagem do payload
+    // Isso funciona para MESSAGES_UPSERT, SEND_MESSAGE, e qualquer variação
+    const extracted = tryExtractMessage(body);
+    
+    if (extracted) {
+      console.log(">>> MENSAGEM DETECTADA no payload!");
       
-      // Construir array de mensagens
-      let messages: any[] = [];
-      if (Array.isArray(data.messages)) {
-        messages = data.messages;
-      } else if (Array.isArray(data)) {
-        messages = data;
-      } else if (data.key || data.message) {
-        messages = [data];
-      } else if (body.data?.key || body.data?.message) {
-        messages = [body.data];
-      }
+      // Pode haver múltiplas mensagens em um array
+      const data = body.data || body;
+      const messages = data.messages || (Array.isArray(data) ? data : [data]);
       
-      console.log(">>> 5. TOTAL DE MENSAGENS:", messages.length);
+      let processed = 0;
       
-      if (messages.length === 0) {
-        console.log(">>> NENHUMA MENSAGEM ENCONTRADA. Estrutura:", JSON.stringify(data).slice(0, 500));
-        return new Response(JSON.stringify({ success: true, noMessages: true }), { 
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        });
-      }
-
-      for (let i = 0; i < messages.length; i++) {
-        const msgData = messages[i];
-        console.log(`>>> 6. PROCESSANDO MENSAGEM ${i + 1}/${messages.length}`);
+      for (const msgData of messages) {
+        // Extrair cada mensagem individualmente
+        const msgExtracted = extractFromMessageObject(msgData, body);
         
-        try {
-          // ========== EXTRAIR remoteJid ==========
-          const remoteJid = 
-            msgData?.key?.remoteJid ||
-            data?.key?.remoteJid ||
-            body?.data?.key?.remoteJid ||
-            body?.key?.remoteJid ||
-            null;
-          
-          console.log(">>> 7. remoteJid EXTRAÍDO:", remoteJid);
-          
-          if (!remoteJid || !isValidJid(remoteJid)) {
-            console.log(">>> PULANDO: JID inválido ou grupo");
-            continue;
-          }
-
-          // ========== EXTRAIR fromMe ==========
-          const fromMe = 
-            msgData?.key?.fromMe === true ||
-            data?.key?.fromMe === true ||
-            body?.data?.key?.fromMe === true ||
-            body?.key?.fromMe === true ||
-            false;
-          
-          console.log(">>> 8. fromMe:", fromMe);
-
-          // ========== DETERMINAR TELEFONE ==========
-          // Se fromMe=true, o remoteJid é o DESTINATÁRIO (número do cliente)
-          // Se fromMe=false, o remoteJid é o REMETENTE (número do cliente)
-          // Em ambos os casos, o telefone do contato é o remoteJid
-          const telefone = extractPhone(remoteJid);
-          
-          if (!telefone || telefone.length < 8) {
-            console.log(">>> PULANDO: Telefone inválido:", telefone);
-            continue;
-          }
-          
-          console.log(">>> 9. TELEFONE LIMPO:", telefone);
-
-          // ========== EXTRAIR pushName ==========
-          const pushName = 
-            msgData?.pushName ||
-            data?.pushName ||
-            body?.data?.pushName ||
-            body?.pushName ||
-            null;
-          
-          const nomeContato = pushName && pushName.trim().length > 1 ? pushName.trim() : `Contato ${telefone.slice(-4)}`;
-          console.log(">>> 10. NOME DO CONTATO:", nomeContato);
-
-          // ========== EXTRAIR messageId ==========
-          const messageId = 
-            msgData?.key?.id ||
-            data?.key?.id ||
-            body?.data?.key?.id ||
-            `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-          
-          console.log(">>> 11. MESSAGE_ID:", messageId);
-
-          // ========== EXTRAIR CONTEÚDO ==========
-          const messageObj = msgData?.message || data?.message || body?.data?.message || {};
-          const { content, tipoMidia, mediaUrl } = extractContent(messageObj);
-          console.log(">>> 12. CONTEÚDO:", content.slice(0, 100), "| TIPO:", tipoMidia);
-
-          // ========== EXTRAIR TIMESTAMP ==========
-          let timestamp = new Date();
-          const ts = msgData?.messageTimestamp || data?.messageTimestamp;
-          if (ts) {
-            const tsNum = typeof ts === 'object' ? ts.low : (typeof ts === 'string' ? parseInt(ts, 10) : ts);
-            if (tsNum > 1577836800 && tsNum < 2000000000) {
-              timestamp = new Date(tsNum * 1000);
-            }
-          }
-          console.log(">>> 13. TIMESTAMP:", timestamp.toISOString());
-
-          // ==========================================
-          // PASSO 2: UPSERT DO CONTATO (OBRIGATÓRIO)
-          // ==========================================
-          console.log(">>> 14. INICIANDO UPSERT DO CONTATO...");
-          
-          // Primeiro, tentar buscar o contato existente
-          const { data: contatoExistente, error: selectError } = await supabase
-            .from("contatos_inteligencia")
-            .select("id, nome, whatsapp_profile_name")
-            .eq("telefone", telefone)
-            .maybeSingle();
-          
-          if (selectError) {
-            console.error(">>> ERRO SELECT CONTATO:", JSON.stringify(selectError));
-          }
-          
-          let contatoId: string;
-          
-          if (contatoExistente) {
-            // Contato existe - atualizar
-            contatoId = contatoExistente.id;
-            console.log(">>> 15. CONTATO EXISTENTE ENCONTRADO:", contatoId);
-            
-            const updateData: Record<string, any> = {
-              ultima_mensagem: timestamp.toISOString(),
-              remote_jid: remoteJid,
-            };
-            
-            // Atualizar nome se pushName for válido e diferente
-            if (pushName && pushName.trim().length > 1 && !pushName.match(/^\d+$/)) {
-              if (!contatoExistente.whatsapp_profile_name || contatoExistente.whatsapp_profile_name.startsWith("Contato ")) {
-                updateData.nome = pushName.trim();
-                updateData.whatsapp_profile_name = pushName.trim();
-              }
-            }
-            
-            const { error: updateError } = await supabase
-              .from("contatos_inteligencia")
-              .update(updateData)
-              .eq("id", contatoId);
-            
-            if (updateError) {
-              console.error(">>> ERRO UPDATE CONTATO:", JSON.stringify(updateError));
-            } else {
-              console.log(">>> 16. CONTATO ATUALIZADO COM SUCESSO");
-            }
-          } else {
-            // Contato não existe - criar
-            console.log(">>> 15. CONTATO NÃO EXISTE. CRIANDO...");
-            
-            const { data: novoContato, error: insertError } = await supabase
-              .from("contatos_inteligencia")
-              .insert({
-                telefone: telefone,
-                nome: nomeContato,
-                whatsapp_profile_name: pushName && !pushName.match(/^\d+$/) ? pushName.trim() : null,
-                remote_jid: remoteJid,
-                origem: "evolution",
-                status: "nao_classificado",
-                prioridade: "media",
-                ultima_mensagem: timestamp.toISOString(),
-              })
-              .select("id")
-              .single();
-            
-            if (insertError) {
-              console.error(">>> ERRO INSERT CONTATO:", JSON.stringify(insertError));
-              console.log(">>> ABORTANDO MENSAGEM - SEM CONTATO_ID");
-              continue;
-            }
-            
-            contatoId = novoContato.id;
-            console.log(">>> 16. CONTATO CRIADO COM SUCESSO:", contatoId);
-          }
-
-          // ==========================================
-          // PASSO 3: SALVAR MENSAGEM
-          // ==========================================
-          console.log(">>> 17. VERIFICANDO DUPLICATA...");
-          
-          // Verificar se mensagem já existe
-          const { data: msgExistente } = await supabase
-            .from("conversas_whatsapp")
-            .select("id")
-            .eq("message_id", messageId)
-            .maybeSingle();
-          
-          if (msgExistente) {
-            console.log(">>> MENSAGEM DUPLICADA. PULANDO:", messageId);
-            continue;
-          }
-          
-          console.log(">>> 18. INSERINDO MENSAGEM...");
-          
-          const messageData = {
-            contato_id: contatoId,
-            telefone: telefone,
-            remetente: fromMe ? "suporte" : "cliente",
-            conteudo: content,
-            tipo_midia: tipoMidia,
-            is_from_me: fromMe,
-            data_mensagem: timestamp.toISOString(),
-            message_id: messageId,
-            instance_name: instance,
-            push_name: pushName || null,
-            media_url: mediaUrl || null,
-            lida: fromMe,
-          };
-          
-          console.log(">>> 19. DADOS DA MENSAGEM:", JSON.stringify(messageData));
-          
-          const { error: msgError } = await supabase
-            .from("conversas_whatsapp")
-            .insert(messageData);
-          
-          if (msgError) {
-            console.error(">>> ERRO INSERT MENSAGEM:", JSON.stringify(msgError));
-          } else {
-            console.log(">>> 20. MENSAGEM SALVA COM SUCESSO!");
-          }
-
-          // Enfileirar para análise de IA
-          await supabase
-            .from("analise_queue")
-            .upsert({
-              contato_id: contatoId,
-              status: "pendente",
-              prioridade: 1,
-            }, { onConflict: "contato_id" });
-          
-          console.log(">>> 21. CONTATO ENFILEIRADO PARA ANÁLISE");
-          
-        } catch (msgError) {
-          console.error(">>> ERRO PROCESSANDO MENSAGEM:", msgError);
+        if (msgExtracted) {
+          const result = await processMessage(supabase, msgExtracted, instance);
+          if (result.success) processed++;
         }
       }
-
-      return new Response(JSON.stringify({ success: true, processed: messages.length }), { 
+      
+      // Se só tinha uma mensagem, usar a extraída inicialmente
+      if (processed === 0 && extracted) {
+        const result = await processMessage(supabase, extracted, instance);
+        if (result.success) processed = 1;
+      }
+      
+      return new Response(JSON.stringify({ success: true, processed }), { 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       });
     }
 
-    // ========== MESSAGES_UPDATE - Atualizar status ==========
+    // ========== MESSAGES_UPDATE - Atualizar status de entrega ==========
     if (event === "MESSAGES_UPDATE" || event === "MESSAGE_UPDATE") {
-      console.log(">>> PROCESSANDO MESSAGES_UPDATE");
+      console.log(">>> Processando STATUS UPDATE");
       
+      const data = body.data || body;
       const updates = Array.isArray(data) ? data : [data];
       
       for (const update of updates) {
-        const messageId = update?.key?.id;
+        const messageId = update?.key?.id || update?.keyId;
         const status = update?.update?.status || update?.status;
         
         if (messageId && status) {
@@ -344,10 +366,11 @@ serve(async (req) => {
 
     // ========== CONNECTION_UPDATE ==========
     if (event === "CONNECTION_UPDATE") {
-      console.log(">>> PROCESSANDO CONNECTION_UPDATE");
+      console.log(">>> Processando CONNECTION_UPDATE");
       
+      const data = body.data || body;
       const state = data?.state || data?.status || body?.state;
-      console.log(">>> CONNECTION STATE:", state);
+      console.log(">>> State:", state);
       
       let newStatus = "desconectado";
       if (state === "open" || state === "connected") {
@@ -356,8 +379,7 @@ serve(async (req) => {
         newStatus = "conectando";
       }
       
-      // Atualizar status na tabela
-      const { error: updateError } = await supabase
+      await supabase
         .from("evolution_config")
         .update({
           status: newStatus,
@@ -365,33 +387,18 @@ serve(async (req) => {
         })
         .eq("instance_name", instance);
       
-      if (updateError) {
-        console.error(">>> ERRO UPDATE CONFIG:", updateError);
-      }
-      
       // Se conectou, disparar sync automático
       if (newStatus === "conectado") {
         console.log(">>> CONEXÃO ESTABELECIDA! Disparando import-history...");
         
-        try {
-          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-          const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-          
-          fetch(`${supabaseUrl}/functions/v1/import-history`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabaseKey}`,
-            },
-            body: JSON.stringify({ 
-              instanceName: instance,
-              limit: 100,
-            }),
-          }).catch(e => console.error(">>> Erro chamando import-history:", e));
-          
-        } catch (e) {
-          console.error(">>> Erro disparando sync:", e);
-        }
+        fetch(`${supabaseUrl}/functions/v1/import-history`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseServiceKey}`,
+          },
+          body: JSON.stringify({ instanceName: instance, limit: 100 }),
+        }).catch(e => console.error(">>> Erro import-history:", e));
       }
 
       return new Response(JSON.stringify({ success: true, status: newStatus }), { 
@@ -401,8 +408,9 @@ serve(async (req) => {
 
     // ========== QRCODE_UPDATED ==========
     if (event === "QRCODE_UPDATED" || event === "QR_CODE") {
-      console.log(">>> PROCESSANDO QRCODE_UPDATED");
+      console.log(">>> Processando QRCODE_UPDATED");
       
+      const data = body.data || body;
       const qrcode = data?.qrcode?.base64 || data?.qrcode || data?.base64;
       
       if (qrcode) {
@@ -421,26 +429,55 @@ serve(async (req) => {
       });
     }
 
-    // ========== OUTROS EVENTOS ==========
-    console.log(">>> EVENTO NÃO TRATADO:", event);
+    // ========== CONTACTS_UPSERT - Atualizar foto/nome do contato ==========
+    if (event === "CONTACTS_UPSERT" || event === "CONTACTS_UPDATE") {
+      console.log(">>> Processando CONTACTS_UPSERT/UPDATE");
+      
+      const data = body.data || body;
+      const contacts = Array.isArray(data) ? data : [data];
+      
+      for (const contact of contacts) {
+        const remoteJid = contact?.remoteJid || contact?.id;
+        if (!remoteJid || !isValidJid(remoteJid)) continue;
+        
+        const telefone = extractPhone(remoteJid);
+        const profilePic = contact?.profilePicUrl || contact?.imgUrl;
+        const pushName = contact?.pushName || contact?.name || contact?.notify;
+        
+        if (telefone && (profilePic || pushName)) {
+          const updateData: Record<string, any> = {};
+          
+          if (profilePic) updateData.whatsapp_profile_picture = profilePic;
+          if (pushName && !pushName.match(/^\d+$/)) {
+            updateData.whatsapp_profile_name = pushName;
+          }
+          
+          if (Object.keys(updateData).length > 0) {
+            await supabase
+              .from("contatos_inteligencia")
+              .update(updateData)
+              .eq("telefone", telefone);
+          }
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true }), { 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
+    }
+
+    // ========== EVENTO NÃO PROCESSADO ==========
+    console.log(">>> Evento ignorado:", event);
     
-    return new Response(JSON.stringify({ success: true, event: event }), { 
+    return new Response(JSON.stringify({ success: true, ignored: event }), { 
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
 
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error(">>> ERRO CRÍTICO:", errorMessage);
     
-    console.error("========================================");
-    console.error(">>> ERRO CRÍTICO NO WEBHOOK:", errorMessage);
-    console.error(">>> STACK:", errorStack);
-    console.error("========================================");
-    
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: errorMessage 
-    }), { 
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), { 
       status: 200, // Retornar 200 para Evolution não retentar
       headers: { ...corsHeaders, "Content-Type": "application/json" } 
     });
