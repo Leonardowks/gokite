@@ -411,6 +411,41 @@ serve(async (req) => {
 
         console.log(`[Evolution Webhook] Mensagem ${messageId} salva com sucesso`);
 
+        // FASE 3: IA Proativa - Enfileirar análise automática para mensagens de clientes
+        if (!isFromMe) {
+          // Adicionar à fila de análise com debounce (evita análise a cada mensagem)
+          const { data: existingQueue } = await supabase
+            .from("analise_queue")
+            .select("id, tentativas")
+            .eq("contato_id", contato.id)
+            .eq("status", "pendente")
+            .maybeSingle();
+
+          if (!existingQueue) {
+            // Inserir na fila com prioridade baseada em histórico
+            const { data: contatoInfo } = await supabase
+              .from("contatos_inteligencia")
+              .select("score_interesse, prioridade")
+              .eq("id", contato.id)
+              .single();
+
+            const prioridade = contatoInfo?.prioridade === "alta" ? 1 : 
+                               contatoInfo?.prioridade === "media" ? 2 : 3;
+
+            await supabase
+              .from("analise_queue")
+              .insert({
+                contato_id: contato.id,
+                status: "pendente",
+                prioridade,
+              });
+            
+            console.log(`[Evolution Webhook] Contato ${contato.id} adicionado à fila de análise IA`);
+          } else {
+            console.log(`[Evolution Webhook] Contato ${contato.id} já está na fila de análise`);
+          }
+        }
+
         // Enriquecer dados do contato em background (não bloqueia resposta)
         // Só enriquecer se não for mensagem nossa e tivermos config
         if (!isFromMe && evolutionConfig) {
