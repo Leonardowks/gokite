@@ -48,8 +48,11 @@ function extractPhoneFromJid(jid: string): string {
 }
 
 // Valida se é um JID de contato individual (não grupo)
+// Aceitar @s.whatsapp.net (normal) e @lid (WhatsApp Business Lead)
+// Bloquear apenas grupos (@g.us)
 function isIndividualChat(jid: string): boolean {
-  return jid.includes("@s.whatsapp.net");
+  if (jid.includes("@g.us")) return false; // Grupo = sempre bloquear
+  return jid.includes("@s.whatsapp.net") || jid.includes("@lid");
 }
 
 // Extrai conteúdo e tipo de mídia de uma mensagem

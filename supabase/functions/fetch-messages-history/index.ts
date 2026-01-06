@@ -30,14 +30,16 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Se recebeu contato_id, buscar o telefone
+    // Buscar contato no banco para pegar o remote_jid REAL
     let telefone = phone;
     let contatoId = contato_id;
+    let remoteJidFromDb: string | null = null;
     
-    if (!telefone && contatoId) {
+    if (contatoId) {
+      // Buscar contato pelo ID - pegar telefone E remote_jid real
       const { data: contato } = await supabase
         .from('contatos_inteligencia')
-        .select('telefone')
+        .select('telefone, remote_jid')
         .eq('id', contatoId)
         .single();
       
@@ -48,6 +50,20 @@ serve(async (req) => {
         });
       }
       telefone = contato.telefone;
+      remoteJidFromDb = contato.remote_jid;
+    } else if (telefone) {
+      // Buscar pelo telefone para ver se tem remote_jid salvo
+      const cleanPhoneSearch = telefone.replace(/\D/g, '');
+      const { data: contatoByPhone } = await supabase
+        .from('contatos_inteligencia')
+        .select('id, remote_jid')
+        .eq('telefone', cleanPhoneSearch)
+        .maybeSingle();
+      
+      if (contatoByPhone) {
+        contatoId = contatoByPhone.id;
+        remoteJidFromDb = contatoByPhone.remote_jid;
+      }
     }
 
     // Buscar configuração da Evolution API
@@ -66,9 +82,11 @@ serve(async (req) => {
 
     const { api_url, api_key, instance_name } = config;
     
-    // Formatar remote JID
+    // PRIORIZAR remote_jid do banco, fallback para construído
     const cleanPhone = telefone.replace(/\D/g, '');
-    const remoteJid = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@s.whatsapp.net`;
+    const remoteJid = remoteJidFromDb || `${cleanPhone}@s.whatsapp.net`;
+    
+    console.log(`[fetch-messages-history] Usando JID: ${remoteJid} (do banco: ${!!remoteJidFromDb})`);
     
     console.log(`[fetch-messages-history] Buscando mensagens para JID: ${remoteJid}`);
 
