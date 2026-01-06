@@ -27,17 +27,27 @@ const highlightSearchText = (text: string, searchTerm: string) => {
   );
 };
 
-const getStatusIcon = (status: string | null, isFromMe: boolean) => {
+const getStatusIcon = (status: string | null, isFromMe: boolean, lida?: boolean) => {
   if (!isFromMe) return null;
-  switch (status) {
+  
+  // Normaliza status para maiúsculas
+  const normalizedStatus = status?.toUpperCase();
+  
+  switch (normalizedStatus) {
     case 'READ':
-      return <CheckCheck className="h-4 w-4 text-cyan-400" />;
+      return <CheckCheck className="h-3.5 w-3.5 text-cyan-400" />;
     case 'DELIVERY_ACK':
-      return <CheckCheck className="h-4 w-4 text-white/70" />;
+    case 'DELIVERED':
+      return <CheckCheck className="h-3.5 w-3.5 text-white/70" />;
     case 'SERVER_ACK':
-      return <Check className="h-4 w-4 text-white/70" />;
+    case 'SENT':
+      return <Check className="h-3.5 w-3.5 text-white/70" />;
     default:
-      return <Check className="h-4 w-4 text-white/50" />;
+      // Fallback: se lida=true, mostra double-check azul
+      if (lida) {
+        return <CheckCheck className="h-3.5 w-3.5 text-cyan-400" />;
+      }
+      return <Check className="h-3.5 w-3.5 text-white/50" />;
   }
 };
 
@@ -220,12 +230,12 @@ export const MessageBubble = memo(function MessageBubble({
         {/* Horário e status - só na última mensagem do grupo ou sempre se for única */}
         {(isLastInGroup || (!isFirstInGroup && !isLastInGroup)) && (
           <div className={cn(
-            'flex items-center justify-end gap-1 mt-1',
+            'flex items-center justify-end gap-0.5 mt-1',
             hasMedia && 'px-2 pb-1',
             isFromMe ? 'text-white/70' : 'text-muted-foreground'
           )}>
             <span className="text-[11px]">{time}</span>
-            {getStatusIcon(message.message_status, isFromMe)}
+            {getStatusIcon(message.message_status, isFromMe, message.lida)}
           </div>
         )}
       </div>
