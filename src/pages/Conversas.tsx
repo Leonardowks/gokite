@@ -170,14 +170,19 @@ const Conversas = () => {
 
             {isConnected && (
               <>
-                {/* Botão Sincronizar Base */}
+                {/* Botão Sincronizar Base - FULL para trazer contatos + mensagens */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
                       size="sm"
                       variant="outline"
                       className="h-8 px-2 gap-1.5 text-xs"
-                      onClick={() => sincronizarBase.mutate({ action: 'contacts' })}
+                      onClick={() => {
+                        sincronizarBase.mutate({ action: 'full' });
+                        toast.info('Sincronização iniciada', {
+                          description: 'Baixando contatos e mensagens...'
+                        });
+                      }}
                       disabled={sincronizarBase.isPending}
                     >
                       {sincronizarBase.isPending ? (
@@ -189,7 +194,7 @@ const Conversas = () => {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Sincronizar todos os contatos do WhatsApp</p>
+                    <p>Sincronizar contatos e mensagens do WhatsApp</p>
                   </TooltipContent>
                 </Tooltip>
 
