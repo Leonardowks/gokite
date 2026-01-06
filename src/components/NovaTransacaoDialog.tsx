@@ -21,8 +21,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Loader2, Save, Sparkles, TrendingUp, TrendingDown, CreditCard, Landmark } from "lucide-react";
+import { Loader2, Save, Sparkles, TrendingUp, TrendingDown, CreditCard, Landmark, WifiOff } from "lucide-react";
 import { useCreateTransacao, useConfigFinanceiro, getTaxaCartao } from "@/hooks/useTransacoes";
+import { useOfflineTransacoes } from "@/hooks/useOfflineTransacoes";
 import type { ParsedTransaction } from "./QuickFinancialEntry";
 
 interface NovaTransacaoDialogProps {
@@ -34,6 +35,7 @@ interface NovaTransacaoDialogProps {
 export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTransacaoDialogProps) {
   const createTransacao = useCreateTransacao();
   const { data: config } = useConfigFinanceiro();
+  const { isOnline, addTransacao } = useOfflineTransacoes();
 
   const [formData, setFormData] = useState({
     tipo: "receita" as "receita" | "despesa",
@@ -112,17 +114,29 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
       return;
     }
 
+    const transacaoData = {
+      tipo: formData.tipo,
+      valor_bruto: formData.valor_bruto,
+      custo_produto: formData.custo_produto,
+      descricao: formData.descricao,
+      forma_pagamento: formData.forma_pagamento,
+      parcelas: formData.parcelas,
+      centro_de_custo: formData.centro_de_custo,
+      origem: formData.origem,
+    };
+
+    // Check if offline - save locally
+    if (!isOnline) {
+      const result = addTransacao(transacaoData);
+      if (result.offline) {
+        onOpenChange(false);
+        return;
+      }
+    }
+
+    // Online - save to Supabase
     try {
-      await createTransacao.mutateAsync({
-        tipo: formData.tipo,
-        valor_bruto: formData.valor_bruto,
-        custo_produto: formData.custo_produto,
-        descricao: formData.descricao,
-        forma_pagamento: formData.forma_pagamento,
-        parcelas: formData.parcelas,
-        centro_de_custo: formData.centro_de_custo,
-        origem: formData.origem,
-      });
+      await createTransacao.mutateAsync(transacaoData);
 
       toast.success("Transação registrada!", {
         description: `Lucro líquido: R$ ${lucroLiquido.toFixed(2)}`,
@@ -131,6 +145,14 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
       onOpenChange(false);
     } catch (error) {
       console.error("[NovaTransacaoDialog] Error:", error);
+      
+      // If online save fails, try offline
+      const result = addTransacao(transacaoData);
+      if (result.offline) {
+        onOpenChange(false);
+        return;
+      }
+      
       toast.error("Erro ao salvar transação");
     }
   };
@@ -139,7 +161,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <DialogTitle>Nova Transação</DialogTitle>
             {initialData && (
               <Badge variant="secondary" className="gap-1">
@@ -147,11 +169,19 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
                 Preenchido por IA
               </Badge>
             )}
+            {!isOnline && (
+              <Badge variant="outline" className="gap-1 text-warning border-warning">
+                <WifiOff className="h-3 w-3" />
+                Modo Offline
+              </Badge>
+            )}
           </div>
           <DialogDescription>
-            {initialData
-              ? "Revise os dados extraídos e confirme"
-              : "Preencha os dados da transação"}
+            {!isOnline
+              ? "Será sincronizada quando voltar online"
+              : initialData
+                ? "Revise os dados extraídos e confirme"
+                : "Preencha os dados da transação"}
           </DialogDescription>
         </DialogHeader>
 

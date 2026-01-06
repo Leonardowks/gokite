@@ -1,8 +1,8 @@
 // Queue for offline operations that need syncing
-interface OfflineOperation {
+export interface OfflineOperation {
   id: string;
   type: 'create' | 'update' | 'delete';
-  entity: 'aula' | 'cliente' | 'aluguel' | 'equipamento' | 'lead';
+  entity: 'aula' | 'cliente' | 'aluguel' | 'equipamento' | 'lead' | 'transacao';
   data: Record<string, unknown>;
   timestamp: number;
   retries: number;

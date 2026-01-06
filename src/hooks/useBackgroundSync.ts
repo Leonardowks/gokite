@@ -1,11 +1,15 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   getSyncQueue, 
   removeFromSyncQueue, 
   incrementRetry,
-  getPendingSyncCount 
+  getPendingSyncCount,
+  OfflineOperation
 } from '@/lib/syncQueue';
+import { markTransacaoSynced, clearSyncedTransacoes } from './useOfflineTransacoes';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -22,22 +26,56 @@ export function useBackgroundSync() {
     error: null,
   });
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const syncInProgress = useRef(false);
 
   // Process a single sync operation
-  const processOperation = useCallback(async (operation: ReturnType<typeof getSyncQueue>[0]) => {
-    // Since we're using localStorage mock data, we just need to confirm the operation
-    // In a real app, this would call Supabase APIs
+  const processOperation = useCallback(async (operation: OfflineOperation): Promise<boolean> => {
     console.log('[BackgroundSync] Processing:', operation.type, operation.entity, operation.data);
     
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    // For demo purposes, all operations succeed
-    // In real implementation, you would:
-    // - Call supabase.from(operation.entity).insert/update/delete(operation.data)
-    // - Handle errors appropriately
-    return true;
+    try {
+      // Handle transacao sync to Supabase
+      if (operation.entity === 'transacao' && operation.type === 'create') {
+        const transacaoData = operation.data;
+        
+        // Remove offline-specific fields
+        const { offline_id, synced, ...insertData } = transacaoData as Record<string, unknown>;
+        
+        const { error } = await supabase
+          .from('transacoes')
+          .insert({
+            tipo: insertData.tipo as string,
+            origem: (insertData.origem as string) || 'outros',
+            descricao: insertData.descricao as string || null,
+            valor_bruto: insertData.valor_bruto as number,
+            custo_produto: (insertData.custo_produto as number) || 0,
+            centro_de_custo: (insertData.centro_de_custo as string) || 'Administrativo',
+            forma_pagamento: (insertData.forma_pagamento as string) || 'dinheiro',
+            parcelas: (insertData.parcelas as number) || 1,
+            data_transacao: (insertData.data_transacao as string) || new Date().toISOString().split('T')[0],
+          });
+
+        if (error) {
+          console.error('[BackgroundSync] Transacao sync error:', error);
+          throw error;
+        }
+
+        // Mark as synced in offline storage
+        if (offline_id) {
+          markTransacaoSynced(offline_id as string);
+        }
+
+        console.log('[BackgroundSync] Transacao synced successfully');
+        return true;
+      }
+
+      // For other entities, simulate success (legacy behavior)
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return true;
+    } catch (error) {
+      console.error('[BackgroundSync] Operation failed:', error);
+      return false;
+    }
   }, []);
 
   // Sync all pending operations
@@ -78,6 +116,13 @@ export function useBackgroundSync() {
       }
     }
 
+    // Clean up synced transacoes from localStorage
+    clearSyncedTransacoes();
+
+    // Invalidate queries to refresh data
+    queryClient.invalidateQueries({ queryKey: ['transacoes'] });
+    queryClient.invalidateQueries({ queryKey: ['transacoes-summary'] });
+
     syncInProgress.current = false;
     
     const newPendingCount = getPendingSyncCount();
@@ -91,8 +136,8 @@ export function useBackgroundSync() {
     // Show toast notification
     if (successCount > 0) {
       toast({
-        title: 'Sincronização Completa',
-        description: `${successCount} ${successCount === 1 ? 'operação sincronizada' : 'operações sincronizadas'} com sucesso.`,
+        title: '✅ Sincronização Completa',
+        description: `${successCount} ${successCount === 1 ? 'transação sincronizada' : 'transações sincronizadas'} com sucesso.`,
       });
     }
 
@@ -105,15 +150,15 @@ export function useBackgroundSync() {
     }
 
     console.log(`[BackgroundSync] Completed: ${successCount} success, ${failCount} failed`);
-  }, [processOperation, toast]);
+  }, [processOperation, toast, queryClient]);
 
   // Listen for online event
   useEffect(() => {
     const handleOnline = () => {
       console.log('[BackgroundSync] Back online - starting sync');
       toast({
-        title: 'Conexão Restaurada',
-        description: 'Sincronizando dados...',
+        title: '🌐 Conexão Restaurada',
+        description: 'Sincronizando transações pendentes...',
       });
       // Small delay to ensure connection is stable
       setTimeout(syncAll, 1000);
@@ -138,7 +183,7 @@ export function useBackgroundSync() {
         ...prev,
         pendingCount: getPendingSyncCount(),
       }));
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
