@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.import-history]
 verify_jwt = false
+
+[functions.evolution-repair]
+verify_jwt = false

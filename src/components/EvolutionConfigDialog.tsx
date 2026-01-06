@@ -315,30 +315,30 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
   const handleFixWebhook = async () => {
     setIsFixingWebhook(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fix-webhook-config');
+      const { data, error } = await supabase.functions.invoke('evolution-repair');
       
       if (error) {
-        console.error('Erro ao reparar webhook:', error);
-        toast.error('Erro ao reparar webhook', {
+        console.error('Erro ao reparar conexão:', error);
+        toast.error('Erro ao reparar conexão', {
           description: error.message,
         });
         return;
       }
       
       if (data?.success) {
-        toast.success('Webhook reparado com sucesso!', {
-          description: `Eventos ativos: ${data.events?.length || 0}`,
+        toast.success('Webhook reconfigurado com sucesso!', {
+          description: `Eventos: ${data.events?.join(', ')}`,
           duration: 5000,
         });
         await refetch();
       } else {
-        toast.error('Falha ao reparar webhook', {
+        toast.error('Falha ao reparar conexão', {
           description: data?.error || 'Erro desconhecido',
         });
       }
     } catch (err) {
       console.error('Erro crítico:', err);
-      toast.error('Erro crítico ao reparar webhook');
+      toast.error('Erro crítico ao reparar conexão');
     } finally {
       setIsFixingWebhook(false);
     }
