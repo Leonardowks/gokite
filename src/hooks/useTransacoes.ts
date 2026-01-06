@@ -22,13 +22,41 @@ export interface Transacao {
   updated_at: string;
 }
 
+// Interface para taxas de cartão variáveis
+export interface TaxasCartao {
+  debito: number;
+  credito_1x: number;
+  credito_2x_6x: number;
+  credito_7x_12x: number;
+}
+
 export interface ConfigFinanceiro {
   id: string;
-  taxa_cartao_credito: number;
-  taxa_cartao_debito: number;
+  taxas_cartao: TaxasCartao;
   taxa_pix: number;
   taxa_imposto_padrao: number;
   meta_mensal: number;
+}
+
+// Helper para obter taxa de cartão baseado na forma de pagamento e parcelas
+export function getTaxaCartao(
+  taxas: TaxasCartao | null | undefined,
+  formaPagamento: string,
+  parcelas: number = 1
+): number {
+  if (!taxas) return 0;
+  
+  if (formaPagamento === 'cartao_debito') {
+    return taxas.debito;
+  }
+  
+  if (formaPagamento === 'cartao_credito') {
+    if (parcelas <= 1) return taxas.credito_1x;
+    if (parcelas <= 6) return taxas.credito_2x_6x;
+    return taxas.credito_7x_12x;
+  }
+  
+  return 0;
 }
 
 export interface TransacaoInsert {
@@ -58,7 +86,30 @@ export function useConfigFinanceiro() {
         .single();
 
       if (error) throw error;
-      return data as ConfigFinanceiro;
+      
+      // Parse taxas_cartao do JSONB para o tipo correto
+      const rawTaxas = data.taxas_cartao as unknown;
+      const taxasCartao: TaxasCartao = (rawTaxas && typeof rawTaxas === 'object') 
+        ? {
+            debito: (rawTaxas as any).debito ?? 1.99,
+            credito_1x: (rawTaxas as any).credito_1x ?? 3.50,
+            credito_2x_6x: (rawTaxas as any).credito_2x_6x ?? 4.90,
+            credito_7x_12x: (rawTaxas as any).credito_7x_12x ?? 12.50,
+          }
+        : {
+            debito: 1.99,
+            credito_1x: 3.50,
+            credito_2x_6x: 4.90,
+            credito_7x_12x: 12.50,
+          };
+      
+      return {
+        id: data.id,
+        taxas_cartao: taxasCartao,
+        taxa_pix: data.taxa_pix,
+        taxa_imposto_padrao: data.taxa_imposto_padrao,
+        meta_mensal: data.meta_mensal,
+      } as ConfigFinanceiro;
     },
   });
 }
@@ -77,9 +128,16 @@ export function useUpdateConfigFinanceiro() {
 
       if (!existing) throw new Error("Config not found");
 
+      // Preparar dados para update (converter para formato do banco)
+      const dbUpdates: Record<string, any> = {};
+      if (updates.taxas_cartao) dbUpdates.taxas_cartao = updates.taxas_cartao;
+      if (updates.taxa_pix !== undefined) dbUpdates.taxa_pix = updates.taxa_pix;
+      if (updates.taxa_imposto_padrao !== undefined) dbUpdates.taxa_imposto_padrao = updates.taxa_imposto_padrao;
+      if (updates.meta_mensal !== undefined) dbUpdates.meta_mensal = updates.meta_mensal;
+
       const { data, error } = await supabase
         .from("config_financeiro")
-        .update(updates)
+        .update(dbUpdates)
         .eq("id", existing.id)
         .select()
         .single();
@@ -164,11 +222,18 @@ export function useCreateTransacao() {
         .limit(1)
         .single();
 
-      const taxaCartao = config ? (
-        input.forma_pagamento === 'cartao_credito' ? config.taxa_cartao_credito :
-        input.forma_pagamento === 'cartao_debito' ? config.taxa_cartao_debito :
-        input.forma_pagamento === 'pix' ? config.taxa_pix : 0
-      ) : 0;
+      // Parse taxas_cartao do JSONB
+      const rawTaxas = config?.taxas_cartao as unknown;
+      const taxasCartao: TaxasCartao | null = (rawTaxas && typeof rawTaxas === 'object')
+        ? {
+            debito: (rawTaxas as any).debito ?? 1.99,
+            credito_1x: (rawTaxas as any).credito_1x ?? 3.50,
+            credito_2x_6x: (rawTaxas as any).credito_2x_6x ?? 4.90,
+            credito_7x_12x: (rawTaxas as any).credito_7x_12x ?? 12.50,
+          }
+        : null;
+
+      const taxaCartao = getTaxaCartao(taxasCartao, input.forma_pagamento || 'dinheiro', input.parcelas || 1);
 
       const taxaImposto = config?.taxa_imposto_padrao || 6;
 

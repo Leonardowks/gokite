@@ -249,30 +249,27 @@ export type Database = {
           created_at: string
           id: string
           meta_mensal: number
-          taxa_cartao_credito: number
-          taxa_cartao_debito: number
           taxa_imposto_padrao: number
           taxa_pix: number
+          taxas_cartao: Json
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           meta_mensal?: number
-          taxa_cartao_credito?: number
-          taxa_cartao_debito?: number
           taxa_imposto_padrao?: number
           taxa_pix?: number
+          taxas_cartao?: Json
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           meta_mensal?: number
-          taxa_cartao_credito?: number
-          taxa_cartao_debito?: number
           taxa_imposto_padrao?: number
           taxa_pix?: number
+          taxas_cartao?: Json
           updated_at?: string
         }
         Relationships: []
