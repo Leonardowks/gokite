@@ -13,17 +13,13 @@ import {
   Send,
   Loader2,
   FileText,
-  Check,
-  CheckCheck,
   Paperclip,
   X,
-  Download,
   User,
-  Building2,
-  Star,
   MoreVertical,
   Phone,
   Sparkles,
+  Search,
 } from 'lucide-react';
 import { format, isSameDay, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -40,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { QuickActionsBar } from '@/components/conversas/QuickActionsBar';
 import { ChatContextPanel } from '@/components/conversas/ChatContextPanel';
+import { MessageBubble } from '@/components/conversas/MessageBubble';
 
 interface ChatViewProps {
   contato: ContatoComUltimaMensagem | null;
@@ -62,12 +59,12 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   const enviarMensagem = useEnviarMensagem();
   const uploadMedia = useUploadMedia();
 
-  // Auto scroll para baixo quando novas mensagens chegam
+  // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens]);
 
-  // Limpar preview ao desselecionar arquivo
+  // Preview de arquivo
   useEffect(() => {
     if (arquivoSelecionado && arquivoSelecionado.type.startsWith('image/')) {
       const url = URL.createObjectURL(arquivoSelecionado);
@@ -126,7 +123,6 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
           contatoId: contato.id,
           mensagem: mensagemTexto,
         });
-        toast.success('Mensagem enviada!');
       }
       textareaRef.current?.focus();
     } catch (error) {
@@ -150,50 +146,37 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
     });
   };
 
-  const getStatusIcon = (status: string | null) => {
-    switch (status) {
-      case 'DELIVERY_ACK':
-      case 'READ':
-        return <CheckCheck className="h-3.5 w-3.5 text-cyan-500" />;
-      case 'SERVER_ACK':
-        return <Check className="h-3.5 w-3.5 text-muted-foreground" />;
-      default:
-        return <Check className="h-3.5 w-3.5 text-muted-foreground/50" />;
-    }
-  };
-
   // Estado vazio
   if (!contato) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-muted/20 text-muted-foreground p-8">
+      <div className="h-full flex flex-col items-center justify-center bg-muted/10 text-muted-foreground">
         <div className="relative">
-          <MessageSquare className="h-16 w-16 opacity-20" />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-cyan-500/20 blur-3xl" />
+          <MessageSquare className="h-20 w-20 opacity-20" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-cyan-500/10 blur-3xl" />
         </div>
-        <p className="mt-4 text-base font-medium">Selecione uma conversa</p>
-        <p className="text-sm text-muted-foreground">Escolha um contato na lista</p>
+        <p className="mt-6 text-lg font-medium">WhatsApp Inbox</p>
+        <p className="text-sm text-muted-foreground">Selecione uma conversa para começar</p>
       </div>
     );
   }
 
   const displayName = contato.whatsapp_profile_name || contato.nome || contato.telefone;
-  const isPriority = contato.prioridade === 'alta' || contato.prioridade === 'urgente';
 
   // Loading
   if (isLoading) {
     return (
       <div className="h-full flex flex-col">
-        <div className="p-3 border-b flex items-center gap-3">
+        <div className="h-16 px-4 flex items-center gap-3 border-b">
           <Skeleton className="h-10 w-10 rounded-full" />
           <div className="space-y-1.5">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
           </div>
         </div>
         <div className="flex-1 p-4 space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className={cn('flex', i % 2 === 0 ? 'justify-end' : 'justify-start')}>
-              <Skeleton className="h-14 w-48 rounded-2xl" />
+              <Skeleton className="h-12 w-48 rounded-2xl" />
             </div>
           ))}
         </div>
@@ -212,103 +195,85 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
   });
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-muted/20">
       {/* Header */}
-      <div className="px-4 py-3 border-b bg-card/80 backdrop-blur-sm shrink-0 min-h-[64px]">
-        <div className="flex items-center justify-between gap-4">
-          {/* Info do contato */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="relative flex-shrink-0">
-              <Avatar className="h-11 w-11">
-                <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-                <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                  {displayName.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              {isPriority && (
-                <div className="absolute -top-0.5 -right-0.5">
-                  <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                </div>
-              )}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="font-semibold truncate text-base">{displayName}</h2>
-                {contato.is_business && (
-                  <Building2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground truncate">{contato.telefone}</p>
-            </div>
-          </div>
-
-          {/* Ações do Header */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Botão de Insights (abre Sheet em todas as telas) */}
-            <Sheet open={insightsOpen} onOpenChange={setInsightsOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-10 min-w-[44px] gap-2"
-                >
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="hidden sm:inline text-sm">Insights</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:w-80 p-0">
-                <SheetHeader className="sr-only">
-                  <SheetTitle>Insights Comerciais</SheetTitle>
-                </SheetHeader>
-                <ChatContextPanel
-                  contato={contato}
-                  onAnalisar={onAnalisar}
-                  isAnalisando={isAnalisando}
-                />
-              </SheetContent>
-            </Sheet>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-10 w-10">
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="text-xs">Ações</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onAnalisar} disabled={isAnalisando} className="min-h-[44px]">
-                  <Brain className={cn('h-4 w-4 mr-2', isAnalisando && 'animate-pulse')} />
-                  Analisar conversa
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/admin/inteligencia')} className="min-h-[44px]">
-                  <User className="h-4 w-4 mr-2" />
-                  Ver perfil completo
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild className="min-h-[44px]">
-                  <a
-                    href={`https://wa.me/${contato.telefone.replace(/\D/g, '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Abrir no WhatsApp
-                  </a>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild className="min-h-[44px]">
-                  <a href={`tel:${contato.telefone}`}>
-                    <Phone className="h-4 w-4 mr-2" />
-                    Ligar
-                  </a>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+      <header className="h-16 shrink-0 px-4 flex items-center gap-3 bg-card border-b">
+        <Avatar className="h-10 w-10">
+          <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
+          <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+            {displayName.slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        
+        <div className="flex-1 min-w-0">
+          <h2 className="font-medium text-base truncate">{displayName}</h2>
+          <p className="text-xs text-muted-foreground truncate">{contato.telefone}</p>
         </div>
-      </div>
 
-      {/* Barra de Ações Rápidas */}
+        <div className="flex items-center gap-1">
+          {/* Insights Sheet */}
+          <Sheet open={insightsOpen} onOpenChange={setInsightsOpen}>
+            <SheetTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-10 w-10">
+                <Sparkles className="h-5 w-5 text-primary" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:w-80 p-0">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Insights Comerciais</SheetTitle>
+              </SheetHeader>
+              <ChatContextPanel
+                contato={contato}
+                onAnalisar={onAnalisar}
+                isAnalisando={isAnalisando}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <Button size="icon" variant="ghost" className="h-10 w-10">
+            <Search className="h-5 w-5" />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-10 w-10">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel className="text-xs">Ações</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onAnalisar} disabled={isAnalisando} className="min-h-[44px]">
+                <Brain className={cn('h-4 w-4 mr-2', isAnalisando && 'animate-pulse')} />
+                Analisar conversa
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/admin/inteligencia')} className="min-h-[44px]">
+                <User className="h-4 w-4 mr-2" />
+                Ver perfil completo
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="min-h-[44px]">
+                <a
+                  href={`https://wa.me/${contato.telefone.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Abrir no WhatsApp
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="min-h-[44px]">
+                <a href={`tel:${contato.telefone}`}>
+                  <Phone className="h-4 w-4 mr-2" />
+                  Ligar
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+
+      {/* Quick Actions */}
       <QuickActionsBar
         contato={contato}
         onEnviarMensagem={handleEnviarMensagemTemplate}
@@ -319,14 +284,14 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
 
       {/* Mensagens */}
       <ScrollArea className="flex-1">
-        <div className="p-4 sm:p-6">
+        <div className="p-4">
           {mensagens.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-muted-foreground py-20">
               <MessageSquare className="h-12 w-12 opacity-30 mb-3" />
-              <p className="text-base">Nenhuma mensagem ainda</p>
+              <p className="text-sm">Nenhuma mensagem ainda</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {Object.entries(mensagensPorData).map(([dateKey, msgs]) => {
                 const date = parseISO(dateKey);
                 const isToday = isSameDay(date, new Date());
@@ -338,137 +303,16 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                   <div key={dateKey}>
                     {/* Separador de data */}
                     <div className="flex items-center justify-center my-4">
-                      <span className="text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full font-medium">
+                      <span className="text-[11px] text-muted-foreground bg-card px-3 py-1 rounded-full shadow-sm">
                         {dateLabel}
                       </span>
                     </div>
 
                     {/* Mensagens do dia */}
-                    <div className="space-y-2">
-                      {msgs.map((msg) => {
-                        const isFromMe = msg.is_from_me || msg.remetente === 'empresa';
-                        const isImagem = msg.tipo_midia === 'imagem' || msg.tipo_midia === 'image';
-                        const isVideo = msg.tipo_midia === 'video';
-                        const isAudio = msg.tipo_midia === 'audio';
-                        const isDocumento = msg.tipo_midia === 'documento' || msg.tipo_midia === 'document';
-                        const hasMedia = msg.media_url && (isImagem || isVideo || isAudio || isDocumento);
-                        const isMediaPlaceholder = ['[Imagem]', '[Vídeo]', '[Áudio]', '[Documento]'].includes(msg.conteudo);
-                        const showTextContent = msg.conteudo && !isMediaPlaceholder;
-
-                        return (
-                          <div
-                            key={msg.id}
-                            className={cn('flex', isFromMe ? 'justify-end' : 'justify-start')}
-                          >
-                            <div
-                              className={cn(
-                                'max-w-[75%] lg:max-w-[65%] rounded-2xl shadow-sm overflow-hidden',
-                                isFromMe
-                                  ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                  : 'bg-card border rounded-bl-sm',
-                                hasMedia ? 'p-1.5' : 'px-4 py-2.5'
-                              )}
-                            >
-                              {/* Mídia */}
-                              {hasMedia && (
-                                <div className="mb-1">
-                                  {isImagem && (
-                                    <a 
-                                      href={msg.media_url!} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="block"
-                                    >
-                                      <img
-                                        src={msg.media_url!}
-                                        alt="Imagem"
-                                        className="rounded-xl max-w-full max-h-56 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                        loading="lazy"
-                                      />
-                                    </a>
-                                  )}
-
-                                  {isVideo && (
-                                    <video
-                                      src={msg.media_url!}
-                                      controls
-                                      className="rounded-xl max-w-full max-h-56"
-                                      preload="metadata"
-                                    />
-                                  )}
-
-                                  {isAudio && (
-                                    <div className="px-2 py-1.5">
-                                      <audio
-                                        src={msg.media_url!}
-                                        controls
-                                        className="w-full max-w-[220px]"
-                                        preload="metadata"
-                                      />
-                                    </div>
-                                  )}
-
-                                  {isDocumento && (
-                                    <a
-                                      href={msg.media_url!}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className={cn(
-                                        'flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors',
-                                        isFromMe 
-                                          ? 'bg-primary-foreground/10 hover:bg-primary-foreground/20' 
-                                          : 'bg-muted/50 hover:bg-muted'
-                                      )}
-                                    >
-                                      <div className={cn(
-                                        'h-9 w-9 rounded-lg flex items-center justify-center',
-                                        isFromMe ? 'bg-primary-foreground/20' : 'bg-primary/10'
-                                      )}>
-                                        <FileText className={cn(
-                                          'h-4 w-4',
-                                          isFromMe ? 'text-primary-foreground' : 'text-primary'
-                                        )} />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-medium truncate">
-                                          {msg.conteudo !== '[Documento]' ? msg.conteudo : 'Documento'}
-                                        </p>
-                                        <p className={cn(
-                                          'text-[10px]',
-                                          isFromMe ? 'text-primary-foreground/60' : 'text-muted-foreground'
-                                        )}>
-                                          Clique para abrir
-                                        </p>
-                                      </div>
-                                      <Download className="h-3.5 w-3.5 shrink-0 opacity-60" />
-                                    </a>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Texto */}
-                              {showTextContent && (
-                                <p className={cn(
-                                  "text-[15px] leading-relaxed whitespace-pre-wrap break-words",
-                                  hasMedia ? "px-2 py-1.5" : ""
-                                )}>
-                                  {msg.conteudo}
-                                </p>
-                              )}
-
-                              {/* Horário e status */}
-                              <div className={cn(
-                                'flex items-center justify-end gap-1.5 text-xs',
-                                isFromMe ? 'text-primary-foreground/60' : 'text-muted-foreground',
-                                hasMedia ? 'px-2 py-1' : 'mt-1'
-                              )}>
-                                <span>{format(parseISO(msg.data_mensagem), 'HH:mm')}</span>
-                                {isFromMe && getStatusIcon(msg.message_status)}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                    <div className="space-y-1">
+                      {msgs.map((msg) => (
+                        <MessageBubble key={msg.id} message={msg} />
+                      ))}
                     </div>
                   </div>
                 );
@@ -479,15 +323,15 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
         </div>
       </ScrollArea>
 
-      {/* Input de mensagem */}
-      <div className="p-3 sm:p-4 border-t bg-card/80 backdrop-blur-sm space-y-3 shrink-0">
+      {/* Input */}
+      <footer className="shrink-0 p-3 bg-card border-t">
         {/* Preview do arquivo */}
         {arquivoSelecionado && (
-          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+          <div className="flex items-center gap-3 p-2 mb-2 bg-muted/50 rounded-lg">
             {previewUrl ? (
-              <img src={previewUrl} alt="Preview" className="h-12 w-12 object-cover rounded-lg" />
+              <img src={previewUrl} alt="Preview" className="h-10 w-10 object-cover rounded" />
             ) : (
-              <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center">
+              <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
                 <FileText className="h-5 w-5 text-muted-foreground" />
               </div>
             )}
@@ -497,14 +341,14 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
                 {(arquivoSelecionado.size / 1024).toFixed(0)} KB
               </p>
             </div>
-            <Button size="icon" variant="ghost" onClick={handleRemoverArquivo} className="h-10 w-10">
-              <X className="h-5 w-5" />
+            <Button size="icon" variant="ghost" onClick={handleRemoverArquivo} className="h-8 w-8">
+              <X className="h-4 w-4" />
             </Button>
           </div>
         )}
 
-        {/* Input de mensagem */}
-        <div className="flex items-end gap-2 sm:gap-3">
+        {/* Input */}
+        <div className="flex items-end gap-2">
           <input
             ref={fileInputRef}
             type="file"
@@ -519,7 +363,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             variant="ghost"
             onClick={() => fileInputRef.current?.click()}
             disabled={enviarMensagem.isPending || uploadMedia.isPending}
-            className="h-11 w-11 flex-shrink-0"
+            className="h-10 w-10 shrink-0"
           >
             <Paperclip className="h-5 w-5" />
           </Button>
@@ -529,8 +373,8 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             value={novaMensagem}
             onChange={(e) => setNovaMensagem(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Digite uma mensagem..."
-            className="min-h-11 max-h-28 resize-none flex-1 text-[15px] py-3"
+            placeholder="Digite uma mensagem"
+            className="min-h-10 max-h-24 resize-none flex-1 rounded-lg py-2.5 text-sm"
             rows={1}
             disabled={enviarMensagem.isPending || uploadMedia.isPending}
           />
@@ -539,7 +383,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             onClick={handleEnviar}
             size="icon"
             disabled={(!novaMensagem.trim() && !arquivoSelecionado) || enviarMensagem.isPending || uploadMedia.isPending}
-            className="h-11 w-11 flex-shrink-0"
+            className="h-10 w-10 shrink-0 rounded-full"
           >
             {enviarMensagem.isPending || uploadMedia.isPending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -548,7 +392,7 @@ export function ChatView({ contato, mensagens, isLoading, onAnalisar, isAnalisan
             )}
           </Button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }
