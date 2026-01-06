@@ -424,12 +424,50 @@ serve(async (req) => {
           console.log("[Evolution Connect] Status response:", statusData);
 
           let status = config.status;
-          if (statusData.instance?.state === "open") status = "conectado";
-          else if (statusData.instance?.state === "close") status = "desconectado";
-          else if (statusData.instance?.state === "connecting") status = "conectando";
+          let qrcodeToReturn = null;
+          
+          if (statusData.instance?.state === "open") {
+            status = "conectado";
+            // Limpar QR code quando conectado
+            if (config.qrcode_base64) {
+              await supabase
+                .from("evolution_config")
+                .update({ qrcode_base64: null, status: "conectado" })
+                .eq("instance_name", config.instance_name);
+            }
+          } else if (statusData.instance?.state === "close") {
+            status = "desconectado";
+          } else if (statusData.instance?.state === "connecting") {
+            // Se está "connecting" e tem QR code salvo, manter status como "qrcode"
+            if (config.qrcode_base64) {
+              status = "qrcode";
+              qrcodeToReturn = config.qrcode_base64;
+            } else {
+              // Se não tem QR code, buscar um novo
+              try {
+                const qrResponse = await fetch(`${config.api_url}/instance/connect/${config.instance_name}`, {
+                  method: "GET",
+                  headers: { "apikey": config.api_key },
+                });
+                const qrData = await qrResponse.json();
+                if (qrData.base64) {
+                  qrcodeToReturn = qrData.base64;
+                  status = "qrcode";
+                  await supabase
+                    .from("evolution_config")
+                    .update({ qrcode_base64: qrData.base64, status: "qrcode" })
+                    .eq("instance_name", config.instance_name);
+                } else {
+                  status = "conectando";
+                }
+              } catch (e) {
+                status = "conectando";
+              }
+            }
+          }
 
-          // Atualizar status no banco
-          if (status !== config.status) {
+          // Atualizar status no banco se mudou
+          if (status !== config.status && status !== "qrcode") {
             await supabase
               .from("evolution_config")
               .update({ 
@@ -445,7 +483,7 @@ serve(async (req) => {
               status,
               instanceName: config.instance_name,
               numeroConectado: statusData.instance?.owner || config.numero_conectado,
-              qrcode: status === "qrcode" ? config.qrcode_base64 : null,
+              qrcode: qrcodeToReturn,
               ultimaSincronizacao: config.ultima_sincronizacao,
               totalMensagens: config.total_mensagens_sync,
               totalContatos: config.total_contatos_sync,
