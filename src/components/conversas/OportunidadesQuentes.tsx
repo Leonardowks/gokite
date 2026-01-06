@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Flame, TrendingUp, Clock, ChevronRight, Target } from 'lucide-react';
+import { Target, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContatoComUltimaMensagem } from '@/hooks/useConversasPage';
 import { formatDistanceToNow } from 'date-fns';
@@ -32,15 +30,15 @@ export function OportunidadesQuentes({ contatos, onSelect, selectedId }: Oportun
   if (oportunidades.length === 0) return null;
 
   return (
-    <div className="border-b border-border/50 bg-gradient-to-r from-orange-500/5 via-amber-500/5 to-yellow-500/5">
-      <div className="p-3 space-y-2">
+    <div className="border-b border-border/50 bg-gradient-to-r from-orange-500/5 via-amber-500/5 to-transparent">
+      <div className="p-2 sm:p-3 space-y-2">
         {/* Header */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/10">
-            <Target className="h-3.5 w-3.5 text-orange-500" />
+          <div className="flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/10">
+            <Target className="h-3 w-3 text-orange-500" />
           </div>
-          <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">
-            Oportunidades Quentes
+          <span className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
+            Oportunidades
           </span>
           <Badge variant="secondary" className="h-4 px-1.5 text-[10px] bg-orange-500/10 text-orange-600 border-0">
             {oportunidades.length}
@@ -48,12 +46,12 @@ export function OportunidadesQuentes({ contatos, onSelect, selectedId }: Oportun
         </div>
 
         {/* Lista horizontal de oportunidades */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-2 px-2 sm:-mx-3 sm:px-3">
           {oportunidades.map((contato) => {
             const displayName = contato.whatsapp_profile_name || contato.nome || contato.telefone;
             const score = contato.score_interesse || 0;
             const isSelected = selectedId === contato.id;
-            const tempoSemResposta = contato.ultima_mensagem 
+            const tempoSemResposta = contato.ultima_mensagem && !contato.ultima_mensagem_is_from_me
               ? formatDistanceToNow(new Date(contato.ultima_mensagem), { locale: ptBR, addSuffix: false })
               : null;
 
@@ -62,38 +60,39 @@ export function OportunidadesQuentes({ contatos, onSelect, selectedId }: Oportun
                 key={contato.id}
                 onClick={() => onSelect(contato.id)}
                 className={cn(
-                  'flex-shrink-0 flex items-center gap-2 p-2 rounded-lg border transition-all min-w-[180px] max-w-[200px]',
-                  'hover:border-orange-500/50 hover:bg-orange-500/5',
+                  'flex-shrink-0 flex items-center gap-2 p-2 rounded-lg border transition-all',
+                  'min-w-[140px] max-w-[160px] sm:min-w-[160px] sm:max-w-[180px]',
+                  'hover:border-orange-500/50 hover:bg-orange-500/5 active:bg-orange-500/10',
                   isSelected 
                     ? 'border-orange-500/50 bg-orange-500/10' 
                     : 'border-border/50 bg-card'
                 )}
               >
-                <Avatar className="h-9 w-9 flex-shrink-0">
+                <Avatar className="h-8 w-8 flex-shrink-0">
                   <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-                  <AvatarFallback className="bg-orange-500/10 text-orange-600 text-xs">
+                  <AvatarFallback className="bg-orange-500/10 text-orange-600 text-[10px] font-medium">
                     {displayName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-xs font-medium truncate">{displayName}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <p className="text-[11px] font-medium truncate">{displayName}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
                       <div 
                         className={cn(
                           'h-full rounded-full transition-all',
-                          score >= 70 ? 'bg-orange-500' : score >= 50 ? 'bg-amber-500' : 'bg-yellow-500'
+                          score >= 70 ? 'bg-orange-500' : 'bg-amber-500'
                         )}
                         style={{ width: `${score}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-semibold text-orange-600">{score}%</span>
+                    <span className="text-[9px] font-semibold text-orange-600">{score}%</span>
                   </div>
-                  {tempoSemResposta && !contato.ultima_mensagem_is_from_me && (
+                  {tempoSemResposta && (
                     <div className="flex items-center gap-0.5 mt-0.5">
                       <Clock className="h-2.5 w-2.5 text-muted-foreground" />
-                      <span className="text-[9px] text-muted-foreground">{tempoSemResposta}</span>
+                      <span className="text-[9px] text-muted-foreground truncate">{tempoSemResposta}</span>
                     </div>
                   )}
                 </div>

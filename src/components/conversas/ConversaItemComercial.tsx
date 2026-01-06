@@ -9,16 +9,9 @@ import {
   Building2,
   Star,
   Flame,
-  Snowflake,
-  Zap,
   Clock,
-  TrendingUp,
-  MessageCircle,
-  Calendar,
-  Send,
-  PhoneCall,
 } from 'lucide-react';
-import { formatDistanceToNow, isToday, isYesterday, format, differenceInHours } from 'date-fns';
+import { isToday, isYesterday, format, differenceInHours } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { ContatoComUltimaMensagem } from '@/hooks/useConversasPage';
@@ -63,86 +56,26 @@ function getMidiaIcon(tipo: string | null) {
   switch (tipo) {
     case 'imagem':
     case 'image':
-      return <Image className="h-3 w-3 text-muted-foreground" />;
+      return <Image className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
     case 'audio':
-      return <Mic className="h-3 w-3 text-muted-foreground" />;
+      return <Mic className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
     case 'video':
-      return <Video className="h-3 w-3 text-muted-foreground" />;
+      return <Video className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
     case 'documento':
     case 'document':
-      return <FileText className="h-3 w-3 text-muted-foreground" />;
+      return <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />;
     default:
       return null;
   }
 }
 
-// Obter badge de temperatura
-function getTemperaturaBadge(score: number | null, status: string | null, prioridade: string | null) {
-  // Score alto ou lead quente = Quente
-  if ((score && score >= 70) || status === 'lead_quente' || prioridade === 'urgente') {
-    return {
-      icon: Flame,
-      label: 'Quente',
-      className: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
-      iconClassName: 'text-orange-500',
-    };
-  }
-  // Score médio = Morno
-  if ((score && score >= 40) || prioridade === 'alta') {
-    return {
-      icon: Zap,
-      label: 'Morno',
-      className: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
-      iconClassName: 'text-amber-500',
-    };
-  }
-  // Score baixo = Frio
-  if (score !== null && score < 40) {
-    return {
-      icon: Snowflake,
-      label: 'Frio',
-      className: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
-      iconClassName: 'text-blue-500',
-    };
-  }
-  return null;
-}
-
-// Sugestão de próxima ação baseada no contexto
-function getProximaAcao(contato: ContatoComUltimaMensagem) {
-  const horasSemResposta = contato.ultima_mensagem && !contato.ultima_mensagem_is_from_me
-    ? differenceInHours(new Date(), new Date(contato.ultima_mensagem))
-    : 0;
-  
-  // Se tem próxima ação sugerida pela IA
-  if (contato.proxima_acao_sugerida) {
-    const acao = contato.proxima_acao_sugerida.toLowerCase();
-    if (acao.includes('agendar') || acao.includes('aula')) {
-      return { icon: Calendar, label: 'Agendar aula', color: 'text-green-600' };
-    }
-    if (acao.includes('proposta') || acao.includes('preço') || acao.includes('valor')) {
-      return { icon: Send, label: 'Enviar proposta', color: 'text-blue-600' };
-    }
-    if (acao.includes('ligar') || acao.includes('telefone')) {
-      return { icon: PhoneCall, label: 'Ligar', color: 'text-purple-600' };
-    }
-    if (acao.includes('follow') || acao.includes('retorno')) {
-      return { icon: MessageCircle, label: 'Follow-up', color: 'text-amber-600' };
-    }
-  }
-
-  // Lógica baseada em comportamento
-  if (horasSemResposta > 24 && contato.score_interesse && contato.score_interesse >= 50) {
-    return { icon: MessageCircle, label: 'Follow-up', color: 'text-amber-600' };
-  }
-  if (contato.status === 'lead_quente' || (contato.score_interesse && contato.score_interesse >= 70)) {
-    return { icon: Calendar, label: 'Agendar aula', color: 'text-green-600' };
-  }
-  if (contato.interesse_principal === 'Aula' || contato.interesse_principal === 'Kite') {
-    return { icon: Calendar, label: 'Oferecer aula', color: 'text-green-600' };
-  }
-  
-  return null;
+// Verifica se é lead quente
+function isHotLead(contato: ContatoComUltimaMensagem): boolean {
+  return (
+    (contato.score_interesse !== null && contato.score_interesse >= 70) ||
+    contato.status === 'lead_quente' ||
+    contato.prioridade === 'urgente'
+  );
 }
 
 export const ConversaItemComercial = memo(function ConversaItemComercial({
@@ -157,24 +90,25 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
   const isFromMe = contato.ultima_mensagem_is_from_me;
   const midiaIcon = getMidiaIcon(contato.ultima_mensagem_tipo_midia);
   const isPriority = contato.prioridade === 'alta' || contato.prioridade === 'urgente';
-  const score = contato.score_interesse;
-  const temperatura = getTemperaturaBadge(score, contato.status, contato.prioridade);
-  const proximaAcao = getProximaAcao(contato);
+  const isHot = isHotLead(contato);
 
-  // Calcular tempo sem resposta
+  // Calcular tempo sem resposta (apenas se última msg é do cliente)
   const tempoSemResposta = contato.ultima_mensagem && !isFromMe
     ? differenceInHours(new Date(), new Date(contato.ultima_mensagem))
     : null;
+  
+  // Mostrar alerta apenas se > 6h
+  const showTempoAlerta = tempoSemResposta !== null && tempoSemResposta >= 6;
 
   return (
     <div
       style={style}
       className={cn(
-        'flex items-start gap-3 p-3 text-left transition-all hover:bg-muted/50 border-b border-border/30 cursor-pointer group',
+        'flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer border-b border-border/30',
+        'hover:bg-muted/50 active:bg-muted/70',
+        'min-h-[60px]',
         isSelected && 'bg-primary/5 hover:bg-primary/10 border-l-2 border-l-primary',
-        hasUnread && !isSelected && 'bg-primary/5',
-        // Animação sutil para novas mensagens
-        hasUnread && 'animate-in fade-in-50 duration-300'
+        hasUnread && !isSelected && 'bg-primary/5'
       )}
       onClick={onSelect}
     >
@@ -186,33 +120,33 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
           onAvatarClick?.();
         }}
       >
-        <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+        <Avatar className="h-11 w-11 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
           <AvatarImage src={contato.whatsapp_profile_picture || undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary text-sm">
+          <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
             {displayName.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         
         {/* Badge de não lidas */}
         {hasUnread && (
-          <div className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold px-1 animate-pulse">
+          <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-semibold px-1">
             {contato.nao_lidas > 99 ? '99+' : contato.nao_lidas}
           </div>
         )}
         
         {/* Indicador de prioridade */}
         {isPriority && !hasUnread && (
-          <div className="absolute -top-0.5 -right-0.5">
+          <div className="absolute -top-1 -right-1">
             <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
           </div>
         )}
       </div>
 
       {/* Conteúdo principal */}
-      <div className="flex-1 min-w-0 space-y-1">
-        {/* Linha 1: Nome + Timestamp */}
+      <div className="flex-1 min-w-0">
+        {/* Linha 1: Nome + Indicadores + Timestamp */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <span className={cn(
               'font-medium truncate text-sm',
               hasUnread && 'font-semibold'
@@ -222,81 +156,47 @@ export const ConversaItemComercial = memo(function ConversaItemComercial({
             {contato.is_business && (
               <Building2 className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
             )}
+            {isHot && (
+              <Flame className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+            )}
           </div>
-          {contato.ultima_mensagem && (
-            <span className={cn(
-              'text-[11px] flex-shrink-0',
-              hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'
-            )}>
-              {formatTimestamp(new Date(contato.ultima_mensagem))}
-            </span>
-          )}
+          
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Tempo sem resposta */}
+            {showTempoAlerta && (
+              <div className={cn(
+                'flex items-center gap-0.5 text-[10px]',
+                tempoSemResposta >= 24 ? 'text-red-500' : 'text-amber-500'
+              )}>
+                <Clock className="h-3 w-3" />
+                <span>{tempoSemResposta >= 24 ? `${Math.floor(tempoSemResposta / 24)}d` : `${tempoSemResposta}h`}</span>
+              </div>
+            )}
+            
+            {/* Timestamp */}
+            {contato.ultima_mensagem && (
+              <span className={cn(
+                'text-[11px]',
+                hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'
+              )}>
+                {formatTimestamp(new Date(contato.ultima_mensagem))}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Linha 2: Preview da mensagem */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 mt-0.5">
           {isFromMe && (
             <span className="text-xs text-muted-foreground flex-shrink-0">Você:</span>
           )}
           {midiaIcon}
           <p className={cn(
             'text-xs truncate',
-            hasUnread ? 'text-foreground font-medium' : 'text-muted-foreground'
+            hasUnread ? 'text-foreground' : 'text-muted-foreground'
           )}>
             {contato.ultima_mensagem_texto || 'Sem mensagens'}
           </p>
-        </div>
-
-        {/* Linha 3: Indicadores comerciais */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Barra de score visual */}
-          {score !== null && score > 0 && (
-            <div className="flex items-center gap-1">
-              <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={cn(
-                    'h-full rounded-full transition-all',
-                    score >= 70 ? 'bg-orange-500' : score >= 40 ? 'bg-amber-500' : 'bg-blue-500'
-                  )}
-                  style={{ width: `${score}%` }}
-                />
-              </div>
-              <span className="text-[10px] font-semibold text-muted-foreground">{score}%</span>
-            </div>
-          )}
-
-          {/* Badge de temperatura */}
-          {temperatura && (
-            <Badge 
-              variant="outline" 
-              className={cn('h-5 px-1.5 text-[10px] gap-0.5', temperatura.className)}
-            >
-              <temperatura.icon className={cn('h-3 w-3', temperatura.iconClassName)} />
-              {temperatura.label}
-            </Badge>
-          )}
-
-          {/* Tempo sem resposta (se > 2h e é mensagem do cliente) */}
-          {tempoSemResposta !== null && tempoSemResposta >= 2 && (
-            <div className={cn(
-              'flex items-center gap-0.5 text-[10px]',
-              tempoSemResposta >= 24 ? 'text-red-500' : tempoSemResposta >= 6 ? 'text-amber-500' : 'text-muted-foreground'
-            )}>
-              <Clock className="h-3 w-3" />
-              <span>{tempoSemResposta >= 24 ? `${Math.floor(tempoSemResposta / 24)}d` : `${tempoSemResposta}h`}</span>
-            </div>
-          )}
-
-          {/* Próxima ação sugerida */}
-          {proximaAcao && (
-            <Badge 
-              variant="outline" 
-              className="h-5 px-1.5 text-[10px] gap-0.5 bg-muted/50 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <proximaAcao.icon className={cn('h-3 w-3', proximaAcao.color)} />
-              <span className={proximaAcao.color}>{proximaAcao.label}</span>
-            </Badge>
-          )}
         </div>
       </div>
     </div>
