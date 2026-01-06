@@ -73,9 +73,16 @@ export function useEvolutionHealth(enabled: boolean = true) {
 
       if (data.novas > 0 || data.atualizadas > 0) {
         console.log(`[useEvolutionHealth] Poll: ${data.novas} novas, ${data.atualizadas} atualizadas`);
-        // Invalidar queries para atualizar UI
-        queryClient.invalidateQueries({ queryKey: ['conversas-whatsapp'] });
-        queryClient.invalidateQueries({ queryKey: ['mensagens-contato'] });
+        // Invalidar queries com as keys corretas para atualizar UI
+        queryClient.invalidateQueries({ queryKey: ['contatos-com-mensagens'] });
+        queryClient.invalidateQueries({ queryKey: ['mensagens-nao-lidas'] });
+        
+        // Invalidar mensagens do contato específico ou todas
+        if (contatoId) {
+          queryClient.invalidateQueries({ queryKey: ['mensagens-chat', contatoId] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ['mensagens-chat'] });
+        }
       }
     } catch (err) {
       console.error('[useEvolutionHealth] Erro no polling:', err);
