@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { ConversasList } from '@/components/ConversasList';
 import { ChatView } from '@/components/ChatView';
 import { InsightsIADrawer } from '@/components/InsightsIADrawer';
-import { ContatoDetalhesDrawer } from '@/components/ContatoDetalhesDrawer';
+import { ContatoContextPanel } from '@/components/ContatoContextPanel';
 import { toast } from 'sonner';
 import {
   useContatosComMensagens,
@@ -17,7 +17,7 @@ import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWh
 import { useAnaliseAutomatica } from '@/hooks/useAnaliseAutomatica';
 import { useEvolutionHealth, useContatoPolling } from '@/hooks/useEvolutionHealth';
 import { useEvolutionStatus } from '@/hooks/useEvolutionConfig';
-import { ArrowLeft, Sparkles, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Sparkles, Wifi, WifiOff, RefreshCw, PanelRightClose, PanelRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -31,8 +31,7 @@ import {
 const Conversas = () => {
   const [selectedContatoId, setSelectedContatoId] = useState<string | null>(null);
   const [insightsDrawerOpen, setInsightsDrawerOpen] = useState(false);
-  const [detalhesDrawerOpen, setDetalhesDrawerOpen] = useState(false);
-  const [contatoParaDetalhes, setContatoParaDetalhes] = useState<ContatoComUltimaMensagem | null>(null);
+  const [contextPanelOpen, setContextPanelOpen] = useState(true);
   const [filtro, setFiltro] = useState<ConversaFiltro>('todos');
   const [ordenacao, setOrdenacao] = useState<ConversaOrdenacao>('recentes');
   const [isReconnecting, setIsReconnecting] = useState(false);
@@ -105,11 +104,8 @@ const Conversas = () => {
 
   const handleSelect = (id: string) => {
     setSelectedContatoId(id);
-  };
-
-  const handleAvatarClick = (contato: ContatoComUltimaMensagem) => {
-    setContatoParaDetalhes(contato);
-    setDetalhesDrawerOpen(true);
+    // Abre o painel de contexto automaticamente ao selecionar contato
+    setContextPanelOpen(true);
   };
 
   const handleAnalisar = () => {
@@ -195,7 +191,6 @@ const Conversas = () => {
               isLoading={loadingContatos}
               selectedId={selectedContatoId}
               onSelect={handleSelect}
-              onAvatarClick={handleAvatarClick}
               filtro={filtro}
               onFiltroChange={setFiltro}
               ordenacao={ordenacao}
@@ -203,8 +198,33 @@ const Conversas = () => {
             />
           </aside>
 
-          {/* Chat - Desktop */}
-          <main className="hidden lg:flex lg:flex-col flex-1 min-w-0">
+          {/* Chat - Desktop (70% quando painel aberto, 100% quando fechado) */}
+          <main className={cn(
+            'hidden lg:flex lg:flex-col min-w-0 transition-all duration-200',
+            contextPanelOpen && selectedContatoId ? 'flex-[7]' : 'flex-1'
+          )}>
+            {/* Botão toggle do painel */}
+            {selectedContatoId && (
+              <div className="absolute right-0 top-16 z-10">
+                {!contextPanelOpen && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 rounded-l-lg rounded-r-none border-r-0 bg-card shadow-md"
+                        onClick={() => setContextPanelOpen(true)}
+                      >
+                        <PanelRight className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                      <p>Abrir painel de contexto</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            )}
             <ChatView
               contato={contatoSelecionado}
               mensagens={mensagens}
@@ -213,6 +233,16 @@ const Conversas = () => {
               isAnalisando={analisarMutation.isPending}
             />
           </main>
+
+          {/* Painel de Contexto - Desktop (30%) */}
+          {selectedContatoId && contextPanelOpen && (
+            <aside className="hidden lg:flex flex-[3] min-w-[280px] max-w-[400px]">
+              <ContatoContextPanel
+                contato={contatoSelecionado}
+                onClose={() => setContextPanelOpen(false)}
+              />
+            </aside>
+          )}
 
           {/* Chat - Mobile (quando selecionado) */}
           {selectedContatoId && (
@@ -243,7 +273,7 @@ const Conversas = () => {
           )}
         </div>
 
-        {/* Drawer de Insights IA */}
+        {/* Drawer de Insights IA (mantido para análise mais detalhada) */}
         <InsightsIADrawer
           open={insightsDrawerOpen}
           onOpenChange={setInsightsDrawerOpen}
@@ -252,13 +282,6 @@ const Conversas = () => {
           isLoading={loadingInsights}
           onReanalizar={handleReanalizar}
           isAnalisando={analisarMutation.isPending}
-        />
-
-        {/* Drawer de Detalhes do Contato */}
-        <ContatoDetalhesDrawer
-          open={detalhesDrawerOpen}
-          onOpenChange={setDetalhesDrawerOpen}
-          contato={contatoParaDetalhes}
         />
       </div>
     </TooltipProvider>
