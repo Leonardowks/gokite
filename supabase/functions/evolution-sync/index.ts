@@ -526,7 +526,8 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         jobId,
-        results: stats,
+        stats, // Campo esperado pelo frontend
+        results: stats, // Mantido para compatibilidade
         duration,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
