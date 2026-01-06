@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Loader2, 
   Wifi, 
@@ -25,7 +26,9 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Smartphone,
+  Timer
 } from 'lucide-react';
 import {
   useEvolutionStatus,
@@ -38,10 +41,167 @@ import {
 } from '@/hooks/useEvolutionConfig';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 interface EvolutionConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+// Componente QR Code com timer e animações
+interface QRCodeDisplayProps {
+  qrcode: string;
+  onRefresh: () => void;
+  isRefreshing: boolean;
+}
+
+function QRCodeDisplay({ qrcode, onRefresh, isRefreshing }: QRCodeDisplayProps) {
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Timer de expiração
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Reset timer e estados quando QR muda
+  useEffect(() => {
+    setTimeLeft(60);
+    setImageLoaded(false);
+    setImageError(false);
+  }, [qrcode]);
+
+  // Auto-refresh quando expira
+  useEffect(() => {
+    if (timeLeft === 0 && !isRefreshing) {
+      onRefresh();
+    }
+  }, [timeLeft, isRefreshing, onRefresh]);
+
+  // Corrigir src do QR - verificar se já tem prefixo
+  const qrSrc = qrcode?.startsWith('data:') 
+    ? qrcode 
+    : `data:image/png;base64,${qrcode}`;
+
+  const isExpired = timeLeft === 0;
+  const isExpiring = timeLeft <= 15 && timeLeft > 0;
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-4">
+      {/* QR Code Container */}
+      <div className="relative">
+        {/* Anel animado */}
+        <div className={`absolute -inset-2 rounded-xl transition-all duration-500 ${
+          isExpired 
+            ? 'bg-red-500/20 animate-pulse' 
+            : isExpiring 
+              ? 'bg-yellow-500/20 animate-pulse' 
+              : 'bg-green-500/20 animate-pulse'
+        }`} />
+        
+        {/* Container do QR */}
+        <div className={`relative bg-white p-4 rounded-lg shadow-xl transition-all duration-300 ${
+          isExpired ? 'opacity-50 grayscale' : ''
+        }`}>
+          {/* Loading skeleton */}
+          {!imageLoaded && !imageError && (
+            <div className="w-64 h-64 flex items-center justify-center">
+              <Skeleton className="w-full h-full" />
+            </div>
+          )}
+          
+          {/* Erro ao carregar */}
+          {imageError && (
+            <div className="w-64 h-64 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+              <XCircle className="w-12 h-12 text-red-500" />
+              <p className="text-sm text-center">Erro ao carregar QR</p>
+              <Button variant="outline" size="sm" onClick={onRefresh}>
+                Tentar novamente
+              </Button>
+            </div>
+          )}
+          
+          {/* QR Code Image */}
+          <img 
+            src={qrSrc}
+            alt="QR Code para conectar WhatsApp" 
+            className={`w-64 h-64 transition-opacity duration-300 ${imageLoaded && !imageError ? 'opacity-100' : 'opacity-0 absolute'}`}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              console.error('QR Load Error - src:', qrSrc?.substring(0, 50));
+              setImageError(true);
+            }}
+          />
+        </div>
+
+        {/* Timer Badge */}
+        <div className={`absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full border text-xs font-medium flex items-center gap-1.5 shadow-sm transition-colors ${
+          isExpired 
+            ? 'bg-red-500 text-white border-red-600' 
+            : isExpiring 
+              ? 'bg-yellow-500 text-black border-yellow-600' 
+              : 'bg-background border-border text-foreground'
+        }`}>
+          <Timer className="w-3 h-3" />
+          {isExpired ? 'Expirado' : `${timeLeft}s`}
+        </div>
+      </div>
+
+      {/* Status visual */}
+      <div className="flex items-center gap-2">
+        <div className={`w-2 h-2 rounded-full ${isExpired ? 'bg-red-500' : 'bg-green-500 animate-pulse'}`} />
+        <span className="text-sm text-muted-foreground">
+          {isExpired ? 'QR Code expirado' : 'Aguardando escaneamento'}
+        </span>
+      </div>
+
+      {/* Instruções */}
+      <div className="bg-muted/50 p-3 rounded-lg max-w-xs">
+        <div className="flex items-start gap-2">
+          <Smartphone className="w-4 h-4 mt-0.5 text-green-500 flex-shrink-0" />
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p className="font-medium text-foreground">Como conectar:</p>
+            <ol className="list-decimal list-inside space-y-0.5">
+              <li>Abra o WhatsApp no celular</li>
+              <li>Toque em <strong>Menu ⋮</strong></li>
+              <li>Selecione <strong>Aparelhos conectados</strong></li>
+              <li>Toque em <strong>Conectar um aparelho</strong></li>
+              <li>Escaneie este QR Code</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      
+      {/* Botão de refresh */}
+      <Button 
+        variant={isExpired ? "default" : "outline"}
+        onClick={onRefresh}
+        disabled={isRefreshing}
+        className="gap-2"
+      >
+        {isRefreshing ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Gerando novo QR...
+          </>
+        ) : (
+          <>
+            <RefreshCw className={`w-4 h-4 ${!isExpired && 'group-hover:rotate-180 transition-transform'}`} />
+            {isExpired ? 'Gerar Novo QR Code' : 'Atualizar QR Code'}
+          </>
+        )}
+      </Button>
+    </div>
+  );
 }
 
 export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDialogProps) {
@@ -52,8 +212,9 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
     apiKey: '',
   });
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [previousStatus, setPreviousStatus] = useState<string | null>(null);
 
-  const { data: status, isLoading: statusLoading, refetch } = useEvolutionStatus();
+  const { data: status, isLoading: statusLoading, refetch, isFetching } = useEvolutionStatus();
   const saveConfig = useSaveEvolutionConfig();
   const connect = useConnectEvolution();
   const disconnect = useDisconnectEvolution();
@@ -61,10 +222,35 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
   const deleteConfig = useDeleteEvolutionConfig();
   const syncProgress = useSyncProgress(activeJobId);
 
+  // Auto-refetch quando em estado de QR Code (polling mais frequente)
+  useEffect(() => {
+    if (open && status?.status === 'qrcode') {
+      const interval = setInterval(() => {
+        refetch();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [open, status?.status, refetch]);
+
+  // Detectar mudança de status para conectado
+  useEffect(() => {
+    if (previousStatus === 'qrcode' && status?.status === 'conectado') {
+      toast.success('WhatsApp conectado com sucesso!', {
+        description: `Número: ${status.numeroConectado}`,
+        duration: 5000,
+      });
+    }
+    setPreviousStatus(status?.status || null);
+  }, [status?.status, status?.numeroConectado, previousStatus]);
+
   // Definir step baseado no status
   useEffect(() => {
     if (status?.configured) {
       if (status.status === 'qrcode') {
+        setStep('connect');
+      } else if (status.status === 'conectado') {
+        setStep('status');
+      } else if (status.status === 'conectando') {
         setStep('connect');
       } else {
         setStep('status');
@@ -77,7 +263,6 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
   // Limpar jobId quando sync terminar
   useEffect(() => {
     if (syncProgress?.status === 'concluido' || syncProgress?.status === 'erro') {
-      // Manter visível por 5 segundos após completar
       const timer = setTimeout(() => {
         setActiveJobId(null);
         refetch();
@@ -93,9 +278,17 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
     setStep('connect');
   };
 
-  const handleConnect = async () => {
-    await connect.mutateAsync(formData.instanceName || undefined);
-  };
+  const handleConnect = useCallback(async () => {
+    await connect.mutateAsync(formData.instanceName || status?.instanceName || undefined);
+  }, [connect, formData.instanceName, status?.instanceName]);
+
+  const handleRefreshQR = useCallback(async () => {
+    await refetch();
+    // Se não tem QR, tenta gerar um novo
+    if (!status?.qrcode) {
+      await handleConnect();
+    }
+  }, [refetch, status?.qrcode, handleConnect]);
 
   const handleDisconnect = async () => {
     await disconnect.mutateAsync(status?.instanceName);
@@ -155,6 +348,9 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-green-500" />
             Evolution API - WhatsApp
+            {isFetching && !statusLoading && (
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />
+            )}
           </DialogTitle>
           <DialogDescription>
             Conecte sua conta do WhatsApp para sincronização automática de conversas
@@ -224,33 +420,42 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
                     {getStatusBadge()}
                   </div>
 
-                  {status?.status === 'qrcode' && status.qrcode && (
-                    <div className="flex flex-col items-center gap-4 py-4">
-                      <div className="bg-white p-4 rounded-lg">
-                        <img 
-                          src={`data:image/png;base64,${status.qrcode}`} 
-                          alt="QR Code" 
-                          className="w-64 h-64"
-                        />
+                  {status?.qrcode ? (
+                    <QRCodeDisplay 
+                      qrcode={status.qrcode}
+                      onRefresh={handleRefreshQR}
+                      isRefreshing={connect.isPending || isFetching}
+                    />
+                  ) : (
+                    <div className="flex flex-col gap-4 py-8">
+                      <div className="flex flex-col items-center gap-3 text-center">
+                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                          <QrCode className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Gerar QR Code</p>
+                          <p className="text-sm text-muted-foreground">
+                            Clique abaixo para gerar o código de conexão
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-sm text-center text-muted-foreground">
-                        Abra o WhatsApp no seu celular → Menu ⋮ → Aparelhos conectados → Conectar um aparelho
-                      </p>
-                      <Button variant="outline" onClick={() => refetch()}>
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Atualizar
-                      </Button>
-                    </div>
-                  )}
-
-                  {status?.status !== 'qrcode' && (
-                    <div className="flex flex-col gap-3">
+                      
                       <Button 
                         onClick={handleConnect}
                         disabled={connect.isPending}
+                        className="gap-2"
                       >
-                        {connect.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                        Gerar QR Code
+                        {connect.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Gerando QR Code...
+                          </>
+                        ) : (
+                          <>
+                            <QrCode className="w-4 h-4" />
+                            Gerar QR Code
+                          </>
+                        )}
                       </Button>
 
                       <Button 
