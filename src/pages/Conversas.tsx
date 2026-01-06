@@ -18,7 +18,7 @@ import {
 import { useInsightsContato, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
 import { useAnaliseAutomatica } from '@/hooks/useAnaliseAutomatica';
 import { useEvolutionHealth, useContatoPolling } from '@/hooks/useEvolutionHealth';
-import { useEvolutionStatus } from '@/hooks/useEvolutionConfig';
+import { useEvolutionStatusRealtime } from '@/hooks/useEvolutionStatusRealtime';
 import { ArrowLeft, Sparkles, Wifi, WifiOff, RefreshCw, PanelRightClose, PanelRight, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -42,7 +42,9 @@ const Conversas = () => {
   const { data: contatos = [], isLoading: loadingContatos, refetch: refetchContatos } = useContatosComMensagens(filtro, ordenacao);
   const { data: mensagens = [], isLoading: loadingMensagens } = useMensagensContato(selectedContatoId);
   const { data: insights, isLoading: loadingInsights } = useInsightsContato(selectedContatoId);
-  const { data: evolutionStatus } = useEvolutionStatus();
+  
+  // Status em tempo real da Evolution
+  const { status: evolutionStatus, isConnected, qrcode, isLoading: loadingStatus } = useEvolutionStatusRealtime();
 
   // Mutations
   const marcarComoLidaMutation = useMarcarComoLida();
@@ -51,9 +53,6 @@ const Conversas = () => {
 
   // Fase 3: IA Proativa
   useAnaliseAutomatica(true);
-
-  // Status de conexão
-  const isConnected = evolutionStatus?.status === 'conectado';
 
   // Health check e polling fallback
   const { reconfigureWebhook } = useEvolutionHealth(isConnected);
@@ -64,9 +63,9 @@ const Conversas = () => {
   // Determinar status para privacy mode
   const privacyStatus = isConnected 
     ? null 
-    : (evolutionStatus?.status === 'conectando' 
+    : (evolutionStatus === 'conectando' 
       ? 'conectando' 
-      : (evolutionStatus?.status === 'qrcode' 
+      : (evolutionStatus === 'qrcode' 
         ? 'qrcode' 
         : 'desconectado')) as 'desconectado' | 'conectando' | 'qrcode' | null;
 
@@ -221,7 +220,7 @@ const Conversas = () => {
           {/* Privacy Mode: Overlay quando desconectado */}
           {privacyStatus ? (
             <div className="flex-1">
-              <ConnectionRequiredOverlay status={privacyStatus} />
+              <ConnectionRequiredOverlay status={privacyStatus} qrcode={qrcode} />
             </div>
           ) : (
             <>
