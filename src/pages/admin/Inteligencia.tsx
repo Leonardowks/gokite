@@ -55,7 +55,8 @@ import { EvolutionConfigDialog } from '@/components/EvolutionConfigDialog';
 import { ContatoDetalhesDrawer } from '@/components/ContatoDetalhesDrawer';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { useEstatisticasConversas, useAnalisarConversas } from '@/hooks/useConversasWhatsapp';
-import { useEvolutionStatus, useConversasRealtime } from '@/hooks/useEvolutionConfig';
+import { useEvolutionStatus } from '@/hooks/useEvolutionConfig';
+import { useConversasRealtime } from '@/hooks/useConversasPage';
 import { ContatoInteligencia } from '@/hooks/useContatosInteligencia';
 import { toast } from 'sonner';
 
