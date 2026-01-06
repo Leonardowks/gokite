@@ -141,11 +141,15 @@ serve(async (req) => {
 
     // 4. PASSO OBRIGATÓRIO: CRIAR/ATUALIZAR CONTATO
     // Se não criarmos o contato ANTES, a mensagem falha por Foreign Key
+    // IMPORTANTE: Usar messageTimestamp do WhatsApp, NÃO new Date() do servidor
+    const messageTimestamp = msgData.messageTimestamp || Math.floor(Date.now() / 1000)
+    const messageDate = new Date(messageTimestamp * 1000).toISOString()
+    
     const contactData = {
         telefone: phone,
         nome: (!pushName.match(/^\d+$/) && pushName.length > 1) ? pushName : `Contato ${phone.slice(-4)}`,
         whatsapp_profile_name: (!pushName.match(/^\d+$/) && pushName.length > 1) ? pushName : null,
-        ultima_mensagem: new Date().toISOString(),
+        ultima_mensagem: messageDate,
         remote_jid: remoteJid,
         origem: 'evolution',
         status: 'nao_classificado',
