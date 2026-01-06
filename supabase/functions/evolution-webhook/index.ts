@@ -6,16 +6,15 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface EvolutionConfig {
-  api_url: string;
-  api_key: string;
-}
+// ========== UTILITÁRIOS BLINDADOS ==========
 
-// Valida se é um JID de contato WhatsApp válido (ignora grupos, broadcasts e IDs especiais)
-function isValidWhatsAppJid(jid: string): boolean {
-  if (!jid) return false;
+/**
+ * Valida se é um JID de contato WhatsApp válido (ignora grupos, broadcasts e IDs especiais)
+ */
+function isValidWhatsAppJid(jid: string | null | undefined): boolean {
+  if (!jid || typeof jid !== 'string') return false;
 
-  // Aceitar contatos individuais (inclui "@lid" que a Evolution pode enviar em alguns cenários)
+  // Aceitar contatos individuais (inclui "@lid" que a Evolution pode enviar)
   const isIndividual = jid.endsWith("@s.whatsapp.net") || jid.endsWith("@lid");
   if (!isIndividual) return false;
 
@@ -25,9 +24,11 @@ function isValidWhatsAppJid(jid: string): boolean {
   return true;
 }
 
-// Normaliza telefone para formato consistente - apenas de JIDs válidos
-function normalizePhone(jid: string): string {
-  if (!isValidWhatsAppJid(jid)) return "";
+/**
+ * Normaliza telefone para formato consistente - remove sufixos do JID
+ */
+function normalizePhone(jid: string | null | undefined): string {
+  if (!jid || typeof jid !== 'string') return "";
 
   // Extrair apenas a parte numérica antes do sufixo
   const phone = jid
@@ -35,91 +36,193 @@ function normalizePhone(jid: string): string {
     .replace("@lid", "")
     .replace(/\D/g, "");
 
-  // Validar que tem pelo menos 10 dígitos (DDD + número)
-  return phone.length >= 10 ? phone : "";
+  // Validar que tem pelo menos 8 dígitos
+  return phone.length >= 8 ? phone : "";
 }
 
-// Verifica se string parece um número de telefone
-function isPhoneNumber(str: string): boolean {
-  if (!str) return false;
+/**
+ * Formata telefone para exibição amigável
+ */
+function formatPhoneForDisplay(phone: string): string {
+  if (!phone) return "Contato";
+  const clean = phone.replace(/\D/g, '');
+  if (clean.length >= 10) {
+    const ddd = clean.slice(-10, -8);
+    const parte1 = clean.slice(-8, -4);
+    const parte2 = clean.slice(-4);
+    return `(${ddd}) ${parte1}-${parte2}`;
+  }
+  return phone.slice(-8);
+}
+
+/**
+ * Verifica se string parece um número de telefone (não um nome válido)
+ */
+function isPhoneNumber(str: string | null | undefined): boolean {
+  if (!str || typeof str !== 'string') return true;
   const cleaned = str.replace(/\D/g, '');
+  // Se mais de 70% são dígitos e tem pelo menos 8, é telefone
   return cleaned.length >= 8 && cleaned.length / str.length > 0.7;
 }
 
-// Extrai conteúdo da mensagem - suporta múltiplos formatos
-function extractMessageContent(message: any): { content: string; tipoMidia: string; mediaUrl?: string; mediaMimetype?: string } {
-  if (!message) return { content: "", tipoMidia: "texto" };
+/**
+ * EXTRAÇÃO BLINDADA DE NOME - tenta múltiplos caminhos
+ */
+function extractPushName(payload: any, msgData: any, phone: string): string {
+  // Lista de caminhos possíveis para o pushName
+  const possiblePaths = [
+    msgData?.pushName,
+    payload?.data?.pushName,
+    payload?.pushName,
+    msgData?.key?.pushName,
+    payload?.data?.key?.pushName,
+    payload?.sender?.pushName,
+    payload?.data?.sender?.pushName,
+  ];
 
-  // Texto simples
-  if (message.conversation) {
+  for (const candidate of possiblePaths) {
+    if (candidate && typeof candidate === 'string' && candidate.trim().length > 1) {
+      // Verificar se não é apenas números (telefone disfarçado)
+      if (!isPhoneNumber(candidate)) {
+        return candidate.trim();
+      }
+    }
+  }
+
+  // Fallback: telefone formatado
+  return formatPhoneForDisplay(phone);
+}
+
+/**
+ * EXTRAÇÃO BLINDADA DE CONTEÚDO - varre múltiplos caminhos do payload
+ */
+function extractMessageContent(message: any): { 
+  content: string; 
+  tipoMidia: string; 
+  mediaUrl?: string; 
+  mediaMimetype?: string 
+} {
+  if (!message || typeof message !== 'object') {
+    return { content: "📩 Nova mensagem", tipoMidia: "texto" };
+  }
+
+  // 1. Texto simples (conversation)
+  if (message.conversation && typeof message.conversation === 'string') {
     return { content: message.conversation, tipoMidia: "texto" };
   }
 
-  // Texto estendido
+  // 2. Texto estendido
   if (message.extendedTextMessage?.text) {
     return { content: message.extendedTextMessage.text, tipoMidia: "texto" };
   }
 
-  // Imagem
+  // 3. Imagem com caption
   if (message.imageMessage) {
+    const caption = message.imageMessage.caption;
     return {
-      content: message.imageMessage.caption || "[Imagem]",
+      content: caption && caption.trim() ? caption : "📷 Imagem",
       tipoMidia: "imagem",
       mediaUrl: message.imageMessage.url,
       mediaMimetype: message.imageMessage.mimetype,
     };
   }
 
-  // Áudio
+  // 4. Áudio
   if (message.audioMessage) {
+    const seconds = message.audioMessage.seconds || 0;
     return {
-      content: "[Áudio]",
+      content: `🎤 Áudio (${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')})`,
       tipoMidia: "audio",
       mediaUrl: message.audioMessage.url,
       mediaMimetype: message.audioMessage.mimetype,
     };
   }
 
-  // Vídeo
+  // 5. Vídeo
   if (message.videoMessage) {
+    const caption = message.videoMessage.caption;
     return {
-      content: message.videoMessage.caption || "[Vídeo]",
+      content: caption && caption.trim() ? caption : "🎬 Vídeo",
       tipoMidia: "video",
       mediaUrl: message.videoMessage.url,
       mediaMimetype: message.videoMessage.mimetype,
     };
   }
 
-  // Documento
+  // 6. Documento
   if (message.documentMessage) {
+    const fileName = message.documentMessage.fileName || "Documento";
     return {
-      content: message.documentMessage.fileName || "[Documento]",
+      content: `📄 ${fileName}`,
       tipoMidia: "documento",
       mediaUrl: message.documentMessage.url,
       mediaMimetype: message.documentMessage.mimetype,
     };
   }
 
-  // Sticker
+  // 7. Sticker
   if (message.stickerMessage) {
-    return { content: "[Sticker]", tipoMidia: "sticker" };
+    return { content: "🎭 Sticker", tipoMidia: "sticker" };
   }
 
-  // Localização
+  // 8. Localização
   if (message.locationMessage) {
-    return { content: "[Localização]", tipoMidia: "localizacao" };
+    return { content: "📍 Localização", tipoMidia: "localizacao" };
   }
 
-  // Contato
+  // 9. Contato compartilhado
   if (message.contactMessage) {
-    return { content: `[Contato: ${message.contactMessage.displayName || 'Contato'}]`, tipoMidia: "contato" };
+    const displayName = message.contactMessage.displayName || "Contato";
+    return { content: `👤 ${displayName}`, tipoMidia: "contato" };
   }
 
-  return { content: "[Mensagem não suportada]", tipoMidia: "outro" };
+  // 10. Lista de contatos
+  if (message.contactsArrayMessage) {
+    return { content: "👥 Contatos compartilhados", tipoMidia: "contatos" };
+  }
+
+  // 11. Mensagem de botão/lista
+  if (message.buttonsResponseMessage) {
+    return { content: message.buttonsResponseMessage.selectedDisplayText || "Resposta de botão", tipoMidia: "botao" };
+  }
+
+  if (message.listResponseMessage) {
+    return { content: message.listResponseMessage.title || "Resposta de lista", tipoMidia: "lista" };
+  }
+
+  // 12. Reação
+  if (message.reactionMessage) {
+    return { content: `${message.reactionMessage.text || '👍'} Reação`, tipoMidia: "reacao" };
+  }
+
+  // 13. Mensagem com view once
+  if (message.viewOnceMessage || message.viewOnceMessageV2) {
+    return { content: "🔒 Mídia temporária", tipoMidia: "viewonce" };
+  }
+
+  // Fallback final - tentar pegar qualquer texto que exista
+  for (const key of Object.keys(message)) {
+    const val = message[key];
+    if (val && typeof val === 'object') {
+      if (val.text && typeof val.text === 'string') {
+        return { content: val.text, tipoMidia: "texto" };
+      }
+      if (val.caption && typeof val.caption === 'string') {
+        return { content: val.caption, tipoMidia: "midia" };
+      }
+    }
+  }
+
+  // Último fallback
+  return { content: "📩 Mensagem recebida", tipoMidia: "outro" };
 }
 
-// Mapear status da Evolution para status interno
-function mapMessageStatus(evolutionStatus: number | string): string {
+/**
+ * Mapear status da Evolution para status interno
+ */
+function mapMessageStatus(evolutionStatus: number | string | undefined | null): string {
+  if (!evolutionStatus) return "PENDING";
+  
   const statusMap: Record<string, string> = {
     "0": "PENDING",
     "1": "SERVER_ACK",
@@ -132,79 +235,50 @@ function mapMessageStatus(evolutionStatus: number | string): string {
     "READ": "READ",
     "PLAYED": "PLAYED",
   };
-  return statusMap[String(evolutionStatus)] || String(evolutionStatus);
+  return statusMap[String(evolutionStatus)] || "PENDING";
 }
 
-// Normalizar nome do evento para formato consistente
-function normalizeEventName(event: string): string {
-  if (!event) return "";
-  // Converter para uppercase e substituir . por _
+/**
+ * Normalizar nome do evento para formato consistente
+ */
+function normalizeEventName(event: string | null | undefined): string {
+  if (!event || typeof event !== 'string') return "";
   return event.toUpperCase().replace(/\./g, "_").replace(/-/g, "_");
 }
 
-// Buscar foto de perfil
-async function fetchProfilePicture(config: EvolutionConfig, instanceName: string, remoteJid: string): Promise<string | null> {
-  try {
-    const response = await fetch(`${config.api_url}/chat/fetchProfilePictureUrl/${instanceName}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "apikey": config.api_key },
-      body: JSON.stringify({ number: remoteJid }),
-    });
-    if (!response.ok) return null;
-    const data = await response.json();
-    return data.profilePictureUrl || null;
-  } catch {
-    return null;
+/**
+ * Extrai timestamp da mensagem
+ */
+function extractTimestamp(msgData: any, fallback: Date = new Date()): Date {
+  const ts = msgData?.messageTimestamp;
+  
+  if (!ts) return fallback;
+  
+  // Suporta objeto {low, high} ou número direto
+  let tsNum: number;
+  if (typeof ts === 'object' && ts.low !== undefined) {
+    tsNum = ts.low;
+  } else if (typeof ts === 'string') {
+    tsNum = parseInt(ts, 10);
+  } else if (typeof ts === 'number') {
+    tsNum = ts;
+  } else {
+    return fallback;
   }
+  
+  // Validar se é um timestamp razoável (entre 2020 e 2030)
+  if (tsNum > 1577836800 && tsNum < 1893456000) {
+    return new Date(tsNum * 1000);
+  }
+  
+  return fallback;
 }
 
-// Enriquece dados do contato
-async function enrichContactData(
-  supabase: any,
-  config: EvolutionConfig,
-  instanceName: string,
-  contatoId: string,
-  remoteJid: string,
-  currentPushName?: string
-): Promise<void> {
-  try {
-    const { data: contato } = await supabase
-      .from("contatos_inteligencia")
-      .select("whatsapp_profile_picture, whatsapp_profile_name")
-      .eq("id", contatoId)
-      .single();
-
-    if (!contato) return;
-
-    const updates: Record<string, any> = {};
-
-    if (!contato.whatsapp_profile_picture) {
-      const profilePicture = await fetchProfilePicture(config, instanceName, remoteJid);
-      if (profilePicture) {
-        updates.whatsapp_profile_picture = profilePicture;
-      }
-    }
-
-    if (currentPushName && !isPhoneNumber(currentPushName)) {
-      if (!contato.whatsapp_profile_name || contato.whatsapp_profile_name.startsWith("Contato ")) {
-        updates.whatsapp_profile_name = currentPushName;
-        updates.nome = currentPushName;
-      }
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await supabase.from("contatos_inteligencia").update(updates).eq("id", contatoId);
-    }
-  } catch (error) {
-    console.error("[Evolution Webhook] Erro ao enriquecer contato:", error);
-  }
-}
+// ========== HANDLER PRINCIPAL ==========
 
 serve(async (req) => {
-  // === DEBUG LOG - Primeira linha ===
-  console.log(`[Evolution Webhook] 🔔 Webhook received at ${new Date().toISOString()}`);
+  console.log(`[Evolution Webhook] 🔔 Request at ${new Date().toISOString()}`);
   console.log(`[Evolution Webhook] Method: ${req.method}, URL: ${req.url}`);
-  console.log(`[Evolution Webhook] Headers:`, JSON.stringify(Object.fromEntries(req.headers.entries())));
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -216,31 +290,22 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // ✅ Usando SERVICE_ROLE_KEY para ignorar RLS
-    console.log(`[Evolution Webhook] ✅ Usando supabaseAdmin (Service Role) - RLS ignorado`);
+    // Usando SERVICE_ROLE_KEY para ignorar RLS
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload = await req.json();
     
-    // === DEBUG LOG - Payload completo ===
-    console.log(`[Evolution Webhook] 📦 Payload recebido:`, JSON.stringify(payload).slice(0, 3000));
+    // Log do payload (limitado para não sobrecarregar)
+    console.log(`[Evolution Webhook] 📦 Payload:`, JSON.stringify(payload).slice(0, 2000));
     
     // Extrair dados do payload - suporta múltiplos formatos
     const rawEvent = payload.event || payload.type || "";
     const instance = payload.instance || payload.instanceName || "";
     const data = payload.data || payload;
     
-    // Normalizar nome do evento
     const event = normalizeEventName(rawEvent);
     
     console.log(`[Evolution Webhook] 📍 Evento: ${rawEvent} -> ${event}, Instance: ${instance}`);
-
-    // Buscar configuração
-    const { data: evolutionConfig } = await supabase
-      .from("evolution_config")
-      .select("api_url, api_key")
-      .eq("instance_name", instance)
-      .maybeSingle();
 
     // Processar eventos
     switch (event) {
@@ -249,87 +314,100 @@ serve(async (req) => {
       case "MESSAGE_UPSERT":
       case "MESSAGES_CREATE": {
         // Suportar array de mensagens ou mensagem única
-        const messages = Array.isArray(data.messages) ? data.messages : 
-                         Array.isArray(data) ? data :
-                         data.key ? [data] : [];
+        let messages: any[] = [];
         
-        if (messages.length === 0 && data.key) {
-          messages.push(data);
+        if (Array.isArray(data.messages)) {
+          messages = data.messages;
+        } else if (Array.isArray(data)) {
+          messages = data;
+        } else if (data.key) {
+          messages = [data];
         }
+        
+        console.log(`[Evolution Webhook] Processando ${messages.length} mensagens`);
 
         for (const msgData of messages) {
-        const key = msgData.key || {};
-          const remoteJid = key.remoteJid;
-          
-          // Validar que é um JID individual válido do WhatsApp
-          if (!isValidWhatsAppJid(remoteJid)) {
-            console.log("[Evolution Webhook] Ignorando JID inválido/grupo:", remoteJid);
-            continue;
-          }
-
-          const phone = normalizePhone(remoteJid);
-          if (!phone) {
-            console.log("[Evolution Webhook] Telefone inválido extraído de:", remoteJid);
-            continue;
-          }
-
-          const messageId = key.id;
-          const isFromMe = key.fromMe === true;
-          const pushName = msgData.pushName || data.pushName;
-          
-          // Timestamp
-          let timestamp: Date;
-          const ts = msgData.messageTimestamp || data.messageTimestamp;
-          if (ts) {
-            const tsNum = typeof ts === 'object' ? (ts.low || 0) : 
-                          typeof ts === 'string' ? parseInt(ts) : ts;
-            timestamp = new Date(tsNum * 1000);
-          } else {
-            timestamp = new Date();
-          }
-
-          // Extrair conteúdo
-          const message = msgData.message || {};
-          const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(message);
-
-          if (!content || content === "[Mensagem não suportada]") {
-            console.log("[Evolution Webhook] Sem conteúdo válido, ignorando");
-            continue;
-          }
-
-          // Buscar ou criar contato
-          let { data: contato } = await supabase
-            .from("contatos_inteligencia")
-            .select("id")
-            .eq("telefone", phone)
-            .maybeSingle();
-
-          if (!contato) {
-            const validName = pushName && !isPhoneNumber(pushName) ? pushName : null;
+          try {
+            const key = msgData.key || {};
+            const remoteJid = key.remoteJid;
             
-            const { data: novoContato, error: createError } = await supabase
-              .from("contatos_inteligencia")
-              .insert({
-                telefone: phone,
-                nome: validName || `Contato ${phone.slice(-4)}`,
-                whatsapp_profile_name: validName,
-                remote_jid: remoteJid,
-                origem: "evolution",
-                status: "nao_classificado",
-              })
-              .select("id")
-              .single();
-
-            if (createError) {
-              console.error("[Evolution Webhook] Erro ao criar contato:", createError);
+            // Validar JID
+            if (!isValidWhatsAppJid(remoteJid)) {
+              console.log("[Evolution Webhook] ❌ JID inválido/grupo:", remoteJid);
               continue;
             }
-            contato = novoContato;
-            console.log(`[Evolution Webhook] Novo contato criado: ${contato.id} - ${phone}`);
-          }
 
-          // Verificar se mensagem já existe
-          if (messageId) {
+            const phone = normalizePhone(remoteJid);
+            if (!phone) {
+              console.log("[Evolution Webhook] ❌ Telefone inválido de:", remoteJid);
+              continue;
+            }
+
+            const messageId = key.id || `gen_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            const isFromMe = key.fromMe === true;
+            
+            // EXTRAÇÃO BLINDADA de nome
+            const pushName = extractPushName(payload, msgData, phone);
+            
+            // EXTRAÇÃO BLINDADA de conteúdo
+            const message = msgData.message || {};
+            const { content, tipoMidia, mediaUrl, mediaMimetype } = extractMessageContent(message);
+            
+            // Timestamp
+            const timestamp = extractTimestamp(msgData);
+
+            console.log(`[Evolution Webhook] 📨 Msg: "${content.slice(0, 50)}" de ${pushName} (${phone})`);
+
+            // UPSERT do contato - criar ou atualizar
+            let { data: contato } = await supabase
+              .from("contatos_inteligencia")
+              .select("id, whatsapp_profile_name")
+              .eq("telefone", phone)
+              .maybeSingle();
+
+            if (!contato) {
+              // Criar novo contato
+              const { data: novoContato, error: createError } = await supabase
+                .from("contatos_inteligencia")
+                .insert({
+                  telefone: phone,
+                  nome: pushName,
+                  whatsapp_profile_name: !isPhoneNumber(pushName) ? pushName : null,
+                  remote_jid: remoteJid,
+                  origem: "evolution",
+                  status: "nao_classificado",
+                  ultima_mensagem: timestamp.toISOString(),
+                })
+                .select("id, whatsapp_profile_name")
+                .single();
+
+              if (createError) {
+                console.error("[Evolution Webhook] ❌ Erro criar contato:", createError);
+                continue;
+              }
+              contato = novoContato;
+              console.log(`[Evolution Webhook] ✅ Novo contato: ${contato.id} - ${pushName}`);
+            } else {
+              // Atualizar contato existente
+              const updates: Record<string, any> = {
+                ultima_mensagem: timestamp.toISOString(),
+                remote_jid: remoteJid,
+              };
+              
+              // Atualizar nome se temos um melhor
+              if (!isPhoneNumber(pushName) && 
+                  (!contato.whatsapp_profile_name || contato.whatsapp_profile_name.startsWith("Contato "))) {
+                updates.whatsapp_profile_name = pushName;
+                updates.nome = pushName;
+              }
+              
+              await supabase
+                .from("contatos_inteligencia")
+                .update(updates)
+                .eq("id", contato.id);
+            }
+
+            // Verificar duplicata de mensagem
             const { data: msgExistente } = await supabase
               .from("conversas_whatsapp")
               .select("id")
@@ -337,111 +415,88 @@ serve(async (req) => {
               .maybeSingle();
 
             if (msgExistente) {
-              console.log(`[Evolution Webhook] Mensagem ${messageId} já existe`);
+              console.log(`[Evolution Webhook] ⏭️ Mensagem duplicada: ${messageId}`);
               continue;
             }
-          }
 
-          // Inserir mensagem
-          const { error: insertError } = await supabase
-            .from("conversas_whatsapp")
-            .insert({
-              contato_id: contato.id,
-              telefone: phone,
-              message_id: messageId || `gen_${Date.now()}`,
-              instance_name: instance,
-              is_from_me: isFromMe,
-              push_name: pushName,
-              data_mensagem: timestamp.toISOString(),
-              remetente: isFromMe ? "empresa" : "cliente",
-              conteudo: content,
-              tipo_midia: tipoMidia,
-              media_url: mediaUrl,
-              media_mimetype: mediaMimetype,
-              lida: isFromMe,
-              message_status: isFromMe ? "SERVER_ACK" : null,
-            });
-
-          if (insertError) {
-            console.error("[Evolution Webhook] Erro ao inserir mensagem:", insertError);
-            continue;
-          }
-
-          // Atualizar contato
-          const contatoUpdates: Record<string, any> = {
-            ultima_mensagem: timestamp.toISOString(),
-            remote_jid: remoteJid,
-          };
-          
-          if (pushName && !isPhoneNumber(pushName)) {
-            contatoUpdates.whatsapp_profile_name = pushName;
-          }
-          
-          await supabase
-            .from("contatos_inteligencia")
-            .update(contatoUpdates)
-            .eq("id", contato.id);
-
-          console.log(`[Evolution Webhook] ✅ Mensagem salva: ${messageId} de ${phone} (${isFromMe ? 'enviada' : 'recebida'})`);
-
-          // Enfileirar análise IA para mensagens de clientes
-          if (!isFromMe) {
-            const { data: existingQueue } = await supabase
-              .from("analise_queue")
-              .select("id")
-              .eq("contato_id", contato.id)
-              .eq("status", "pendente")
-              .maybeSingle();
-
-            if (!existingQueue) {
-              await supabase.from("analise_queue").insert({
+            // Inserir mensagem
+            const { error: insertError } = await supabase
+              .from("conversas_whatsapp")
+              .insert({
                 contato_id: contato.id,
-                status: "pendente",
-                prioridade: 2,
+                telefone: phone,
+                message_id: messageId,
+                instance_name: instance,
+                is_from_me: isFromMe,
+                push_name: pushName,
+                data_mensagem: timestamp.toISOString(),
+                remetente: isFromMe ? "empresa" : "cliente",
+                conteudo: content,
+                tipo_midia: tipoMidia,
+                media_url: mediaUrl,
+                media_mimetype: mediaMimetype,
+                lida: isFromMe,
+                message_status: isFromMe ? "SERVER_ACK" : null,
               });
-              console.log(`[Evolution Webhook] Contato ${contato.id} adicionado à fila de análise IA`);
-            }
-          }
 
-          // Enriquecer contato em background
-          if (!isFromMe && evolutionConfig) {
-            enrichContactData(supabase, evolutionConfig, instance, contato.id, remoteJid, pushName)
-              .catch(err => console.error("[Evolution Webhook] Erro enriquecimento:", err));
+            if (insertError) {
+              console.error("[Evolution Webhook] ❌ Erro inserir msg:", insertError);
+              continue;
+            }
+
+            console.log(`[Evolution Webhook] ✅ Mensagem salva: ${messageId} (${isFromMe ? 'enviada' : 'recebida'})`);
+
+            // Enfileirar análise IA para mensagens de clientes
+            if (!isFromMe) {
+              const { data: existingQueue } = await supabase
+                .from("analise_queue")
+                .select("id")
+                .eq("contato_id", contato.id)
+                .eq("status", "pendente")
+                .maybeSingle();
+
+              if (!existingQueue) {
+                await supabase.from("analise_queue").insert({
+                  contato_id: contato.id,
+                  status: "pendente",
+                  prioridade: 2,
+                });
+              }
+            }
+          } catch (msgError) {
+            console.error("[Evolution Webhook] ❌ Erro processando mensagem:", msgError);
           }
         }
 
         // Atualizar última sincronização
-        await supabase
-          .from("evolution_config")
-          .update({ ultima_sincronizacao: new Date().toISOString() })
-          .eq("instance_name", instance);
+        if (instance) {
+          await supabase
+            .from("evolution_config")
+            .update({ ultima_sincronizacao: new Date().toISOString() })
+            .eq("instance_name", instance);
+        }
         break;
       }
 
       // ========== ATUALIZAÇÃO DE STATUS DE MENSAGEM ==========
       case "MESSAGES_UPDATE":
       case "MESSAGE_UPDATE": {
-        // Pode ser objeto único ou array
         const updates = Array.isArray(data) ? data : [data];
         
         for (const update of updates) {
-          // Formatos possíveis de messageId
           const messageId = update.key?.id || update.keyId || update.messageId;
-          // Formatos possíveis de status
           const newStatus = update.update?.status || update.status;
           
           if (!messageId) continue;
 
           const mappedStatus = mapMessageStatus(newStatus);
           
-          const { error } = await supabase
+          await supabase
             .from("conversas_whatsapp")
             .update({ message_status: mappedStatus })
             .eq("message_id", messageId);
 
-          if (!error) {
-            console.log(`[Evolution Webhook] ✅ Status ${messageId} -> ${mappedStatus}`);
-          }
+          console.log(`[Evolution Webhook] ✅ Status ${messageId} -> ${mappedStatus}`);
         }
         break;
       }
@@ -453,11 +508,10 @@ serve(async (req) => {
         const messageId = key.id;
         
         if (!remoteJid || !messageId) break;
-        
-        // Ignorar grupos
-        if (remoteJid.includes("@g.us") || remoteJid.includes("@broadcast")) break;
+        if (!isValidWhatsAppJid(remoteJid)) break;
 
         const phone = normalizePhone(remoteJid);
+        if (!phone) break;
 
         // Verificar se já existe
         const { data: existingMsg } = await supabase
@@ -467,12 +521,10 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existingMsg) {
-          // Atualizar status
           await supabase
             .from("conversas_whatsapp")
             .update({ message_status: "SERVER_ACK" })
             .eq("message_id", messageId);
-          console.log(`[Evolution Webhook] ✅ SEND_MESSAGE: Status atualizado ${messageId}`);
         } else {
           // Buscar contato e inserir
           const { data: contato } = await supabase
@@ -494,13 +546,13 @@ serve(async (req) => {
                 is_from_me: true,
                 data_mensagem: new Date().toISOString(),
                 remetente: "empresa",
-                conteudo: content || "[Mensagem enviada]",
+                conteudo: content || "Mensagem enviada",
                 tipo_midia: tipoMidia,
                 lida: true,
                 message_status: "SERVER_ACK",
               });
             
-            console.log(`[Evolution Webhook] ✅ SEND_MESSAGE: Nova mensagem ${messageId}`);
+            console.log(`[Evolution Webhook] ✅ SEND_MESSAGE: ${messageId}`);
           }
         }
         break;
@@ -543,7 +595,7 @@ serve(async (req) => {
               .insert({
                 ...contactData,
                 telefone: phone,
-                nome: contact.pushName || `Contato ${phone.slice(-4)}`,
+                nome: contact.pushName || formatPhoneForDisplay(phone),
                 origem: "evolution",
                 status: "nao_classificado",
               });
@@ -587,17 +639,17 @@ serve(async (req) => {
       }
 
       default:
-        console.log(`[Evolution Webhook] ⚠️ Evento não tratado: ${rawEvent} (normalizado: ${event})`);
+        console.log(`[Evolution Webhook] ⚠️ Evento não tratado: ${rawEvent}`);
     }
 
-    console.log(`[Evolution Webhook] Processamento concluído em ${Date.now() - startTime}ms`);
+    console.log(`[Evolution Webhook] ⏱️ Concluído em ${Date.now() - startTime}ms`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
-    console.error("[Evolution Webhook] ❌ Erro:", error);
+    console.error("[Evolution Webhook] ❌ Erro crítico:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
