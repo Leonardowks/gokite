@@ -125,6 +125,8 @@ serve(async (req) => {
 
         // Se não existe, criar
         if (!instanceExists) {
+          console.log(`[Evolution Connect] Criando instância: ${config.instance_name} em ${config.api_url}`);
+          
           const createResponse = await fetch(`${config.api_url}/instance/create`, {
             method: "POST",
             headers: {
@@ -138,25 +140,35 @@ serve(async (req) => {
             }),
           });
 
-          const createData = await createResponse.json();
-          console.log("[Evolution Connect] Create response:", createData);
+          const createText = await createResponse.text();
+          console.log("[Evolution Connect] Create raw response:", createResponse.status, createText);
+          
+          let createData: any = {};
+          try {
+            createData = JSON.parse(createText);
+          } catch {
+            createData = { raw: createText };
+          }
 
           // Verificar se o erro é porque já existe
           const errorMessage = Array.isArray(createData.message) 
             ? createData.message.join(' ') 
-            : (createData.message || '');
+            : (createData.message || createData.error || createText || '');
           
-          if (!createResponse.ok && !errorMessage.toLowerCase().includes('already')) {
+          if (!createResponse.ok && !errorMessage.toLowerCase().includes('already') && !errorMessage.toLowerCase().includes('exists')) {
+            console.error("[Evolution Connect] Erro ao criar:", errorMessage);
             return new Response(
-              JSON.stringify({ error: errorMessage || "Erro ao criar instância" }),
+              JSON.stringify({ error: errorMessage || "Erro ao criar instância", details: createData }),
               { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
           
           // Se chegou aqui, instância foi criada ou já existe
-          if (errorMessage.toLowerCase().includes('already')) {
+          if (errorMessage.toLowerCase().includes('already') || errorMessage.toLowerCase().includes('exists')) {
             instanceExists = true;
             console.log("[Evolution Connect] Instância já existe, continuando...");
+          } else {
+            console.log("[Evolution Connect] Instância criada com sucesso");
           }
         }
 
