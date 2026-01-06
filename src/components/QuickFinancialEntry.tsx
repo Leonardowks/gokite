@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Sparkles, Loader2, Send, Mic, Camera, X, Check, RotateCcw } from "lucide-react";
+import { Sparkles, Loader2, Send, Mic, Camera, X, Check, RotateCcw, Image } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PremiumCard, PremiumCardContent } from "@/components/ui/premium-card";
@@ -33,7 +33,8 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Voice recording with Jarvis
   const startListening = async () => {
@@ -118,9 +119,9 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
     };
     reader.readAsDataURL(file);
     
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    // Clear both inputs
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
   };
 
   // Confirm and process the captured image
@@ -318,23 +319,43 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
               </Button>
             )}
 
-            {/* Photo Button */}
+            {/* Camera Button */}
             <Button
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => cameraInputRef.current?.click()}
               disabled={isAnyLoading}
               className="shrink-0"
-              title="Escanear nota fiscal"
+              title="Tirar foto"
             >
               <Camera className="h-4 w-4" />
             </Button>
             <input
-              ref={fileInputRef}
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
+              className="hidden"
+              onChange={handlePhotoCapture}
+            />
+
+            {/* Gallery Button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={isAnyLoading}
+              className="shrink-0"
+              title="Escolher da galeria"
+            >
+              <Image className="h-4 w-4" />
+            </Button>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
               className="hidden"
               onChange={handlePhotoCapture}
             />
@@ -374,9 +395,11 @@ export function QuickFinancialEntry({ onParsed }: QuickFinancialEntryProps) {
         <p className="text-xs text-muted-foreground mt-2 hidden sm:block">
           <Mic className="h-3 w-3 inline mr-1" /> Voz
           <span className="mx-2">•</span>
-          <Camera className="h-3 w-3 inline mr-1" /> Foto de nota
+          <Camera className="h-3 w-3 inline mr-1" /> Câmera
           <span className="mx-2">•</span>
-          <Sparkles className="h-3 w-3 inline mr-1" /> Texto livre — A IA extrai tudo automaticamente
+          <Image className="h-3 w-3 inline mr-1" /> Galeria
+          <span className="mx-2">•</span>
+          <Sparkles className="h-3 w-3 inline mr-1" /> Texto livre — A IA extrai tudo
         </p>
       </PremiumCardContent>
     </PremiumCard>
