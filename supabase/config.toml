@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.analyze-equipment]
 verify_jwt = false
+
+[functions.whatsapp-status]
+verify_jwt = false
