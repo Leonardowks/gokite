@@ -297,6 +297,7 @@ export default function Clientes() {
                     <VirtualizedClienteTable 
                       clientes={clientes} 
                       onEdit={handleEdit}
+                      onViewDetails={handleViewDetails}
                     />
                   </div>
                 </>
