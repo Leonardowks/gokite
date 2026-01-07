@@ -2,18 +2,20 @@ import { memo, CSSProperties } from "react";
 import { Button } from "@/components/ui/button";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { format } from "date-fns";
-import { Mail, Phone, Edit } from "lucide-react";
+import { Mail, Phone, Edit, Wallet, Eye } from "lucide-react";
 import type { ClienteComAulas } from "@/hooks/useSupabaseClientes";
 
 interface ClienteCardProps {
   cliente: ClienteComAulas;
   onEdit: (cliente: ClienteComAulas) => void;
+  onViewDetails?: (cliente: ClienteComAulas) => void;
   style?: CSSProperties;
 }
 
 export const ClienteCard = memo(function ClienteCard({ 
   cliente, 
   onEdit,
+  onViewDetails,
   style 
 }: ClienteCardProps) {
   const handleWhatsApp = () => {
@@ -22,6 +24,8 @@ export const ClienteCard = memo(function ClienteCard({
       window.open(`https://wa.me/55${telefone}`, '_blank');
     }
   };
+
+  const storeCredit = (cliente as any).store_credit || 0;
 
   return (
     <div 
@@ -48,6 +52,11 @@ export const ClienteCard = memo(function ClienteCard({
           <PremiumBadge variant="default" size="sm">
             {cliente.total_aulas} aulas
           </PremiumBadge>
+          {storeCredit > 0 && (
+            <PremiumBadge variant="success" size="sm" icon={Wallet}>
+              R$ {storeCredit.toLocaleString('pt-BR')}
+            </PremiumBadge>
+          )}
         </div>
         <div className="text-xs text-muted-foreground">
           {cliente.ultima_aula ? format(new Date(cliente.ultima_aula), 'dd/MM/yyyy') : 'Sem aulas'}
@@ -64,14 +73,23 @@ export const ClienteCard = memo(function ClienteCard({
           <Phone className="h-4 w-4 mr-2" />
           WhatsApp
         </Button>
+        {onViewDetails && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="min-h-[44px]"
+            onClick={() => onViewDetails(cliente)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        )}
         <Button 
           size="sm" 
           variant="outline" 
-          className="flex-1 min-h-[44px]"
+          className="min-h-[44px]"
           onClick={() => onEdit(cliente)}
         >
-          <Edit className="h-4 w-4 mr-2" />
-          Editar
+          <Edit className="h-4 w-4" />
         </Button>
       </div>
     </div>
