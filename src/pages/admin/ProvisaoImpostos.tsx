@@ -18,7 +18,8 @@ import {
   Building2,
   AlertTriangle,
   Download,
-  Calendar
+  Calendar,
+  FileDown
 } from "lucide-react";
 import {
   Select,
@@ -38,10 +39,11 @@ import {
   BarChart,
   Bar,
   Legend,
-  Cell,
 } from "recharts";
 import { useTransacoes } from "@/hooks/useTransacoes";
 import { useTaxRules } from "@/hooks/useTaxRules";
+import { exportImpostosPDF } from "@/components/impostos/ImpostosPDFExport";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat("pt-BR", {
@@ -53,15 +55,15 @@ const formatCurrency = (value: number) => {
 const getCategoryIcon = (category: string) => {
   switch (category) {
     case "servico_aula":
-      return <GraduationCap className="h-5 w-5" />;
+      return <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />;
     case "produto_novo":
-      return <Package className="h-5 w-5" />;
+      return <Package className="h-4 w-4 sm:h-5 sm:w-5" />;
     case "produto_usado":
-      return <Repeat className="h-5 w-5" />;
+      return <Repeat className="h-4 w-4 sm:h-5 sm:w-5" />;
     case "pousada":
-      return <Building2 className="h-5 w-5" />;
+      return <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />;
     default:
-      return <Receipt className="h-5 w-5" />;
+      return <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />;
   }
 };
 
@@ -114,6 +116,8 @@ const mapOrigemToCategory = (origem: string): string => {
 export default function ProvisaoImpostos() {
   const navigate = useNavigate();
   const [mesesExibir, setMesesExibir] = useState("6");
+  const [isExporting, setIsExporting] = useState(false);
+  const { medium, success, error: hapticError } = useHapticFeedback();
   
   const { data: transacoes, isLoading: loadingTransacoes } = useTransacoes();
   const { data: taxRules, isLoading: loadingRules } = useTaxRules();
@@ -152,12 +156,10 @@ export default function ProvisaoImpostos() {
     return Object.entries(meses).map(([mes, categorias]) => ({
       mes,
       mesLabel: format(parseISO(`${mes}-01`), "MMM/yy", { locale: ptBR }),
-      ...Object.fromEntries(
-        Object.entries(categorias).map(([cat, vals]) => [
-          cat,
-          vals.imposto,
-        ])
-      ),
+      servico_aula: (categorias.servico_aula?.imposto || 0) as number,
+      produto_novo: (categorias.produto_novo?.imposto || 0) as number,
+      produto_usado: (categorias.produto_usado?.imposto || 0) as number,
+      pousada: (categorias.pousada?.imposto || 0) as number,
       total: Object.values(categorias).reduce((sum, v) => sum + v.imposto, 0),
       faturamentoTotal: Object.values(categorias).reduce((sum, v) => sum + v.faturamento, 0),
     }));
@@ -167,7 +169,6 @@ export default function ProvisaoImpostos() {
   const resumoPorCategoria = useMemo(() => {
     if (!transacoes || !taxRules) return [];
 
-    const mesAtual = format(new Date(), "yyyy-MM");
     const inicio = startOfMonth(new Date());
     const fim = endOfMonth(new Date());
 
@@ -231,27 +232,57 @@ export default function ProvisaoImpostos() {
     };
   }, [dadosMensais]);
 
+  const handleExportPDF = async () => {
+    setIsExporting(true);
+    medium();
+    try {
+      const exportData = resumoPorCategoria.map((cat) => ({
+        category: cat.category,
+        label: cat.label,
+        imposto: cat.imposto,
+        faturamento: cat.faturamento,
+        taxaAplicada: cat.taxaAplicada,
+        taxaReal: cat.taxaReal,
+      }));
+      await exportImpostosPDF(exportData, dadosMensais, totais, mesesExibir);
+      success();
+    } catch {
+      hapticError();
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const isLoading = loadingTransacoes || loadingRules;
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 px-1 sm:px-0">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/financeiro")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Provisão de Impostos</h1>
-              <p className="text-muted-foreground text-sm">
-                Quanto separar para impostos por categoria
-              </p>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate("/financeiro")}
+                className="min-h-[44px] min-w-[44px] shrink-0"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold">Provisão de Impostos</h1>
+                <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">
+                  Quanto separar para impostos por categoria
+                </p>
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          
+          {/* Controls Row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <Select value={mesesExibir} onValueChange={setMesesExibir}>
-              <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-full sm:w-[140px] min-h-[44px]">
                 <Calendar className="h-4 w-4 mr-2" />
                 <SelectValue />
               </SelectTrigger>
@@ -261,90 +292,101 @@ export default function ProvisaoImpostos() {
                 <SelectItem value="12">12 meses</SelectItem>
               </SelectContent>
             </Select>
+            <Button 
+              onClick={handleExportPDF} 
+              disabled={isLoading || isExporting}
+              className="min-h-[44px] w-full sm:w-auto"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              {isExporting ? "Exportando..." : "Exportar PDF"}
+            </Button>
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* KPIs - Mobile optimized grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <Card className="border-l-4 border-l-amber-500">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Provisão Mês Atual</p>
+            <CardContent className="p-3 sm:pt-4 sm:p-6">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Mês Atual</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-24 mt-1" />
+                    <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-2xl font-bold text-amber-600">
+                    <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">
                       {formatCurrency(totais.mesAtual)}
                     </p>
                   )}
                 </div>
-                <PiggyBank className="h-8 w-8 text-amber-500" />
+                <PiggyBank className="h-6 w-6 sm:h-8 sm:w-8 text-amber-500 shrink-0" />
               </div>
               {!isLoading && totais.variacao !== 0 && (
-                <Badge variant={totais.variacao > 0 ? "destructive" : "default"} className="mt-2">
-                  {totais.variacao > 0 ? "+" : ""}{totais.variacao.toFixed(1)}% vs mês anterior
+                <Badge 
+                  variant={totais.variacao > 0 ? "destructive" : "default"} 
+                  className="mt-2 text-xs"
+                >
+                  {totais.variacao > 0 ? "+" : ""}{totais.variacao.toFixed(1)}%
                 </Badge>
               )}
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-blue-500">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Média Mensal</p>
+            <CardContent className="p-3 sm:pt-4 sm:p-6">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Média Mensal</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-24 mt-1" />
+                    <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-2xl font-bold text-blue-600">
+                    <p className="text-lg sm:text-2xl font-bold text-blue-600 truncate">
                       {formatCurrency(totais.media)}
                     </p>
                   )}
                 </div>
-                <TrendingUp className="h-8 w-8 text-blue-500" />
+                <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 shrink-0" />
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                 Últimos {mesesExibir} meses
               </p>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-purple-500">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Acumulado Período</p>
+            <CardContent className="p-3 sm:pt-4 sm:p-6">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Acumulado</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-24 mt-1" />
+                    <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-2xl font-bold text-purple-600">
+                    <p className="text-lg sm:text-2xl font-bold text-purple-600 truncate">
                       {formatCurrency(totais.acumulado)}
                     </p>
                   )}
                 </div>
-                <Receipt className="h-8 w-8 text-purple-500" />
+                <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 shrink-0" />
               </div>
             </CardContent>
           </Card>
 
           <Card className="border-l-4 border-l-orange-500">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Alerta</p>
+            <CardContent className="p-3 sm:pt-4 sm:p-6">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Status</p>
                   {isLoading ? (
-                    <Skeleton className="h-8 w-24 mt-1" />
+                    <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-lg font-semibold text-orange-600">
-                      {totais.mesAtual > totais.media * 1.2 ? "Acima da Média" : "Normal"}
+                    <p className="text-sm sm:text-lg font-semibold text-orange-600 truncate">
+                      {totais.mesAtual > totais.media * 1.2 ? "Acima" : "Normal"}
                     </p>
                   )}
                 </div>
-                <AlertTriangle className="h-8 w-8 text-orange-500" />
+                <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 shrink-0" />
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Comparado à média mensal
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">
+                vs média mensal
               </p>
             </CardContent>
           </Card>
@@ -352,29 +394,38 @@ export default function ProvisaoImpostos() {
 
         {/* Gráfico de Evolução */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Evolução Mensal por Categoria
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
+              Evolução Mensal
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6">
             {isLoading ? (
-              <Skeleton className="h-[300px] w-full" />
+              <Skeleton className="h-[200px] sm:h-[300px] w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={dadosMensais}>
+              <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : 300}>
+                <BarChart data={dadosMensais} margin={{ left: -10, right: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="mesLabel" className="text-xs" />
-                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                  <XAxis 
+                    dataKey="mesLabel" 
+                    tick={{ fontSize: window.innerWidth < 640 ? 10 : 12 }}
+                  />
+                  <YAxis 
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} 
+                    tick={{ fontSize: window.innerWidth < 640 ? 10 : 12 }}
+                    width={35}
+                  />
                   <Tooltip
                     formatter={(value: number) => formatCurrency(value)}
                     labelFormatter={(label) => `Mês: ${label}`}
                   />
-                  <Legend />
-                  <Bar dataKey="servico_aula" name="Serviços/Aulas" stackId="a" fill="hsl(var(--chart-1))" />
-                  <Bar dataKey="produto_novo" name="Produtos Novos" stackId="a" fill="hsl(var(--chart-2))" />
-                  <Bar dataKey="produto_usado" name="Produtos Usados" stackId="a" fill="hsl(var(--chart-3))" />
+                  <Legend 
+                    wrapperStyle={{ fontSize: window.innerWidth < 640 ? 10 : 12 }}
+                  />
+                  <Bar dataKey="servico_aula" name="Serviços" stackId="a" fill="hsl(var(--chart-1))" />
+                  <Bar dataKey="produto_novo" name="Novos" stackId="a" fill="hsl(var(--chart-2))" />
+                  <Bar dataKey="produto_usado" name="Usados" stackId="a" fill="hsl(var(--chart-3))" />
                   <Bar dataKey="pousada" name="Pousada" stackId="a" fill="hsl(var(--chart-4))" />
                 </BarChart>
               </ResponsiveContainer>
@@ -384,76 +435,78 @@ export default function ProvisaoImpostos() {
 
         {/* Breakdown por Categoria (Mês Atual) */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PiggyBank className="h-5 w-5" />
-              Detalhamento Mês Atual - {format(new Date(), "MMMM yyyy", { locale: ptBR })}
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="truncate">
+                Detalhamento - {format(new Date(), "MMM/yy", { locale: ptBR })}
+              </span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6">
             {isLoading ? (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {[1, 2, 3].map((i) => (
-                  <Skeleton key={i} className="h-20 w-full" />
+                  <Skeleton key={i} className="h-16 sm:h-20 w-full" />
                 ))}
               </div>
             ) : resumoPorCategoria.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-6 sm:py-8 text-muted-foreground text-sm">
                 Nenhuma receita registrada este mês
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {resumoPorCategoria.map((cat) => (
                   <div
                     key={cat.category}
-                    className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors gap-3"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                       <div
-                        className="p-3 rounded-full"
+                        className="p-2 sm:p-3 rounded-full shrink-0"
                         style={{ backgroundColor: `${cat.color}20` }}
                       >
                         <div style={{ color: cat.color }}>{cat.icon}</div>
                       </div>
-                      <div>
-                        <p className="font-medium">{cat.label}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Faturamento: {formatCurrency(cat.faturamento)}
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm sm:text-base">{cat.label}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                          Fat: {formatCurrency(cat.faturamento)}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-amber-600">
-                        {formatCurrency(cat.imposto)}
-                      </p>
-                      <div className="flex items-center gap-2 justify-end">
-                        <Badge variant="outline" className="text-xs">
-                          Taxa: {cat.taxaAplicada.toFixed(1)}%
+                    <div className="flex items-center justify-between sm:justify-end sm:text-right gap-3 pl-11 sm:pl-0">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <Badge variant="outline" className="text-[10px] sm:text-xs">
+                          {cat.taxaAplicada.toFixed(1)}%
                         </Badge>
                         {Math.abs(cat.taxaReal - cat.taxaAplicada) > 0.5 && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-[10px] sm:text-xs hidden sm:inline-flex">
                             Real: {cat.taxaReal.toFixed(1)}%
                           </Badge>
                         )}
                       </div>
+                      <p className="text-lg sm:text-xl font-bold text-amber-600">
+                        {formatCurrency(cat.imposto)}
+                      </p>
                     </div>
                   </div>
                 ))}
 
                 {/* Total */}
-                <div className="flex items-center justify-between p-4 rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-full bg-amber-100 dark:bg-amber-900">
-                      <PiggyBank className="h-5 w-5 text-amber-600" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/20 gap-3">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="p-2 sm:p-3 rounded-full bg-amber-100 dark:bg-amber-900 shrink-0">
+                      <PiggyBank className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
                     </div>
                     <div>
-                      <p className="font-bold text-lg">Total a Provisionar</p>
-                      <p className="text-sm text-muted-foreground">
-                        Separe este valor para impostos
+                      <p className="font-bold text-sm sm:text-lg">Total a Provisionar</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">
+                        Separe para impostos
                       </p>
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-amber-600">
+                  <p className="text-xl sm:text-2xl font-bold text-amber-600 pl-11 sm:pl-0">
                     {formatCurrency(resumoPorCategoria.reduce((sum, c) => sum + c.imposto, 0))}
                   </p>
                 </div>
@@ -464,18 +517,25 @@ export default function ProvisaoImpostos() {
 
         {/* Linha do Tempo (últimos meses) */}
         <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Provisões</CardTitle>
+          <CardHeader className="pb-2 sm:pb-4">
+            <CardTitle className="text-base sm:text-lg">Histórico de Provisões</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-2 sm:px-6">
             {isLoading ? (
-              <Skeleton className="h-[200px] w-full" />
+              <Skeleton className="h-[150px] sm:h-[200px] w-full" />
             ) : (
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={dadosMensais}>
+              <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 150 : 200}>
+                <LineChart data={dadosMensais} margin={{ left: -10, right: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="mesLabel" className="text-xs" />
-                  <YAxis tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                  <XAxis 
+                    dataKey="mesLabel" 
+                    tick={{ fontSize: window.innerWidth < 640 ? 10 : 12 }}
+                  />
+                  <YAxis 
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} 
+                    tick={{ fontSize: window.innerWidth < 640 ? 10 : 12 }}
+                    width={35}
+                  />
                   <Tooltip formatter={(value: number) => formatCurrency(value)} />
                   <Line
                     type="monotone"
@@ -483,7 +543,7 @@ export default function ProvisaoImpostos() {
                     name="Total Provisionado"
                     stroke="hsl(var(--primary))"
                     strokeWidth={2}
-                    dot={{ fill: "hsl(var(--primary))" }}
+                    dot={{ fill: "hsl(var(--primary))", r: window.innerWidth < 640 ? 3 : 4 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
