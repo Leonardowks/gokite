@@ -315,3 +315,107 @@ export function useMovimentacoesRecentes(limit = 10) {
     },
   });
 }
+
+// Hook to register a new product with EAN
+interface NovoProduto {
+  nome: string;
+  tipo: string;
+  ean: string;
+  tamanho: string | null;
+  cost_price: number;
+  sale_price: number;
+  quantidade: number;
+}
+
+export function useCadastrarProduto() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: NovoProduto) => {
+      // Create new equipamento
+      const { data: novoEquipamento, error: createError } = await supabase
+        .from("equipamentos")
+        .insert({
+          nome: data.nome,
+          tipo: data.tipo,
+          ean: data.ean,
+          tamanho: data.tamanho,
+          cost_price: data.cost_price,
+          sale_price: data.sale_price,
+          preco_aluguel_dia: 0,
+          quantidade_fisica: data.quantidade,
+          quantidade_virtual_safe: 0,
+          source_type: "owned",
+          status: "disponivel",
+          fiscal_category: "venda_produto",
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      // Record the movement
+      await supabase.from("movimentacoes_estoque").insert({
+        equipamento_id: novoEquipamento.id,
+        tipo: "entrada_fisica",
+        quantidade: data.quantidade,
+        origem: "scanner",
+        notas: `Novo produto cadastrado via scanner - EAN: ${data.ean}`,
+      });
+
+      // Trigger Nuvemshop sync
+      try {
+        await supabase.functions.invoke("sync-inventory-nuvemshop", {
+          body: {
+            action: "sync_single",
+            equipamento_id: novoEquipamento.id,
+            trigger: "entrada",
+          },
+        });
+      } catch (e) {
+        console.warn("Nuvemshop sync failed, will retry later:", e);
+      }
+
+      return novoEquipamento;
+    },
+    onSuccess: () => {
+      toast.success("Produto cadastrado e entrada registrada!");
+      queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["movimentacoes-estoque"] });
+      queryClient.invalidateQueries({ queryKey: ["search-by-ean"] });
+    },
+    onError: (error) => {
+      console.error("Cadastro error:", error);
+      toast.error("Erro ao cadastrar produto");
+    },
+  });
+}
+
+// Hook to link EAN to existing equipment
+export function useVincularEan() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ equipamentoId, ean }: { equipamentoId: string; ean: string }) => {
+      const { data, error } = await supabase
+        .from("equipamentos")
+        .update({ ean })
+        .eq("id", equipamentoId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("EAN vinculado ao produto com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["equipamentos-sem-ean"] });
+      queryClient.invalidateQueries({ queryKey: ["search-by-ean"] });
+    },
+    onError: (error) => {
+      console.error("Vincular EAN error:", error);
+      toast.error("Erro ao vincular EAN");
+    },
+  });
+}

@@ -3,6 +3,8 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
+import { CadastroRapidoDialog } from "@/components/CadastroRapidoDialog";
+import { VincularEanDialog } from "@/components/VincularEanDialog";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +26,8 @@ import {
   TrendingUp,
   TrendingDown,
   AlertTriangle,
+  Link2,
+  RefreshCw,
 } from "lucide-react";
 import { useSearchByEan, useConfirmarEntrada, useMovimentacoesRecentes, useVerificarAtualizacaoCusto } from "@/hooks/useReceberMercadoria";
 import { useScannerFeedback } from "@/hooks/useScannerFeedback";
@@ -40,6 +44,10 @@ export default function ReceberMercadoria() {
   const [precoVenda, setPrecoVenda] = useState<number | null>(null);
   const [mode, setMode] = useState<"scan" | "manual">("scan");
   const [manterPrecoAntigo, setManterPrecoAntigo] = useState(false);
+  
+  // Dialog states
+  const [cadastroDialogOpen, setCadastroDialogOpen] = useState(false);
+  const [vincularDialogOpen, setVincularDialogOpen] = useState(false);
 
   const { feedback } = useScannerFeedback();
 
@@ -431,22 +439,51 @@ export default function ReceberMercadoria() {
             </div>
           ) : activeCode && !isSearching ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-center space-y-4">
+              <div className="text-center space-y-4 max-w-sm">
                 <div className="w-16 h-16 mx-auto rounded-full bg-yellow-500/10 flex items-center justify-center">
                   <AlertCircle className="h-8 w-8 text-yellow-600" />
                 </div>
                 <div>
                   <h3 className="font-semibold">Produto não encontrado</h3>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Código "{activeCode}" não está no catálogo Duotone nem no estoque.
+                    Código "<span className="font-mono">{activeCode}</span>" não está no catálogo nem no estoque.
                   </p>
                 </div>
-                <Button variant="outline" onClick={() => {
-                  setScannedCode(null);
-                  setManualCode("");
-                }}>
-                  Tentar outro código
-                </Button>
+                
+                <p className="text-xs text-muted-foreground pt-2 border-t">
+                  O que deseja fazer?
+                </p>
+                
+                <div className="space-y-2">
+                  <Button 
+                    className="w-full gap-2" 
+                    onClick={() => setCadastroDialogOpen(true)}
+                  >
+                    <Package className="h-4 w-4" />
+                    Cadastrar Novo Produto
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full gap-2"
+                    onClick={() => setVincularDialogOpen(true)}
+                  >
+                    <Link2 className="h-4 w-4" />
+                    Vincular a Produto Existente
+                  </Button>
+                  
+                  <Button 
+                    variant="ghost" 
+                    className="w-full gap-2"
+                    onClick={() => {
+                      setScannedCode(null);
+                      setManualCode("");
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Escanear Outro Código
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -520,6 +557,26 @@ export default function ReceberMercadoria() {
           onScan={handleScan}
           onClose={() => setScannerOpen(false)}
           isSearching={isSearching}
+        />
+      )}
+
+      {/* Cadastro Rápido Dialog */}
+      {activeCode && (
+        <CadastroRapidoDialog
+          open={cadastroDialogOpen}
+          onOpenChange={setCadastroDialogOpen}
+          ean={activeCode}
+          onSuccess={resetState}
+        />
+      )}
+
+      {/* Vincular EAN Dialog */}
+      {activeCode && (
+        <VincularEanDialog
+          open={vincularDialogOpen}
+          onOpenChange={setVincularDialogOpen}
+          ean={activeCode}
+          onSuccess={resetState}
         />
       )}
     </>
