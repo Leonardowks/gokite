@@ -9,6 +9,7 @@ import { useCreateAula, useUpdateAula, type AulaSupabase } from "@/hooks/useSupa
 import { useClientesListagem } from "@/hooks/useSupabaseClientes";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 
 interface AulaDialogSupabaseProps {
   open: boolean;
@@ -35,6 +36,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
   const { data: clientes = [] } = useClientesListagem();
   const createAula = useCreateAula();
   const updateAula = useUpdateAula();
+  const haptic = useHapticFeedback();
 
   // Fetch aula if editing
   useEffect(() => {
@@ -80,6 +82,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
     e.preventDefault();
     
     if (!formData.cliente_id) {
+      haptic.warning();
       toast({
         title: "Cliente obrigatório",
         description: "Por favor, selecione um cliente.",
@@ -94,6 +97,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
           id: aulaId,
           ...formData,
         });
+        haptic.success();
         toast({
           title: "Aula atualizada!",
           description: formData.status === 'confirmada' 
@@ -102,6 +106,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
         });
       } else {
         await createAula.mutateAsync(formData);
+        haptic.success();
         toast({
           title: "Aula criada!",
           description: "O agendamento foi criado com sucesso.",
@@ -110,6 +115,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
       
       onOpenChange(false);
     } catch (error: any) {
+      haptic.error();
       toast({
         title: "Erro",
         description: error.message || "Não foi possível salvar a aula.",

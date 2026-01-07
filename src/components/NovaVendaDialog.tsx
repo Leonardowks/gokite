@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { useTransacaoAutomatica, getCentroCustoPorOrigem } from "@/hooks/useTransacaoAutomatica";
 import { useClientesListagem } from "@/hooks/useSupabaseClientes";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 
 interface NovaVendaDialogProps {
   open: boolean;
@@ -57,6 +58,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
 
   const { criarTransacaoCompleta, isPending } = useTransacaoAutomatica();
   const { data: clientes = [] } = useClientesListagem();
+  const haptic = useHapticFeedback();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +80,8 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
         telefone: novoClienteTelefone || undefined,
       } : undefined,
     });
+    
+    haptic.success();
     
     // Reset form
     setTipoVenda('manual');

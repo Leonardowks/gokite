@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { Loader2, Save, Sparkles, TrendingUp, TrendingDown, CreditCard, Landmark, WifiOff } from "lucide-react";
 import { useCreateTransacao, useConfigFinanceiro, getTaxaCartao } from "@/hooks/useTransacoes";
 import { useOfflineTransacoes } from "@/hooks/useOfflineTransacoes";
+import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import type { ParsedTransaction } from "./QuickFinancialEntry";
 
 interface NovaTransacaoDialogProps {
@@ -36,6 +37,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
   const createTransacao = useCreateTransacao();
   const { data: config } = useConfigFinanceiro();
   const { isOnline, addTransacao } = useOfflineTransacoes();
+  const haptic = useHapticFeedback();
 
   const [formData, setFormData] = useState({
     tipo: "receita" as "receita" | "despesa",
@@ -105,11 +107,13 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
 
   const handleSubmit = async () => {
     if (formData.valor_bruto <= 0) {
+      haptic.warning();
       toast.error("Informe o valor da transação");
       return;
     }
 
     if (!formData.descricao.trim()) {
+      haptic.warning();
       toast.error("Informe a descrição");
       return;
     }
@@ -129,6 +133,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
     if (!isOnline) {
       const result = addTransacao(transacaoData);
       if (result.offline) {
+        haptic.success();
         onOpenChange(false);
         return;
       }
@@ -138,6 +143,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
     try {
       await createTransacao.mutateAsync(transacaoData);
 
+      haptic.success();
       toast.success("Transação registrada!", {
         description: `Lucro líquido: R$ ${lucroLiquido.toFixed(2)}`,
       });
@@ -149,14 +155,15 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
       // If online save fails, try offline
       const result = addTransacao(transacaoData);
       if (result.offline) {
+        haptic.success();
         onOpenChange(false);
         return;
       }
       
+      haptic.error();
       toast.error("Erro ao salvar transação");
     }
   };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
