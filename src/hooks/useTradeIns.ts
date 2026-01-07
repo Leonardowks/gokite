@@ -48,17 +48,20 @@ export interface TradeInInsert {
 }
 
 export interface TradeInUpdate {
+  equipamento_recebido?: string;
+  descricao?: string | null;
+  valor_entrada?: number;
   valor_saida?: number;
   data_saida?: string;
   comprador_id?: string;
   status?: string;
-  notas?: string;
-  categoria?: string;
-  marca?: string;
-  modelo?: string;
-  tamanho?: string;
-  ano?: number;
-  condicao?: string;
+  notas?: string | null;
+  categoria?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  tamanho?: string | null;
+  ano?: number | null;
+  condicao?: string | null;
   fotos?: string[];
 }
 

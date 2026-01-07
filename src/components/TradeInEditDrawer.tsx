@@ -39,6 +39,7 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
   const { analyzeEquipment, isAnalyzing } = useEquipmentAnalysis();
 
   // Form state
+  const [equipamentoRecebido, setEquipamentoRecebido] = useState("");
   const [categoria, setCategoria] = useState("");
   const [marca, setMarca] = useState("");
   const [modelo, setModelo] = useState("");
@@ -54,7 +55,7 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
   // Populate form when drawer opens with a tradeIn
   useEffect(() => {
     if (open && tradeIn) {
-      console.log("Populating form with tradeIn:", tradeIn);
+      setEquipamentoRecebido(tradeIn.equipamento_recebido || "");
       setCategoria(tradeIn.categoria || "");
       setMarca(tradeIn.marca || "");
       setModelo(tradeIn.modelo || "");
@@ -65,6 +66,37 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
       setDescricao(tradeIn.descricao || "");
       setNotas(tradeIn.notas || "");
       setFotos(Array.isArray(tradeIn.fotos) ? tradeIn.fotos : []);
+
+      // Pre-fill estruturado a partir do nome/descrição quando vier vazio (trade-ins antigos)
+      const nome = tradeIn.equipamento_recebido || "";
+      const desc = tradeIn.descricao || "";
+
+      if (!tradeIn.marca) {
+        const lower = nome.toLowerCase();
+        const match = MARCAS_COMUNS.find((m) => lower.startsWith(m.toLowerCase()));
+        if (match) setMarca(match);
+      }
+
+      if (!tradeIn.tamanho) {
+        const sizeMatch = nome.match(/\b(\d{1,2}(?:\.\d)?)\s*m\b/i);
+        if (sizeMatch?.[1]) setTamanho(`${sizeMatch[1]}m`);
+      }
+
+      if (!tradeIn.ano) {
+        const yearMatch = (nome + " " + desc).match(/\b(20\d{2})\b/);
+        if (yearMatch?.[1]) setAno(yearMatch[1]);
+      }
+
+      if (!tradeIn.modelo && nome) {
+        // remove marca do começo e tamanho do fim para tentar achar "modelo"
+        let modelCandidate = nome;
+        const currentMarca = (tradeIn.marca || "") || (MARCAS_COMUNS.find((m) => nome.toLowerCase().startsWith(m.toLowerCase())) || "");
+        if (currentMarca) {
+          modelCandidate = modelCandidate.replace(new RegExp(`^${currentMarca}\\s*`, "i"), "");
+        }
+        modelCandidate = modelCandidate.replace(/\b\d{1,2}(?:\.\d)?\s*m\b/i, "").trim();
+        if (modelCandidate) setModelo(modelCandidate);
+      }
     }
   }, [open, tradeIn]);
 
@@ -91,8 +123,14 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
   const handleSalvar = async () => {
     if (!tradeIn) return;
 
-    if (!valorEntrada || parseFloat(valorEntrada) <= 0) {
+    const valor = parseFloat(valorEntrada);
+    if (!valorEntrada || Number.isNaN(valor) || valor <= 0) {
       toast.error("Informe um valor de entrada válido");
+      return;
+    }
+
+    if (!equipamentoRecebido.trim()) {
+      toast.error("Informe o nome do equipamento");
       return;
     }
 
@@ -100,24 +138,27 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
     try {
       await updateMutation.mutateAsync({
         id: tradeIn.id,
-        categoria: categoria || undefined,
-        marca: marca || undefined,
-        modelo: modelo || undefined,
-        tamanho: tamanho || undefined,
-        ano: ano ? parseInt(ano) : undefined,
-        condicao: condicao || undefined,
-        notas: notas || undefined,
+        equipamento_recebido: equipamentoRecebido.trim(),
+        descricao: descricao || null,
+        valor_entrada: valor,
+        categoria: categoria || null,
+        marca: marca || null,
+        modelo: modelo || null,
+        tamanho: tamanho || null,
+        ano: ano ? parseInt(ano) : null,
+        condicao: condicao || null,
+        notas: notas || null,
         fotos,
       });
 
       toast.success("Trade-in atualizado!", {
-        description: "As alterações foram salvas com sucesso."
+        description: "As alterações foram salvas com sucesso.",
       });
       onOpenChange(false);
     } catch (error) {
       console.error("Erro ao atualizar trade-in:", error);
       toast.error("Erro ao salvar", {
-        description: "Não foi possível atualizar o trade-in."
+        description: "Não foi possível atualizar o trade-in.",
       });
     } finally {
       setSalvando(false);
@@ -178,6 +219,17 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
               onFotosChange={setFotos}
               maxFotos={8}
               bucketPath="trade-ins"
+            />
+          </div>
+
+          {/* Nome do equipamento */}
+          <div className="space-y-2">
+            <Label htmlFor="equipamentoRecebido">Equipamento</Label>
+            <Input
+              id="equipamentoRecebido"
+              value={equipamentoRecebido}
+              onChange={(e) => setEquipamentoRecebido(e.target.value)}
+              placeholder="Ex: Ozone Edge V11 10m"
             />
           </div>
 
@@ -282,12 +334,7 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
               placeholder="0,00"
               min="0"
               step="0.01"
-              disabled
-              className="bg-muted"
             />
-            <p className="text-xs text-muted-foreground">
-              O valor de entrada não pode ser alterado após o registro.
-            </p>
           </div>
 
           {/* Descrição */}
@@ -299,8 +346,6 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
               onChange={(e) => setDescricao(e.target.value)}
               placeholder="Detalhes do equipamento..."
               rows={2}
-              disabled
-              className="bg-muted"
             />
           </div>
 
