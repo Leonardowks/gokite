@@ -18,6 +18,7 @@ import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { SparklineChart, generateSparklineData } from "@/components/SparklineChart";
+import { FloatingActionButton } from "@/components/FloatingActionButton";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ 
@@ -510,6 +511,9 @@ export default function Dashboard() {
           )}
         </CardContent>
       </PremiumCard>
+
+      {/* FAB Mobile para ações rápidas */}
+      <FloatingActionButton />
     </div>
   );
 }

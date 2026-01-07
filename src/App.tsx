@@ -27,6 +27,7 @@ const Assistente = lazy(() => import("./pages/Assistente"));
 const Inteligencia = lazy(() => import("./pages/admin/Inteligencia"));
 const Conversas = lazy(() => import("./pages/Conversas"));
 const ProvisaoImpostos = lazy(() => import("./pages/admin/ProvisaoImpostos"));
+const TradeIns = lazy(() => import("./pages/admin/TradeIns"));
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => {
             <Route path="/aulas" element={<Aulas />} />
             <Route path="/vendas" element={<Vendas />} />
             <Route path="/estoque" element={<Estoque />} />
+            <Route path="/estoque/trade-ins" element={<TradeIns />} />
             <Route path="/aluguel" element={<Aluguel />} />
             <Route path="/ecommerce" element={<Ecommerce />} />
             <Route path="/financeiro" element={<Financeiro />} />
