@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.send-message]
 verify_jwt = false
+
+[functions.analyze-equipment]
+verify_jwt = false
