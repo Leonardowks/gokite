@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Package,
@@ -12,22 +11,39 @@ import {
   TrendingUp,
   Search,
   ArrowUpRight,
-  Clock,
   CheckCircle,
   Tag,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
-import { useTradeIns, useTradeInsSummary, useVenderTradeIn, TradeIn } from "@/hooks/useTradeIns";
+import { useTradeIns, useTradeInsSummary, TradeIn } from "@/hooks/useTradeIns";
 import { SkeletonPremium } from "@/components/ui/skeleton-premium";
 import { TradeInRapidoDrawer } from "@/components/TradeInRapidoDrawer";
 import { VenderTradeInDialog } from "@/components/VenderTradeInDialog";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { 
+  CATEGORIAS, 
+  CONDICOES, 
+  getCategoriaByValue, 
+  getCondicaoByValue 
+} from "@/lib/tradeInConfig";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 export default function TradeIns() {
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [filtroCategoria, setFiltroCategoria] = useState<string>("todas");
+  const [filtroCondicao, setFiltroCondicao] = useState<string>("todas");
   const [busca, setBusca] = useState("");
   const [tradeInDrawerOpen, setTradeInDrawerOpen] = useState(false);
   const [vendaDialogOpen, setVendaDialogOpen] = useState(false);
@@ -38,10 +54,14 @@ export default function TradeIns() {
 
   const tradeInsFiltrados = (tradeIns || []).filter((item) => {
     const matchStatus = filtroStatus === "todos" || item.status === filtroStatus;
+    const matchCategoria = filtroCategoria === "todas" || item.categoria === filtroCategoria;
+    const matchCondicao = filtroCondicao === "todas" || item.condicao === filtroCondicao;
     const matchBusca = busca === "" || 
       item.equipamento_recebido.toLowerCase().includes(busca.toLowerCase()) ||
-      item.descricao?.toLowerCase().includes(busca.toLowerCase());
-    return matchStatus && matchBusca;
+      item.descricao?.toLowerCase().includes(busca.toLowerCase()) ||
+      item.marca?.toLowerCase().includes(busca.toLowerCase()) ||
+      item.modelo?.toLowerCase().includes(busca.toLowerCase());
+    return matchStatus && matchCategoria && matchCondicao && matchBusca;
   });
 
   const qtdEmEstoque = (tradeIns || []).filter(t => t.status === "em_estoque").length;
@@ -207,41 +227,80 @@ export default function TradeIns() {
       {/* Filtros */}
       <PremiumCard>
         <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-3">
+            {/* Busca */}
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar equipamento..."
+                placeholder="Buscar por marca, modelo, descrição..."
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 className="pl-10 min-h-[44px]"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant={filtroStatus === "todos" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFiltroStatus("todos")}
-                className="min-h-[40px]"
-              >
-                Todos ({tradeIns?.length || 0})
-              </Button>
-              <Button
-                variant={filtroStatus === "em_estoque" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFiltroStatus("em_estoque")}
-                className="min-h-[40px]"
-              >
-                Em Estoque ({qtdEmEstoque})
-              </Button>
-              <Button
-                variant={filtroStatus === "vendido" ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setFiltroStatus("vendido")}
-                className="min-h-[40px]"
-              >
-                Vendidos ({qtdVendidos})
-              </Button>
+
+            {/* Filtros em linha */}
+            <div className="flex flex-wrap gap-2">
+              {/* Status */}
+              <div className="flex gap-1.5">
+                <Button
+                  variant={filtroStatus === "todos" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFiltroStatus("todos")}
+                  className="min-h-[36px] text-xs"
+                >
+                  Todos
+                </Button>
+                <Button
+                  variant={filtroStatus === "em_estoque" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFiltroStatus("em_estoque")}
+                  className="min-h-[36px] text-xs"
+                >
+                  Em Estoque ({qtdEmEstoque})
+                </Button>
+                <Button
+                  variant={filtroStatus === "vendido" ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setFiltroStatus("vendido")}
+                  className="min-h-[36px] text-xs"
+                >
+                  Vendidos ({qtdVendidos})
+                </Button>
+              </div>
+
+              {/* Categoria */}
+              <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas categorias</SelectItem>
+                  {CATEGORIAS.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.icon} {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Condição */}
+              <Select value={filtroCondicao} onValueChange={setFiltroCondicao}>
+                <SelectTrigger className="w-[130px] h-9">
+                  <SelectValue placeholder="Condição" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas condições</SelectItem>
+                  {CONDICOES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      <span className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${c.color}`} />
+                        {c.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardContent>
@@ -253,7 +312,7 @@ export default function TradeIns() {
           <CardContent className="p-8 text-center">
             <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
             <p className="text-muted-foreground">
-              {busca || filtroStatus !== "todos" 
+              {busca || filtroStatus !== "todos" || filtroCategoria !== "todas" || filtroCondicao !== "todas"
                 ? "Nenhum item encontrado com os filtros aplicados"
                 : "Nenhum trade-in registrado ainda"}
             </p>
@@ -271,109 +330,23 @@ export default function TradeIns() {
           {tradeInsFiltrados.map((item) => {
             const dias = getDiasEmEstoque(item.data_entrada);
             const bomba = isBomba(item);
+            const categoria = getCategoriaByValue(item.categoria);
+            const condicao = getCondicaoByValue(item.condicao);
+            const fotos = item.fotos || [];
+            const fotoPrincipal = fotos[0] || item.foto_url;
 
             return (
-              <PremiumCard 
-                key={item.id} 
-                hover 
-                className={`overflow-hidden ${bomba ? "border-destructive/50 bg-destructive/5" : ""}`}
-              >
-                {/* Foto ou Placeholder */}
-                <div className={`relative h-36 bg-muted/50 flex items-center justify-center ${bomba ? "bg-destructive/10" : ""}`}>
-                  {(item as any).foto_url ? (
-                    <img
-                      src={(item as any).foto_url}
-                      alt={item.equipamento_recebido}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Package className="h-12 w-12 text-muted-foreground/30" />
-                  )}
-                  
-                  {/* Badge de Status */}
-                  <div className="absolute top-2 right-2">
-                    {item.status === "vendido" ? (
-                      <PremiumBadge variant="success" size="sm">
-                        Vendido
-                      </PremiumBadge>
-                    ) : bomba ? (
-                      <PremiumBadge variant="urgent" size="sm" icon={AlertTriangle} pulse>
-                        {dias}d parado
-                      </PremiumBadge>
-                    ) : (
-                      <PremiumBadge variant="default" size="sm">
-                        {dias}d em estoque
-                      </PremiumBadge>
-                    )}
-                  </div>
-                </div>
-
-                <CardContent className="p-4">
-                  <h3 className="font-semibold text-lg mb-1 line-clamp-1">
-                    {item.equipamento_recebido}
-                  </h3>
-                  {item.descricao && (
-                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                      {item.descricao}
-                    </p>
-                  )}
-
-                  <div className="space-y-2 text-sm mb-4">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Tag className="h-3.5 w-3.5" />
-                        Valor Entrada
-                      </span>
-                      <span className="font-medium text-foreground">
-                        R$ {item.valor_entrada.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    
-                    {item.status === "vendido" && item.valor_saida && (
-                      <>
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <DollarSign className="h-3.5 w-3.5" />
-                            Valor Venda
-                          </span>
-                          <span className="font-medium text-success">
-                            R$ {item.valor_saida.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <TrendingUp className="h-3.5 w-3.5" />
-                            Lucro
-                          </span>
-                          <span className={`font-bold ${item.lucro_trade_in >= 0 ? "text-success" : "text-destructive"}`}>
-                            R$ {item.lucro_trade_in.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="flex items-center justify-between pt-1 border-t border-border/50">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Calendar className="h-3.5 w-3.5" />
-                        Entrada
-                      </span>
-                      <span className="text-muted-foreground">
-                        {format(new Date(item.data_entrada), "dd/MM/yyyy", { locale: ptBR })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {item.status === "em_estoque" && (
-                    <Button 
-                      className="w-full gap-2 min-h-[44px]"
-                      onClick={() => handleVender(item)}
-                    >
-                      <ArrowUpRight className="h-4 w-4" />
-                      Vender
-                    </Button>
-                  )}
-                </CardContent>
-              </PremiumCard>
+              <TradeInCard
+                key={item.id}
+                item={item}
+                dias={dias}
+                bomba={bomba}
+                categoria={categoria}
+                condicao={condicao}
+                fotoPrincipal={fotoPrincipal}
+                fotos={fotos}
+                onVender={() => handleVender(item)}
+              />
             );
           })}
         </div>
@@ -390,5 +363,228 @@ export default function TradeIns() {
         />
       )}
     </div>
+  );
+}
+
+// Componente de Card separado para melhor organização
+interface TradeInCardProps {
+  item: TradeIn;
+  dias: number;
+  bomba: boolean;
+  categoria: { value: string; label: string; icon: string } | undefined;
+  condicao: { value: string; label: string; color: string; textColor: string } | undefined;
+  fotoPrincipal: string | null;
+  fotos: string[];
+  onVender: () => void;
+}
+
+function TradeInCard({ 
+  item, 
+  dias, 
+  bomba, 
+  categoria, 
+  condicao, 
+  fotoPrincipal, 
+  fotos,
+  onVender 
+}: TradeInCardProps) {
+  const [fotoAtual, setFotoAtual] = useState(0);
+  const todasFotos = fotos.length > 0 ? fotos : (fotoPrincipal ? [fotoPrincipal] : []);
+
+  const proximaFoto = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFotoAtual((prev) => (prev + 1) % todasFotos.length);
+  };
+
+  const fotoAnterior = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFotoAtual((prev) => (prev - 1 + todasFotos.length) % todasFotos.length);
+  };
+
+  return (
+    <PremiumCard 
+      hover 
+      className={cn(
+        "overflow-hidden",
+        bomba && "border-destructive/50 bg-destructive/5"
+      )}
+    >
+      {/* Foto ou Placeholder com Carousel */}
+      <div className={cn(
+        "relative h-40 bg-muted/50 flex items-center justify-center group",
+        bomba && "bg-destructive/10"
+      )}>
+        {todasFotos.length > 0 ? (
+          <>
+            <img
+              src={todasFotos[fotoAtual]}
+              alt={item.equipamento_recebido}
+              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+            />
+            
+            {/* Navegação do carousel */}
+            {todasFotos.length > 1 && (
+              <>
+                <button
+                  onClick={fotoAnterior}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={proximaFoto}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                
+                {/* Indicadores */}
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                  {todasFotos.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFotoAtual(i);
+                      }}
+                      className={cn(
+                        "w-1.5 h-1.5 rounded-full transition-colors",
+                        i === fotoAtual ? "bg-white" : "bg-white/50"
+                      )}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <Package className="h-12 w-12 text-muted-foreground/30" />
+        )}
+        
+        {/* Badge de Status */}
+        <div className="absolute top-2 right-2">
+          {item.status === "vendido" ? (
+            <PremiumBadge variant="success" size="sm">
+              Vendido
+            </PremiumBadge>
+          ) : bomba ? (
+            <PremiumBadge variant="urgent" size="sm" icon={AlertTriangle} pulse>
+              {dias}d parado
+            </PremiumBadge>
+          ) : (
+            <PremiumBadge variant="default" size="sm">
+              {dias}d em estoque
+            </PremiumBadge>
+          )}
+        </div>
+
+        {/* Badge de categoria */}
+        {categoria && (
+          <div className="absolute top-2 left-2">
+            <span className="text-lg">{categoria.icon}</span>
+          </div>
+        )}
+      </div>
+
+      <CardContent className="p-4">
+        {/* Título e badges */}
+        <div className="mb-2">
+          <h3 className="font-semibold text-lg line-clamp-1">
+            {item.equipamento_recebido}
+          </h3>
+          
+          {/* Badges de informação */}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {item.marca && (
+              <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                {item.marca}
+              </span>
+            )}
+            {item.tamanho && (
+              <span className="text-xs px-2 py-0.5 bg-muted rounded-full">
+                {item.tamanho}
+              </span>
+            )}
+            {item.ano && (
+              <span className="text-xs px-2 py-0.5 bg-muted rounded-full">
+                {item.ano}
+              </span>
+            )}
+            {condicao && (
+              <span className={cn(
+                "text-xs px-2 py-0.5 rounded-full text-white",
+                condicao.color
+              )}>
+                {condicao.label}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {item.descricao && (
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+            {item.descricao}
+          </p>
+        )}
+
+        <div className="space-y-2 text-sm mb-4">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Tag className="h-3.5 w-3.5" />
+              Valor Entrada
+            </span>
+            <span className="font-medium text-foreground">
+              R$ {item.valor_entrada.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          
+          {item.status === "vendido" && item.valor_saida && (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <DollarSign className="h-3.5 w-3.5" />
+                  Valor Venda
+                </span>
+                <span className="font-medium text-success">
+                  R$ {item.valor_saida.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Lucro
+                </span>
+                <span className={cn(
+                  "font-bold",
+                  item.lucro_trade_in >= 0 ? "text-success" : "text-destructive"
+                )}>
+                  R$ {item.lucro_trade_in.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </>
+          )}
+
+          <div className="flex items-center justify-between pt-1 border-t border-border/50">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Calendar className="h-3.5 w-3.5" />
+              Entrada
+            </span>
+            <span className="text-muted-foreground">
+              {format(new Date(item.data_entrada), "dd/MM/yyyy", { locale: ptBR })}
+            </span>
+          </div>
+        </div>
+
+        {item.status === "em_estoque" && (
+          <Button 
+            className="w-full gap-2 min-h-[44px]"
+            onClick={onVender}
+          >
+            <ArrowUpRight className="h-4 w-4" />
+            Vender
+          </Button>
+        )}
+      </CardContent>
+    </PremiumCard>
   );
 }

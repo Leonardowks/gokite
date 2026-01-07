@@ -937,7 +937,10 @@ export type Database = {
       }
       trade_ins: {
         Row: {
+          ano: number | null
+          categoria: string | null
           comprador_id: string | null
+          condicao: string | null
           created_at: string
           data_entrada: string
           data_saida: string | null
@@ -945,17 +948,24 @@ export type Database = {
           equipamento_id_entrada: string | null
           equipamento_recebido: string
           foto_url: string | null
+          fotos: Json | null
           id: string
           lucro_trade_in: number | null
+          marca: string | null
+          modelo: string | null
           notas: string | null
           status: string
+          tamanho: string | null
           transacao_origem_id: string | null
           updated_at: string
           valor_entrada: number
           valor_saida: number | null
         }
         Insert: {
+          ano?: number | null
+          categoria?: string | null
           comprador_id?: string | null
+          condicao?: string | null
           created_at?: string
           data_entrada?: string
           data_saida?: string | null
@@ -963,17 +973,24 @@ export type Database = {
           equipamento_id_entrada?: string | null
           equipamento_recebido: string
           foto_url?: string | null
+          fotos?: Json | null
           id?: string
           lucro_trade_in?: number | null
+          marca?: string | null
+          modelo?: string | null
           notas?: string | null
           status?: string
+          tamanho?: string | null
           transacao_origem_id?: string | null
           updated_at?: string
           valor_entrada: number
           valor_saida?: number | null
         }
         Update: {
+          ano?: number | null
+          categoria?: string | null
           comprador_id?: string | null
+          condicao?: string | null
           created_at?: string
           data_entrada?: string
           data_saida?: string | null
@@ -981,10 +998,14 @@ export type Database = {
           equipamento_id_entrada?: string | null
           equipamento_recebido?: string
           foto_url?: string | null
+          fotos?: Json | null
           id?: string
           lucro_trade_in?: number | null
+          marca?: string | null
+          modelo?: string | null
           notas?: string | null
           status?: string
+          tamanho?: string | null
           transacao_origem_id?: string | null
           updated_at?: string
           valor_entrada?: number
