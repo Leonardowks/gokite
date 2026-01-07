@@ -55,10 +55,20 @@ serve(async (req) => {
 
     const instanceToUse = instance_name || config.instance_name;
 
-    // 2) Normalizar telefone
-    // - Para envio: Evolution pode aceitar jid. Se não vier com @, adicionamos.
-    // - Para banco: guardamos APENAS dígitos, para busca consistente.
-    const digitsOnly = phone.replace(/\D/g, "");
+    // 2) Normalizar telefone brasileiro
+    // Remove tudo que não é dígito
+    let digitsOnly = phone.replace(/\D/g, "");
+    
+    // Se o número tem 10-11 dígitos e NÃO começa com 55, adicionar prefixo do Brasil
+    // Formato esperado: 55 + DDD (2 dígitos) + número (8-9 dígitos)
+    if (digitsOnly.length >= 10 && digitsOnly.length <= 11 && !digitsOnly.startsWith("55")) {
+      digitsOnly = "55" + digitsOnly;
+      console.log("[send-message] >>> Adicionado prefixo 55:", digitsOnly);
+    }
+    
+    // Se já tem 12-13 dígitos (com 55), está correto
+    // Se ainda não está no formato correto, tentar enviar assim mesmo
+    
     const phoneForDb = digitsOnly;
     const phoneForSend = phone.includes("@") ? phone : `${digitsOnly}@s.whatsapp.net`;
 
