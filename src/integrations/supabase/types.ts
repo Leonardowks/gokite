@@ -580,11 +580,17 @@ export type Database = {
           cost_price: number | null
           created_at: string | null
           data_proxima_manutencao: string | null
+          ean: string | null
           fiscal_category: string | null
           id: string
           localizacao: string | null
           nome: string
+          nuvemshop_product_id: string | null
+          nuvemshop_variant_id: string | null
+          prazo_entrega_dias: number | null
           preco_aluguel_dia: number
+          quantidade_fisica: number | null
+          quantidade_virtual_safe: number | null
           sale_price: number | null
           source_type: string | null
           status: string | null
@@ -597,11 +603,17 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           data_proxima_manutencao?: string | null
+          ean?: string | null
           fiscal_category?: string | null
           id?: string
           localizacao?: string | null
           nome: string
+          nuvemshop_product_id?: string | null
+          nuvemshop_variant_id?: string | null
+          prazo_entrega_dias?: number | null
           preco_aluguel_dia: number
+          quantidade_fisica?: number | null
+          quantidade_virtual_safe?: number | null
           sale_price?: number | null
           source_type?: string | null
           status?: string | null
@@ -614,11 +626,17 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           data_proxima_manutencao?: string | null
+          ean?: string | null
           fiscal_category?: string | null
           id?: string
           localizacao?: string | null
           nome?: string
+          nuvemshop_product_id?: string | null
+          nuvemshop_variant_id?: string | null
+          prazo_entrega_dias?: number | null
           preco_aluguel_dia?: number
+          quantidade_fisica?: number | null
+          quantidade_virtual_safe?: number | null
           sale_price?: number | null
           source_type?: string | null
           status?: string | null
@@ -760,6 +778,47 @@ export type Database = {
           },
         ]
       }
+      movimentacoes_estoque: {
+        Row: {
+          created_at: string | null
+          equipamento_id: string | null
+          id: string
+          notas: string | null
+          origem: string | null
+          quantidade: number
+          tipo: string
+          usuario: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          equipamento_id?: string | null
+          id?: string
+          notas?: string | null
+          origem?: string | null
+          quantidade: number
+          tipo: string
+          usuario?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          equipamento_id?: string | null
+          id?: string
+          notas?: string | null
+          origem?: string | null
+          quantidade?: number
+          tipo?: string
+          usuario?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_estoque_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pacotes: {
         Row: {
           cliente_id: string
@@ -851,6 +910,54 @@ export type Database = {
           },
         ]
       }
+      pedidos_nuvemshop: {
+        Row: {
+          cliente_email: string | null
+          cliente_nome: string | null
+          cliente_telefone: string | null
+          created_at: string | null
+          endereco_entrega: string | null
+          id: string
+          itens: Json | null
+          numero_pedido: string | null
+          nuvemshop_order_id: string
+          prazo_envio_dias: number | null
+          status: string | null
+          updated_at: string | null
+          valor_total: number | null
+        }
+        Insert: {
+          cliente_email?: string | null
+          cliente_nome?: string | null
+          cliente_telefone?: string | null
+          created_at?: string | null
+          endereco_entrega?: string | null
+          id?: string
+          itens?: Json | null
+          numero_pedido?: string | null
+          nuvemshop_order_id: string
+          prazo_envio_dias?: number | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Update: {
+          cliente_email?: string | null
+          cliente_nome?: string | null
+          cliente_telefone?: string | null
+          created_at?: string | null
+          endereco_entrega?: string | null
+          id?: string
+          itens?: Json | null
+          numero_pedido?: string | null
+          nuvemshop_order_id?: string
+          prazo_envio_dias?: number | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
       supplier_catalogs: {
         Row: {
           brand: string | null
@@ -858,8 +965,11 @@ export type Database = {
           color: string | null
           cost_price: number
           created_at: string | null
+          ean: string | null
           id: string
           last_synced_at: string | null
+          nuvemshop_product_id: string | null
+          nuvemshop_variant_id: string | null
           product_name: string
           sheet_url: string | null
           size: string | null
@@ -874,8 +984,11 @@ export type Database = {
           color?: string | null
           cost_price: number
           created_at?: string | null
+          ean?: string | null
           id?: string
           last_synced_at?: string | null
+          nuvemshop_product_id?: string | null
+          nuvemshop_variant_id?: string | null
           product_name: string
           sheet_url?: string | null
           size?: string | null
@@ -890,8 +1003,11 @@ export type Database = {
           color?: string | null
           cost_price?: number
           created_at?: string | null
+          ean?: string | null
           id?: string
           last_synced_at?: string | null
+          nuvemshop_product_id?: string | null
+          nuvemshop_variant_id?: string | null
           product_name?: string
           sheet_url?: string | null
           size?: string | null

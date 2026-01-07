@@ -29,6 +29,7 @@ const Conversas = lazy(() => import("./pages/Conversas"));
 const ProvisaoImpostos = lazy(() => import("./pages/admin/ProvisaoImpostos"));
 const TradeIns = lazy(() => import("./pages/admin/TradeIns"));
 const DuotoneSync = lazy(() => import("./pages/admin/DuotoneSync"));
+const ReceberMercadoria = lazy(() => import("./pages/admin/ReceberMercadoria"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ const App = () => {
             <Route path="/estoque" element={<Estoque />} />
             <Route path="/estoque/trade-ins" element={<TradeIns />} />
             <Route path="/estoque/duotone" element={<DuotoneSync />} />
+            <Route path="/estoque/receber-mercadoria" element={<ReceberMercadoria />} />
             <Route path="/aluguel" element={<Aluguel />} />
             <Route path="/ecommerce" element={<Ecommerce />} />
             <Route path="/financeiro" element={<Financeiro />} />

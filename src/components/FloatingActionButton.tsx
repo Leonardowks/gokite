@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, X, Package, DollarSign, Calendar, ShoppingCart } from "lucide-react";
+import { Plus, X, Package, DollarSign, Calendar, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TradeInRapidoDrawer } from "./TradeInRapidoDrawer";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,15 @@ export function FloatingActionButton({ className }: FloatingActionButtonProps) {
 
   const actions = [
     {
+      icon: ScanLine,
+      label: "Receber Mercadoria",
+      color: "bg-success",
+      onClick: () => {
+        setIsOpen(false);
+        navigate("/estoque/receber-mercadoria");
+      },
+    },
+    {
       icon: Package,
       label: "Trade-in",
       color: "bg-primary",
@@ -26,7 +35,7 @@ export function FloatingActionButton({ className }: FloatingActionButtonProps) {
     {
       icon: DollarSign,
       label: "Nova Venda",
-      color: "bg-success",
+      color: "bg-warning",
       onClick: () => {
         setIsOpen(false);
         navigate("/vendas");
@@ -39,15 +48,6 @@ export function FloatingActionButton({ className }: FloatingActionButtonProps) {
       onClick: () => {
         setIsOpen(false);
         navigate("/aulas");
-      },
-    },
-    {
-      icon: ShoppingCart,
-      label: "Estoque",
-      color: "bg-warning",
-      onClick: () => {
-        setIsOpen(false);
-        navigate("/estoque/trade-ins");
       },
     },
   ];
