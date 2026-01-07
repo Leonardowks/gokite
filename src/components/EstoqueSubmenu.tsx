@@ -59,8 +59,7 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
       title: "Inventário", 
       url: "/estoque/inventario", 
       icon: Warehouse, 
-      disabled: true,
-      tooltip: "Em desenvolvimento - contagem física e conferência de estoque",
+      disabled: false,
     },
   ];
 
@@ -141,14 +140,14 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
           );
 
           // Wrap with tooltip if has tooltip text
-          if (item.tooltip) {
+          if ('tooltip' in item && item.tooltip) {
             return (
               <Tooltip key={item.url}>
                 <TooltipTrigger asChild>
                   {content}
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[200px]">
-                  <p className="text-xs">{item.tooltip}</p>
+                  <p className="text-xs">{String(item.tooltip)}</p>
                 </TooltipContent>
               </Tooltip>
             );
