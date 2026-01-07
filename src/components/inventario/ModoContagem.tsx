@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { useScannerFeedback } from "@/hooks/useScannerFeedback";
 import { cn } from "@/lib/utils";
@@ -118,57 +119,47 @@ export function ModoContagem({ sessao, onScan, onEncerrar }: ModoContagemProps) 
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Scanner Section */}
         <div className="lg:w-1/2 p-4 flex flex-col gap-4">
-          {showScanner ? (
-            <div className="flex-1 relative rounded-xl overflow-hidden border">
-              <BarcodeScanner
-                onScan={handleScan}
-                onClose={() => setShowScanner(false)}
-                isSearching={false}
-              />
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
-              <Button
-                size="lg"
-                className="h-32 w-full max-w-sm gap-4 text-lg"
-                onClick={() => setShowScanner(true)}
-              >
-                <ScanLine className="h-8 w-8" />
-                Abrir Scanner
-              </Button>
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8">
+            <Button
+              size="lg"
+              className="h-32 w-full max-w-sm gap-4 text-lg"
+              onClick={() => setShowScanner(true)}
+            >
+              <ScanLine className="h-8 w-8" />
+              Abrir Scanner
+            </Button>
 
-              <div className="w-full max-w-sm">
-                <form onSubmit={handleManualSubmit} className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Digite o EAN manualmente..."
-                      value={manualInput}
-                      onChange={(e) => setManualInput(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  <Button type="submit" variant="secondary">
-                    Confirmar
-                  </Button>
-                </form>
-              </div>
-
-              {/* Last result feedback */}
-              {lastResult && (
-                <div
-                  className={cn(
-                    "p-4 rounded-xl text-center font-medium transition-all animate-in fade-in slide-in-from-bottom-2",
-                    lastResult.success
-                      ? "bg-success/20 text-success"
-                      : "bg-destructive/20 text-destructive"
-                  )}
-                >
-                  {lastResult.message}
+            <div className="w-full max-w-sm">
+              <form onSubmit={handleManualSubmit} className="flex gap-2">
+                <div className="relative flex-1">
+                  <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Digite o EAN ou nome..."
+                    value={manualInput}
+                    onChange={(e) => setManualInput(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              )}
+                <Button type="submit" variant="secondary">
+                  Confirmar
+                </Button>
+              </form>
             </div>
-          )}
+
+            {/* Last result feedback */}
+            {lastResult && (
+              <div
+                className={cn(
+                  "p-4 rounded-xl text-center font-medium transition-all animate-in fade-in slide-in-from-bottom-2",
+                  lastResult.success
+                    ? "bg-success/20 text-success"
+                    : "bg-destructive/20 text-destructive"
+                )}
+              >
+                {lastResult.message}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Lists Section */}
@@ -244,6 +235,17 @@ export function ModoContagem({ sessao, onScan, onEncerrar }: ModoContagemProps) 
           </div>
         </div>
       </div>
+
+      {/* Scanner Dialog */}
+      <Dialog open={showScanner} onOpenChange={setShowScanner}>
+        <DialogContent className="p-0 max-w-lg h-[85vh] overflow-hidden">
+          <BarcodeScanner
+            onScan={handleScan}
+            onClose={() => setShowScanner(false)}
+            isSearching={false}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

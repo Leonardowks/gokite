@@ -73,14 +73,20 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
     playWarningTone();
   }, [playWarningTone]);
 
+  // Ref to prevent duplicate scans
+  const hasScannedRef = useRef(false);
+  const scannerIdRef = useRef(`barcode-reader`);
+
   useEffect(() => {
     let isMounted = true;
+    let scanner: Html5Qrcode | null = null;
 
     const startScanner = async () => {
       try {
-        if (!containerRef.current) return;
+        const element = document.getElementById(scannerIdRef.current);
+        if (!element || !isMounted) return;
 
-        const scanner = new Html5Qrcode("barcode-reader", {
+        scanner = new Html5Qrcode(scannerIdRef.current, {
           formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
@@ -105,19 +111,21 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
             aspectRatio: 1.777,
           },
           (decodedText) => {
-            if (isMounted && decodedText !== lastScanned) {
+            // Prevent duplicate scans
+            if (!hasScannedRef.current && isMounted) {
+              hasScannedRef.current = true;
               setLastScanned(decodedText);
               setStatus("detected");
               
               // Clear timeouts
               if (timeoutRef.current) clearTimeout(timeoutRef.current);
-              if (attemptTimeoutRef.current) clearTimeout(attemptTimeoutRef.current);
+              if (attemptTimeoutRef.current) clearInterval(attemptTimeoutRef.current);
               
               // Multi-sensory feedback
               feedback('success');
               
               // Visual flash effect
-              const element = document.getElementById("barcode-reader");
+              const element = document.getElementById(scannerIdRef.current);
               if (element) {
                 element.classList.add("ring-4", "ring-success", "scale-[1.02]");
                 setTimeout(() => {
@@ -136,10 +144,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
             }
           },
           () => {
-            // Increment attempt counter periodically
-            if (isMounted && status === "ready") {
-              setAttempts(prev => prev + 1);
-            }
+            // Silently handle scan errors
           }
         );
 
@@ -158,22 +163,35 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
           
           // Set timeout to show manual input option after 8 seconds
           timeoutRef.current = setTimeout(() => {
-            if (isMounted && !lastScanned) {
+            if (isMounted && !hasScannedRef.current) {
               playWarningTone();
             }
           }, 8000);
           
           // Attempt counter timeout
           attemptTimeoutRef.current = setInterval(() => {
-            if (isMounted && !lastScanned) {
+            if (isMounted && !hasScannedRef.current) {
               setAttempts(prev => prev + 1);
             }
           }, 2000);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Scanner error:", err);
         if (isMounted) {
-          setError("Não foi possível acessar a câmera. Verifique as permissões.");
+          // Handle specific camera errors
+          let errorMessage = "Não foi possível acessar a câmera.";
+          
+          if (err?.name === 'NotAllowedError') {
+            errorMessage = "Permissão de câmera negada. Por favor, permita o acesso à câmera nas configurações do navegador.";
+          } else if (err?.name === 'NotFoundError') {
+            errorMessage = "Câmera não encontrada. Verifique se seu dispositivo possui câmera.";
+          } else if (err?.name === 'NotReadableError') {
+            errorMessage = "Câmera em uso por outro aplicativo.";
+          } else if (err?.name === 'OverconstrainedError') {
+            errorMessage = "Câmera traseira não disponível. Tentando câmera frontal...";
+          }
+          
+          setError(errorMessage);
           setStatus("error");
           feedback('error');
         }
@@ -184,13 +202,14 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
 
     return () => {
       isMounted = false;
+      hasScannedRef.current = false;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (attemptTimeoutRef.current) clearInterval(attemptTimeoutRef.current);
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(console.error);
+        scannerRef.current.stop().catch(() => {});
       }
     };
-  }, [onScan, lastScanned, feedback, playWarningTone, status]);
+  }, [onScan, feedback, playWarningTone]);
 
   const handleManualSubmit = () => {
     if (manualCode.length >= 3) {

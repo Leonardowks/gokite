@@ -179,16 +179,23 @@ export function useContagemFisica() {
     return novaSessao;
   }, []);
 
-  const registrarContagem = useCallback((ean: string, quantidade: number = 1) => {
+  const registrarContagem = useCallback((codigo: string, quantidade: number = 1) => {
     if (!sessao) return null;
 
-    const itemIndex = sessao.itensPendentes.findIndex(
-      i => i.ean?.toLowerCase() === ean.toLowerCase()
+    // Buscar por EAN primeiro
+    let itemIndex = sessao.itensPendentes.findIndex(
+      i => i.ean?.toLowerCase() === codigo.toLowerCase()
     );
 
+    // Se não encontrou por EAN, buscar por nome parcial
     if (itemIndex === -1) {
-      // Tentar buscar por nome parcial ou retornar erro
-      return { success: false, error: 'EAN não encontrado' };
+      itemIndex = sessao.itensPendentes.findIndex(
+        i => i.nome.toLowerCase().includes(codigo.toLowerCase())
+      );
+    }
+
+    if (itemIndex === -1) {
+      return { success: false, error: `Código "${codigo}" não encontrado no inventário` };
     }
 
     const item = sessao.itensPendentes[itemIndex];
@@ -251,6 +258,11 @@ export function useAtualizarQuantidadeFisica() {
       novaQuantidade: number;
       motivo?: string;
     }) => {
+      // Validar quantidade
+      if (novaQuantidade < 0) {
+        throw new Error('Quantidade não pode ser negativa');
+      }
+
       // Atualizar equipamento
       const { error: updateError } = await supabase
         .from('equipamentos')

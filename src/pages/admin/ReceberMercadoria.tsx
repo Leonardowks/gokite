@@ -281,7 +281,7 @@ export default function ReceberMercadoria() {
                 <div>
                   <span className="text-muted-foreground">Tamanho:</span>
                   <p className="font-medium">
-                    {"size" in productData ? productData.size : productData.tamanho} || "N/A"
+                    {("size" in productData ? productData.size : productData.tamanho) || "N/A"}
                   </p>
                 </div>
                 {"brand" in productData && (

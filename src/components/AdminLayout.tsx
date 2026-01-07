@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, ShoppingBag, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain, MessageCircle } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { NavLink } from "@/components/NavLink";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { UserMenu } from "@/components/UserMenu";
@@ -305,12 +306,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* "Mais" Menu Sheet */}
       <Sheet open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-        <SheetContent side="bottom" className="rounded-t-3xl max-h-[70vh]">
+        <SheetContent side="bottom" className="rounded-t-3xl max-h-[70vh] flex flex-col">
           <SheetHeader className="pb-4 border-b border-border/50">
             <SheetTitle className="text-left">Mais Opções</SheetTitle>
+            <SheetDescription className="text-left text-sm">
+              Acesse outras funcionalidades do sistema
+            </SheetDescription>
           </SheetHeader>
-          <div className="py-4 space-y-1">
-            {moreMenuItems.map((item) => {
+          <ScrollArea className="flex-1 max-h-[calc(70vh-160px)]">
+            <div className="py-4 space-y-1">
+              {moreMenuItems.map((item) => {
               const active = isActive(item.url);
               return (
                 <NavLink
@@ -339,7 +344,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </NavLink>
               );
             })}
-          </div>
+            </div>
+          </ScrollArea>
           {/* Logout in More Menu */}
           <div className="pt-4 border-t border-border/50">
             <button
