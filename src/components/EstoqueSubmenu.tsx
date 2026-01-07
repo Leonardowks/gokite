@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Package, RefreshCw, Warehouse } from "lucide-react";
+import { Package, RefreshCw, Warehouse, Cloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EstoqueSubmenuProps {
@@ -9,6 +9,7 @@ interface EstoqueSubmenuProps {
 const menuItems = [
   { title: "Equipamentos", url: "/estoque", icon: Package, exact: true },
   { title: "Trade-ins", url: "/estoque/trade-ins", icon: RefreshCw },
+  { title: "Duotone", url: "/estoque/duotone", icon: Cloud },
   { title: "Inventário", url: "/estoque/inventario", icon: Warehouse, disabled: true },
 ];
 
