@@ -142,7 +142,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
                 value={formData.cliente_id}
                 onValueChange={(value) => setFormData({ ...formData, cliente_id: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="min-h-[44px]">
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
@@ -162,7 +162,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
                   value={formData.tipo}
                   onValueChange={(value) => setFormData({ ...formData, tipo: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -182,7 +182,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
                   value={formData.local}
                   onValueChange={(value) => setFormData({ ...formData, local: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -218,7 +218,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
                   value={formData.status}
                   onValueChange={(value) => setFormData({ ...formData, status: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -259,19 +259,19 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
               </div>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1 min-h-[48px]">
+                Cancelar
+              </Button>
               <Button 
                 type="submit" 
-                className="flex-1"
+                className="flex-1 min-h-[48px]"
                 disabled={createAula.isPending || updateAula.isPending}
               >
                 {(createAula.isPending || updateAula.isPending) && (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 )}
                 {aulaId ? "Atualizar" : "Criar"}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
               </Button>
             </div>
           </form>

@@ -159,7 +159,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-2 flex-wrap">
             <DialogTitle>Nova Transação</DialogTitle>
@@ -187,11 +187,11 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
 
         <div className="space-y-4 py-4">
           {/* Tipo */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Button
               type="button"
               variant={formData.tipo === "receita" ? "default" : "outline"}
-              className={formData.tipo === "receita" ? "bg-success hover:bg-success/90" : ""}
+              className={`min-h-[48px] ${formData.tipo === "receita" ? "bg-success hover:bg-success/90" : ""}`}
               onClick={() => setFormData((prev) => ({ ...prev, tipo: "receita" }))}
             >
               <TrendingUp className="h-4 w-4 mr-2" />
@@ -200,7 +200,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
             <Button
               type="button"
               variant={formData.tipo === "despesa" ? "default" : "outline"}
-              className={formData.tipo === "despesa" ? "bg-destructive hover:bg-destructive/90" : ""}
+              className={`min-h-[48px] ${formData.tipo === "despesa" ? "bg-destructive hover:bg-destructive/90" : ""}`}
               onClick={() => setFormData((prev) => ({ ...prev, tipo: "despesa" }))}
             >
               <TrendingDown className="h-4 w-4 mr-2" />
@@ -209,7 +209,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
           </div>
 
           {/* Valor e Custo */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="valor_bruto">Valor Bruto *</Label>
               <div className="relative">
@@ -274,7 +274,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
           </div>
 
           {/* Forma de Pagamento e Parcelas */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Forma de Pagamento</Label>
               <Select
@@ -287,7 +287,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
                   }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -308,7 +308,7 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
                     setFormData((prev) => ({ ...prev, parcelas: parseInt(v) }))
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -326,13 +326,13 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
           {/* Centro de Custo */}
           <div className="space-y-2">
             <Label>Centro de Custo</Label>
-            <Select
+              <Select
               value={formData.centro_de_custo}
               onValueChange={(v) =>
                 setFormData((prev) => ({ ...prev, centro_de_custo: v as any }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="min-h-[44px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -394,14 +394,14 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto min-h-[48px]">
             Cancelar
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={createTransacao.isPending}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto min-h-[48px]"
           >
             {createTransacao.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
