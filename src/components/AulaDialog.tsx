@@ -64,7 +64,7 @@ export function AulaDialog({ open, onOpenChange, onSave, aula }: AulaDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{aula ? "Editar Aula" : "Nova Aula"}</DialogTitle>
           <DialogDescription>
@@ -73,7 +73,7 @@ export function AulaDialog({ open, onOpenChange, onSave, aula }: AulaDialogProps
               : "Crie um novo agendamento de aula."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4 overflow-y-auto flex-1 pr-1">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="tipo_aula">Tipo de Aula</Label>
@@ -213,12 +213,12 @@ export function AulaDialog({ open, onOpenChange, onSave, aula }: AulaDialogProps
             </div>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button type="submit" className="flex-1">
-              {aula ? "Atualizar" : "Criar"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t mt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1 min-h-[48px]">
               Cancelar
+            </Button>
+            <Button type="submit" className="flex-1 min-h-[48px]">
+              {aula ? "Atualizar" : "Criar"}
             </Button>
           </div>
         </form>

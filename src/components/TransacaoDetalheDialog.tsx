@@ -59,7 +59,7 @@ export function TransacaoDetalheDialog({ transacao, open, onOpenChange }: Transa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-xl ${isReceita ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
@@ -76,7 +76,7 @@ export function TransacaoDetalheDialog({ transacao, open, onOpenChange }: Transa
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 mt-4">
+        <div className="space-y-4 mt-4 overflow-y-auto flex-1 pr-1">
           {/* Valor Bruto */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
             <div className="flex items-center gap-2">
