@@ -37,6 +37,8 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
   const [zoom, setZoom] = useState(1);
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
+  const [hasZoom, setHasZoom] = useState(false);
+  const [zoomLimits, setZoomLimits] = useState({ min: 1, max: 3, step: 0.5 });
   const [confirmProgress, setConfirmProgress] = useState(0); // 0-3 confirmation dots
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -137,30 +139,45 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
     }
   }, [feedback, playDetectionBeep]);
 
-  // Toggle torch
+  // Toggle torch - using correct API: torchFeature() is a function
   const toggleTorch = useCallback(async () => {
     if (!scannerRef.current) return;
     
     try {
-      const track = (scannerRef.current as any).getRunningTrackCameraCapabilities?.();
-      if (track?.torchFeature?.isSupported()) {
-        await track.torchFeature.apply(!torchOn);
-        setTorchOn(!torchOn);
+      const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
+      const torch = capabilities.torchFeature();
+      
+      if (torch.isSupported()) {
+        const newState = !torchOn;
+        await torch.apply(newState);
+        setTorchOn(newState);
       }
     } catch (err) {
       console.warn("Torch toggle failed:", err);
     }
   }, [torchOn]);
 
-  // Toggle zoom
+  // Cycle zoom - using correct API: zoomFeature() is a function
   const cycleZoom = useCallback(async () => {
-    const nextZoom = zoom >= 3 ? 1 : zoom + 1;
-    setZoom(nextZoom);
+    if (!scannerRef.current) return;
     
     try {
-      const track = (scannerRef.current as any).getRunningTrackCameraCapabilities?.();
-      if (track?.zoomFeature?.isSupported()) {
-        await track.zoomFeature.apply(nextZoom);
+      const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
+      const zoomCapability = capabilities.zoomFeature();
+      
+      if (zoomCapability.isSupported()) {
+        const minZoom = zoomCapability.min();
+        const maxZoom = zoomCapability.max();
+        const step = zoomCapability.step() || 0.5;
+        
+        // Calculate next zoom level respecting limits
+        let nextZoom = zoom + step;
+        if (nextZoom > maxZoom) {
+          nextZoom = minZoom;
+        }
+        
+        await zoomCapability.apply(nextZoom);
+        setZoom(nextZoom);
       }
     } catch (err) {
       console.warn("Zoom change failed:", err);
@@ -261,15 +278,36 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
       if (started) {
         setStatus("ready");
         
-        // Check for torch capability
-        try {
-          const track = (scannerRef.current as any).getRunningTrackCameraCapabilities?.();
-          if (track?.torchFeature?.isSupported()) {
-            setHasTorch(true);
+        // Detect camera capabilities after a brief delay to ensure camera is ready
+        setTimeout(() => {
+          try {
+            if (!scannerRef.current || !isMountedRef.current) return;
+            
+            const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
+            
+            // Check torch capability
+            const torch = capabilities.torchFeature();
+            if (torch.isSupported()) {
+              setHasTorch(true);
+            }
+            
+            // Check zoom capability
+            const zoomCap = capabilities.zoomFeature();
+            if (zoomCap.isSupported()) {
+              setHasZoom(true);
+              setZoomLimits({
+                min: zoomCap.min(),
+                max: zoomCap.max(),
+                step: zoomCap.step() || 0.5
+              });
+              // Set initial zoom value
+              const currentZoom = zoomCap.value();
+              if (currentZoom) setZoom(currentZoom);
+            }
+          } catch (err) {
+            console.warn("Could not detect camera capabilities:", err);
           }
-        } catch {
-          // Torch not supported
-        }
+        }, 300);
         
         // Show positioning hint after 6 seconds if no scan
         timeoutRef.current = setTimeout(() => {
@@ -407,24 +445,32 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         <div className="flex items-center gap-2">
           {status !== "error" && !showManualInput && (
             <>
+              {/* Torch button - only shows if camera supports it */}
               {hasTorch && (
                 <Button 
                   variant={torchOn ? "default" : "ghost"} 
                   size="icon" 
                   onClick={toggleTorch}
-                  className="h-9 w-9"
+                  className={cn("h-10 w-10", torchOn && "bg-warning text-warning-foreground")}
+                  title="Lanterna"
                 >
-                  <Flashlight className={cn("h-4 w-4", torchOn && "text-warning")} />
+                  <Flashlight className="h-5 w-5" />
                 </Button>
               )}
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={cycleZoom}
-                className="h-9 w-9"
-              >
-                {zoom === 1 ? <ZoomIn className="h-4 w-4" /> : <span className="text-xs font-bold">{zoom}x</span>}
-              </Button>
+              {/* Zoom button - only shows if camera supports it */}
+              {hasZoom && (
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={cycleZoom}
+                  className="h-10 w-10"
+                  title={`Zoom: ${zoom.toFixed(1)}x`}
+                >
+                  {zoom <= zoomLimits.min 
+                    ? <ZoomIn className="h-5 w-5" /> 
+                    : <span className="text-xs font-bold">{zoom.toFixed(1)}x</span>}
+                </Button>
+              )}
             </>
           )}
           <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9">
