@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain, MessageCircle } from "lucide-react";
+import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, ShoppingBag, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain, MessageCircle } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -34,6 +34,7 @@ const allMenuItems = [
   { title: "Trade-ins", url: "/estoque/trade-ins", icon: TrendingUp },
   { title: "Aluguel", url: "/aluguel", icon: Package },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+  { title: "Pedidos", url: "/pedidos", icon: ShoppingBag },
   { title: "E-commerce", url: "/ecommerce", icon: ShoppingCart },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
@@ -55,6 +56,7 @@ const moreMenuItems = [
   { title: "Estoque", url: "/estoque", icon: Package },
   { title: "Trade-ins", url: "/estoque/trade-ins", icon: TrendingUp },
   { title: "Aluguel", url: "/aluguel", icon: Package },
+  { title: "Pedidos", url: "/pedidos", icon: ShoppingBag },
   { title: "E-commerce", url: "/ecommerce", icon: ShoppingCart },
   { title: "Relatórios", url: "/relatorios", icon: BarChart3 },
   { title: "Configurações", url: "/configuracoes", icon: Settings },
