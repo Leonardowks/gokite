@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { AdminLayout } from "@/components/AdminLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
@@ -12,6 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   ScanLine,
   Package,
@@ -551,14 +556,23 @@ export default function ReceberMercadoria() {
         )}
       </PremiumCard>
 
-      {/* Scanner Modal */}
-      {scannerOpen && (
-        <BarcodeScanner
-          onScan={handleScan}
-          onClose={() => setScannerOpen(false)}
-          isSearching={isSearching}
-        />
-      )}
+      {/* Scanner Modal - Dialog para garantir overlay correto no mobile */}
+      <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
+        <DialogContent className="p-0 h-[90vh] max-w-lg overflow-hidden flex flex-col gap-0 [&>button]:hidden">
+          <DialogTitle className="sr-only">Scanner de Código de Barras</DialogTitle>
+          <DialogDescription className="sr-only">
+            Use a câmera para escanear códigos de barras EAN/UPC
+          </DialogDescription>
+          <BarcodeScanner
+            onScan={(code) => {
+              handleScan(code);
+              setScannerOpen(false);
+            }}
+            onClose={() => setScannerOpen(false)}
+            isSearching={isSearching}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Cadastro Rápido Dialog */}
       {activeCode && (
