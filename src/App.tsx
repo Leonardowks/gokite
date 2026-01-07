@@ -28,6 +28,7 @@ const Inteligencia = lazy(() => import("./pages/admin/Inteligencia"));
 const Conversas = lazy(() => import("./pages/Conversas"));
 const ProvisaoImpostos = lazy(() => import("./pages/admin/ProvisaoImpostos"));
 const TradeIns = lazy(() => import("./pages/admin/TradeIns"));
+const Catalogo = lazy(() => import("./pages/Catalogo"));
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,9 @@ const App = () => {
         <Toaster />
         <Sonner />
         <Routes>
+          {/* PUBLIC ROUTES */}
+          <Route path="/catalogo" element={<Suspense fallback={<LayoutSkeleton />}><Catalogo /></Suspense>} />
+          
           {/* LOGIN - Loaded immediately for LCP */}
           <Route path="/login" element={<Login />} />
 
