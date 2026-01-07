@@ -15,8 +15,17 @@ export interface TradeIn {
   status: string;
   transacao_origem_id: string | null;
   notas: string | null;
+  foto_url: string | null;
   created_at: string;
   updated_at: string;
+  // Novos campos estruturados
+  categoria: string | null;
+  marca: string | null;
+  modelo: string | null;
+  tamanho: string | null;
+  ano: number | null;
+  condicao: string | null;
+  fotos: string[];
 }
 
 export interface TradeInInsert {
@@ -27,6 +36,15 @@ export interface TradeInInsert {
   data_entrada?: string;
   transacao_origem_id?: string | null;
   notas?: string | null;
+  foto_url?: string | null;
+  // Novos campos estruturados
+  categoria?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  tamanho?: string | null;
+  ano?: number | null;
+  condicao?: string | null;
+  fotos?: string[];
 }
 
 export interface TradeInUpdate {
@@ -35,6 +53,13 @@ export interface TradeInUpdate {
   comprador_id?: string;
   status?: string;
   notas?: string;
+  categoria?: string;
+  marca?: string;
+  modelo?: string;
+  tamanho?: string;
+  ano?: number;
+  condicao?: string;
+  fotos?: string[];
 }
 
 export const useTradeIns = (options?: { status?: string; limit?: number }) => {

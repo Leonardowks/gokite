@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Camera, Search, Package, DollarSign, Upload, X, CheckCircle, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Package, DollarSign, X, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { MediaGallery } from "@/components/MediaGallery";
+import { CATEGORIAS, CONDICOES, MARCAS_COMUNS, formatNomeEquipamento } from "@/lib/tradeInConfig";
 
 interface TradeInRapidoDrawerProps {
   open: boolean;
@@ -38,21 +40,28 @@ interface ClienteOption {
 export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [busca, setBusca] = useState("");
   const [clientes, setClientes] = useState<ClienteOption[]>([]);
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteOption | null>(null);
   const [buscando, setBuscando] = useState(false);
   
-  const [equipamento, setEquipamento] = useState("");
+  // Campos estruturados
+  const [categoria, setCategoria] = useState<string>("");
+  const [marca, setMarca] = useState<string>("");
+  const [modelo, setModelo] = useState<string>("");
+  const [tamanho, setTamanho] = useState<string>("");
+  const [ano, setAno] = useState<string>("");
+  const [condicao, setCondicao] = useState<string>("usado_bom");
+  
   const [descricao, setDescricao] = useState("");
-  const [estado, setEstado] = useState<"novo" | "usado">("usado");
   const [valorAcordado, setValorAcordado] = useState("");
-  const [foto, setFoto] = useState<File | null>(null);
-  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotos, setFotos] = useState<string[]>([]);
   
   const [salvando, setSalvando] = useState(false);
+
+  // Gera nome do equipamento automaticamente
+  const nomeEquipamento = formatNomeEquipamento(marca, modelo, tamanho);
 
   const buscarClientes = async (termo: string) => {
     if (termo.length < 2) {
@@ -89,47 +98,26 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
     setClientes([]);
   };
 
-  const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFoto(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const tirarFoto = () => {
-    fileInputRef.current?.click();
-  };
-
-  const removerFoto = () => {
-    setFoto(null);
-    setFotoPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
   const resetForm = () => {
     setBusca("");
     setClientes([]);
     setClienteSelecionado(null);
-    setEquipamento("");
+    setCategoria("");
+    setMarca("");
+    setModelo("");
+    setTamanho("");
+    setAno("");
+    setCondicao("usado_bom");
     setDescricao("");
-    setEstado("usado");
     setValorAcordado("");
-    setFoto(null);
-    setFotoPreview(null);
+    setFotos([]);
   };
 
   const confirmarEntrada = async () => {
-    if (!equipamento || !valorAcordado) {
+    if (!categoria || !valorAcordado) {
       toast({
         title: "Campos obrigatórios",
-        description: "Informe o nome do equipamento e valor acordado.",
+        description: "Informe a categoria e valor acordado.",
         variant: "destructive",
       });
       return;
@@ -145,35 +133,25 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
       return;
     }
 
+    const equipamentoNome = nomeEquipamento || `${CATEGORIAS.find(c => c.value === categoria)?.label || 'Equipamento'}`;
+
     setSalvando(true);
     try {
-      let fotoUrl: string | null = null;
-
-      // Upload da foto se existir
-      if (foto) {
-        const fileName = `trade-in-${Date.now()}-${foto.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("whatsapp-media")
-          .upload(`trade-ins/${fileName}`, foto);
-
-        if (uploadError) {
-          console.error("Erro no upload:", uploadError);
-        } else if (uploadData) {
-          const { data: urlData } = supabase.storage
-            .from("whatsapp-media")
-            .getPublicUrl(`trade-ins/${fileName}`);
-          fotoUrl = urlData.publicUrl;
-        }
-      }
-
-      // Criar trade-in
+      // Criar trade-in com campos estruturados
       const { error: tradeInError } = await supabase.from("trade_ins").insert({
-        equipamento_recebido: equipamento,
-        descricao: descricao || `${estado === "novo" ? "Novo" : "Usado"}`,
+        equipamento_recebido: equipamentoNome,
+        descricao: descricao || null,
         valor_entrada: valor,
         status: "em_estoque",
-        notas: clienteSelecionado ? `Cliente: ${clienteSelecionado.nome}` : undefined,
-        foto_url: fotoUrl,
+        notas: clienteSelecionado ? `Cliente: ${clienteSelecionado.nome}` : null,
+        foto_url: fotos[0] || null,
+        categoria,
+        marca: marca || null,
+        modelo: modelo || null,
+        tamanho: tamanho || null,
+        ano: ano ? parseInt(ano) : null,
+        condicao,
+        fotos,
       });
 
       if (tradeInError) throw tradeInError;
@@ -201,7 +179,7 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
 
       toast({
         title: "✅ Trade-in registrado!",
-        description: `${equipamento} entrou no estoque por R$ ${valor.toFixed(2)}`,
+        description: `${equipamentoNome} entrou no estoque por R$ ${valor.toFixed(2)}`,
       });
 
       resetForm();
@@ -218,20 +196,23 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
     }
   };
 
+  // Anos para o select (últimos 10 anos)
+  const anosDisponiveis = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[95vh]">
-        <DrawerHeader className="text-left">
+      <DrawerContent className="max-h-[95vh] flex flex-col">
+        <DrawerHeader className="text-left shrink-0">
           <DrawerTitle className="flex items-center gap-2 text-xl">
             <Package className="h-5 w-5 text-primary" />
             Trade-in Rápido
           </DrawerTitle>
           <DrawerDescription>
-            Registre a entrada de equipamento usado em menos de 30 segundos
+            Registre a entrada de equipamento usado
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="px-4 space-y-4 overflow-y-auto flex-1">
+        <div className="px-4 space-y-4 overflow-y-auto flex-1 pb-4">
           {/* Busca de Cliente */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Cliente (opcional)</Label>
@@ -283,105 +264,158 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
             )}
           </div>
 
-          {/* Nome do Equipamento */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">
-              Equipamento <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              placeholder="Ex: Rebel 12m 2022"
-              value={equipamento}
-              onChange={(e) => setEquipamento(e.target.value)}
-              className="min-h-[48px]"
-            />
-          </div>
-
-          {/* Estado e Valor */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Categoria e Marca */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Estado</Label>
-              <Select value={estado} onValueChange={(v) => setEstado(v as "novo" | "usado")}>
+              <Label className="text-sm font-medium">
+                Categoria <span className="text-destructive">*</span>
+              </Label>
+              <Select value={categoria} onValueChange={setCategoria}>
                 <SelectTrigger className="min-h-[48px]">
-                  <SelectValue />
+                  <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="usado">🔄 Usado</SelectItem>
-                  <SelectItem value="novo">✨ Novo</SelectItem>
+                  {CATEGORIAS.map((cat) => (
+                    <SelectItem key={cat.value} value={cat.value}>
+                      {cat.icon} {cat.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
+              <Label className="text-sm font-medium">Marca</Label>
+              <Select value={marca} onValueChange={setMarca}>
+                <SelectTrigger className="min-h-[48px]">
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {MARCAS_COMUNS.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Modelo e Ano */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Modelo</Label>
+              <Input
+                placeholder="Ex: Rebel, Evo..."
+                value={modelo}
+                onChange={(e) => setModelo(e.target.value)}
+                className="min-h-[48px]"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Ano</Label>
+              <Select value={ano} onValueChange={setAno}>
+                <SelectTrigger className="min-h-[48px]">
+                  <SelectValue placeholder="Ano" />
+                </SelectTrigger>
+                <SelectContent>
+                  {anosDisponiveis.map((a) => (
+                    <SelectItem key={a} value={a.toString()}>
+                      {a}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Tamanho e Condição */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Tamanho</Label>
+              <Input
+                placeholder="Ex: 12m, 142cm..."
+                value={tamanho}
+                onChange={(e) => setTamanho(e.target.value)}
+                className="min-h-[48px]"
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label className="text-sm font-medium">
-                Valor Acordado <span className="text-destructive">*</span>
+                Condição <span className="text-destructive">*</span>
               </Label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="0,00"
-                  value={valorAcordado}
-                  onChange={(e) => setValorAcordado(e.target.value)}
-                  className="pl-10 min-h-[48px]"
-                  inputMode="decimal"
-                />
-              </div>
+              <Select value={condicao} onValueChange={setCondicao}>
+                <SelectTrigger className="min-h-[48px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CONDICOES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      <span className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${c.color}`} />
+                        {c.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Nome gerado automaticamente */}
+          {nomeEquipamento && (
+            <div className="p-3 bg-muted/50 rounded-lg border">
+              <p className="text-xs text-muted-foreground mb-1">Nome do equipamento:</p>
+              <p className="font-medium">{nomeEquipamento}</p>
+            </div>
+          )}
+
+          {/* Valor */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Valor Acordado <span className="text-destructive">*</span>
+            </Label>
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="0,00"
+                value={valorAcordado}
+                onChange={(e) => setValorAcordado(e.target.value)}
+                className="pl-10 min-h-[48px] text-lg font-semibold"
+                inputMode="decimal"
+              />
             </div>
           </div>
 
           {/* Descrição */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Descrição (opcional)</Label>
+            <Label className="text-sm font-medium">Observações (opcional)</Label>
             <Textarea
-              placeholder="Detalhes, condição, observações..."
+              placeholder="Detalhes, danos, peças faltando..."
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              className="min-h-[80px] resize-none"
+              className="min-h-[70px] resize-none"
             />
           </div>
 
-          {/* Foto */}
+          {/* Galeria de Fotos */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Foto do Equipamento</Label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleFotoChange}
-              className="hidden"
+            <Label className="text-sm font-medium">Fotos do Equipamento</Label>
+            <MediaGallery
+              fotos={fotos}
+              onFotosChange={setFotos}
+              maxFotos={6}
+              bucketPath="trade-ins"
             />
-            
-            {fotoPreview ? (
-              <div className="relative aspect-video rounded-xl overflow-hidden border">
-                <img
-                  src={fotoPreview}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  onClick={removerFoto}
-                  className="absolute top-2 right-2 p-2 bg-background/80 rounded-full hover:bg-background"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={tirarFoto}
-                className="w-full min-h-[80px] flex flex-col gap-2 border-dashed"
-              >
-                <Camera className="h-6 w-6" />
-                <span className="text-sm">Tirar Foto / Upload</span>
-              </Button>
-            )}
           </div>
         </div>
 
-        <DrawerFooter className="pt-4">
+        <DrawerFooter className="pt-4 shrink-0 border-t">
           <Button
             onClick={confirmarEntrada}
-            disabled={salvando || !equipamento || !valorAcordado}
+            disabled={salvando || !categoria || !valorAcordado}
             className="w-full min-h-[52px] text-base font-medium gap-2"
           >
             {salvando ? (
