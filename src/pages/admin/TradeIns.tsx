@@ -15,6 +15,8 @@ import {
   Tag,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
+  List,
 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -23,6 +25,7 @@ import { useTradeIns, useTradeInsSummary, TradeIn } from "@/hooks/useTradeIns";
 import { SkeletonPremium } from "@/components/ui/skeleton-premium";
 import { TradeInRapidoDrawer } from "@/components/TradeInRapidoDrawer";
 import { VenderTradeInDialog } from "@/components/VenderTradeInDialog";
+import { TradeInsInsights } from "@/components/trade-ins/TradeInsInsights";
 import { format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -38,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 export default function TradeIns() {
@@ -224,7 +228,21 @@ export default function TradeIns() {
         </PremiumCard>
       </div>
 
-      {/* Filtros */}
+      {/* Tabs: Estoque / Insights */}
+      <Tabs defaultValue="estoque" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="estoque" className="gap-2">
+            <List className="h-4 w-4" />
+            Estoque
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Insights
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="estoque" className="mt-4 space-y-4">
+          {/* Filtros */}
       <PremiumCard>
         <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-3">
@@ -351,6 +369,12 @@ export default function TradeIns() {
           })}
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="insights" className="mt-4">
+          <TradeInsInsights tradeIns={tradeIns || []} />
+        </TabsContent>
+      </Tabs>
 
       {/* Drawers e Dialogs */}
       <TradeInRapidoDrawer open={tradeInDrawerOpen} onOpenChange={setTradeInDrawerOpen} />
