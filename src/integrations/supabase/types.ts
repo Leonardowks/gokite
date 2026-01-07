@@ -216,6 +216,7 @@ export type Database = {
           id: string
           nome: string
           status: string | null
+          store_credit: number | null
           tags: string[] | null
           telefone: string | null
           updated_at: string | null
@@ -227,6 +228,7 @@ export type Database = {
           id?: string
           nome: string
           status?: string | null
+          store_credit?: number | null
           tags?: string[] | null
           telefone?: string | null
           updated_at?: string | null
@@ -238,6 +240,7 @@ export type Database = {
           id?: string
           nome?: string
           status?: string | null
+          store_credit?: number | null
           tags?: string[] | null
           telefone?: string | null
           updated_at?: string | null
@@ -941,6 +944,7 @@ export type Database = {
           descricao: string | null
           equipamento_id_entrada: string | null
           equipamento_recebido: string
+          foto_url: string | null
           id: string
           lucro_trade_in: number | null
           notas: string | null
@@ -958,6 +962,7 @@ export type Database = {
           descricao?: string | null
           equipamento_id_entrada?: string | null
           equipamento_recebido: string
+          foto_url?: string | null
           id?: string
           lucro_trade_in?: number | null
           notas?: string | null
@@ -975,6 +980,7 @@ export type Database = {
           descricao?: string | null
           equipamento_id_entrada?: string | null
           equipamento_recebido?: string
+          foto_url?: string | null
           id?: string
           lucro_trade_in?: number | null
           notas?: string | null
