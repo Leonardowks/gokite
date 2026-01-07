@@ -267,9 +267,19 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
       if (progressResetRef.current) clearTimeout(progressResetRef.current);
       videoTrackRef.current = null;
       
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
+      const currentScanner = scannerRef.current;
+      scannerRef.current = null;
+      
+      if (currentScanner) {
+        try {
+          const state = currentScanner.getState();
+          // Only stop if scanner is actually running or paused
+          if (state === 2 || state === 3) { // SCANNING = 2, PAUSED = 3
+            currentScanner.stop().catch(() => {});
+          }
+        } catch {
+          // Scanner not initialized, ignore
+        }
       }
     };
   }, [feedback, playWarningTone, handleBarcodeRead]);
