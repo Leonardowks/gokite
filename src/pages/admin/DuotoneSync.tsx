@@ -28,6 +28,7 @@ import {
   Sparkles,
   ExternalLink,
   ShoppingCart,
+  Percent,
 } from "lucide-react";
 import {
   useSyncSupplier,
@@ -46,6 +47,7 @@ export default function DuotoneSync() {
   const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("novidades");
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
+  const [globalMargin, setGlobalMargin] = useState<number>(40);
 
   const { data: savedUrl } = useSupplierSheetUrl();
   const { data: stats, isLoading: statsLoading } = useSupplierStats();
@@ -95,6 +97,22 @@ export default function DuotoneSync() {
     if (margin >= 30) return "text-green-600";
     if (margin >= 15) return "text-yellow-600";
     return "text-red-600";
+  };
+
+  const handleApplyGlobalMargin = () => {
+    if (selectedSkus.size === 0) {
+      toast.error("Selecione pelo menos um produto");
+      return;
+    }
+
+    const newPrices = { ...customPrices };
+    syncResult?.new_products
+      .filter((p) => selectedSkus.has(p.sku))
+      .forEach((p) => {
+        newPrices[p.sku] = Math.round(p.cost_price * (1 + globalMargin / 100));
+      });
+    setCustomPrices(newPrices);
+    toast.success(`Margem de ${globalMargin}% aplicada a ${selectedSkus.size} produto(s)`);
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -359,7 +377,42 @@ export default function DuotoneSync() {
                   </p>
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <>
+                  {/* Controle de Margem Global */}
+                  <div className="flex items-center gap-4 p-4 mb-4 rounded-lg bg-muted/50 border">
+                    <div className="flex items-center gap-2">
+                      <Percent className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Margem Global:</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number"
+                        value={globalMargin}
+                        onChange={(e) => setGlobalMargin(Number(e.target.value))}
+                        className="w-20 text-center"
+                        min={0}
+                        max={200}
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                    
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleApplyGlobalMargin}
+                      disabled={selectedSkus.size === 0}
+                      className="gap-2"
+                    >
+                      Aplicar aos {selectedSkus.size} Selecionado(s)
+                    </Button>
+                    
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      Fórmula: Custo × {(1 + globalMargin / 100).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -449,7 +502,8 @@ export default function DuotoneSync() {
                       })}
                     </TableBody>
                   </Table>
-                </div>
+                  </div>
+                </>
               )}
             </TabsContent>
 
