@@ -122,7 +122,7 @@ export function AluguelDialog({ open, onOpenChange, onSave, isLoading }: Aluguel
           </div>
 
           {/* Datas */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -132,7 +132,7 @@ export function AluguelDialog({ open, onOpenChange, onSave, isLoading }: Aluguel
                 type="date"
                 value={dataInicio}
                 onChange={(e) => setDataInicio(e.target.value)}
-                className="min-h-[44px]"
+                className="min-h-[48px]"
               />
             </div>
             <div className="space-y-2">
@@ -145,7 +145,7 @@ export function AluguelDialog({ open, onOpenChange, onSave, isLoading }: Aluguel
                 value={dataFim}
                 onChange={(e) => setDataFim(e.target.value)}
                 min={dataInicio}
-                className="min-h-[44px]"
+                className="min-h-[48px]"
               />
             </div>
           </div>
@@ -178,19 +178,19 @@ export function AluguelDialog({ open, onOpenChange, onSave, isLoading }: Aluguel
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1 min-h-[44px]"
+              className="w-full sm:flex-1 min-h-[48px]"
               disabled={isLoading}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="flex-1 min-h-[44px]"
+              className="w-full sm:flex-1 min-h-[48px]"
               disabled={isLoading || !clienteId || !equipamentoId}
             >
               {isLoading ? (

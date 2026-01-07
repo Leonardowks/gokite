@@ -135,7 +135,7 @@ export function CampanhaDialog({ open, onOpenChange, filtros, contatos }: Campan
           </div>
 
           {/* Nome e Descrição */}
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome da Campanha *</Label>
               <Input
@@ -143,6 +143,7 @@ export function CampanhaDialog({ open, onOpenChange, filtros, contatos }: Campan
                 placeholder="Ex: Reativação Janeiro 2026"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
+                className="min-h-[48px]"
               />
             </div>
             <div className="space-y-2">
@@ -152,6 +153,7 @@ export function CampanhaDialog({ open, onOpenChange, filtros, contatos }: Campan
                 placeholder="Descrição opcional..."
                 value={descricao}
                 onChange={(e) => setDescricao(e.target.value)}
+                className="min-h-[48px]"
               />
             </div>
           </div>
@@ -221,13 +223,18 @@ export function CampanhaDialog({ open, onOpenChange, filtros, contatos }: Campan
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto min-h-[48px]"
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleCriar}
             disabled={criarCampanhaMutation.isPending || !nome.trim()}
+            className="w-full sm:w-auto min-h-[48px]"
           >
             {criarCampanhaMutation.isPending ? 'Salvando...' : 'Salvar Campanha'}
           </Button>

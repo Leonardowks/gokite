@@ -297,7 +297,7 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
           </div>
 
           {/* Estado e Valor */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Estado</Label>
               <Select value={estado} onValueChange={(v) => setEstado(v as "novo" | "usado")}>
