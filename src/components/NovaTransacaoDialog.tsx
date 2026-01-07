@@ -25,6 +25,7 @@ import { Loader2, Save, Sparkles, TrendingUp, TrendingDown, CreditCard, Landmark
 import { useCreateTransacao, useConfigFinanceiro, getTaxaCartao } from "@/hooks/useTransacoes";
 import { useOfflineTransacoes } from "@/hooks/useOfflineTransacoes";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { useTaxRulesMap, getTaxRateFromMap } from "@/hooks/useTaxRulesByCategory";
 import type { ParsedTransaction } from "./QuickFinancialEntry";
 
 interface NovaTransacaoDialogProps {
@@ -36,6 +37,7 @@ interface NovaTransacaoDialogProps {
 export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTransacaoDialogProps) {
   const createTransacao = useCreateTransacao();
   const { data: config } = useConfigFinanceiro();
+  const { data: taxRulesMap } = useTaxRulesMap();
   const { isOnline, addTransacao } = useOfflineTransacoes();
   const haptic = useHapticFeedback();
 
@@ -82,12 +84,17 @@ export function NovaTransacaoDialog({ open, onOpenChange, initialData }: NovaTra
     }
   }, [open]);
 
-  // Calcular preview das taxas e lucro
+  // Calcular preview das taxas e lucro (usando tax_rules por categoria)
+  const categoryRates = getTaxRateFromMap(taxRulesMap, formData.origem);
+  
   const taxaCartaoPercent = formData.forma_pagamento === "pix"
     ? (config?.taxa_pix || 0)
-    : getTaxaCartao(config?.taxas_cartao, formData.forma_pagamento, formData.parcelas);
+    : formData.forma_pagamento === "dinheiro"
+      ? 0
+      : getTaxaCartao(config?.taxas_cartao, formData.forma_pagamento, formData.parcelas);
 
-  const taxaImpostoPercent = config?.taxa_imposto_padrao || 6;
+  // Usar taxa de imposto específica da categoria (tax_rules)
+  const taxaImpostoPercent = categoryRates.taxRate;
 
   const taxaCartaoValor = formData.tipo === "receita"
     ? (formData.valor_bruto * taxaCartaoPercent) / 100
