@@ -577,37 +577,49 @@ export type Database = {
       }
       equipamentos: {
         Row: {
+          cost_price: number | null
           created_at: string | null
           data_proxima_manutencao: string | null
           id: string
           localizacao: string | null
           nome: string
           preco_aluguel_dia: number
+          sale_price: number | null
+          source_type: string | null
           status: string | null
+          supplier_sku: string | null
           tamanho: string | null
           tipo: string
           updated_at: string | null
         }
         Insert: {
+          cost_price?: number | null
           created_at?: string | null
           data_proxima_manutencao?: string | null
           id?: string
           localizacao?: string | null
           nome: string
           preco_aluguel_dia: number
+          sale_price?: number | null
+          source_type?: string | null
           status?: string | null
+          supplier_sku?: string | null
           tamanho?: string | null
           tipo: string
           updated_at?: string | null
         }
         Update: {
+          cost_price?: number | null
           created_at?: string | null
           data_proxima_manutencao?: string | null
           id?: string
           localizacao?: string | null
           nome?: string
           preco_aluguel_dia?: number
+          sale_price?: number | null
+          source_type?: string | null
           status?: string | null
+          supplier_sku?: string | null
           tamanho?: string | null
           tipo?: string
           updated_at?: string | null
@@ -835,6 +847,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      supplier_catalogs: {
+        Row: {
+          brand: string | null
+          category: string | null
+          color: string | null
+          cost_price: number
+          created_at: string | null
+          id: string
+          last_synced_at: string | null
+          product_name: string
+          sheet_url: string | null
+          size: string | null
+          sku: string
+          supplier_name: string | null
+          supplier_stock_qty: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          color?: string | null
+          cost_price: number
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          product_name: string
+          sheet_url?: string | null
+          size?: string | null
+          sku: string
+          supplier_name?: string | null
+          supplier_stock_qty?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          color?: string | null
+          cost_price?: number
+          created_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          product_name?: string
+          sheet_url?: string | null
+          size?: string | null
+          sku?: string
+          supplier_name?: string | null
+          supplier_stock_qty?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       sync_jobs: {
         Row: {
