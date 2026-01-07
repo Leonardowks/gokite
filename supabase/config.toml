@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.sync-supplier]
 verify_jwt = false
+
+[functions.sync-inventory-nuvemshop]
+verify_jwt = false
