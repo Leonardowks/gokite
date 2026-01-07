@@ -21,7 +21,7 @@ import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { useDebounce } from "@/hooks/useDebounce";
-import { VirtualizedClienteList, VirtualizedClienteTable } from "@/components/clientes";
+import { VirtualizedClienteList, VirtualizedClienteTable, ClienteDetalhesDrawer } from "@/components/clientes";
 import { useClientesListagem, useCreateCliente, useUpdateCliente, type ClienteComAulas } from "@/hooks/useSupabaseClientes";
 import { localStorageService, type Lead } from "@/lib/localStorage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,6 +30,8 @@ export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<ClienteComAulas | undefined>();
+  const [detalhesCliente, setDetalhesCliente] = useState<ClienteComAulas | null>(null);
+  const [detalhesOpen, setDetalhesOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("clientes");
   const [filtroScore, setFiltroScore] = useState<'todos' | 'urgente' | 'quente' | 'morno'>('todos');
   const [leads, setLeads] = useState<Lead[]>(() => localStorageService.listarLeads());
@@ -57,6 +59,11 @@ export default function Clientes() {
   const handleCloseDialog = useCallback(() => {
     setDialogOpen(false);
     setSelectedCliente(undefined);
+  }, []);
+
+  const handleViewDetails = useCallback((cliente: ClienteComAulas) => {
+    setDetalhesCliente(cliente);
+    setDetalhesOpen(true);
   }, []);
 
   const handleSave = useCallback(async (data: { nome: string; email: string; telefone: string }) => {
@@ -280,7 +287,8 @@ export default function Clientes() {
                   <div className="md:hidden">
                     <VirtualizedClienteList 
                       clientes={clientes} 
-                      onEdit={handleEdit} 
+                      onEdit={handleEdit}
+                      onViewDetails={handleViewDetails}
                     />
                   </div>
 
@@ -288,7 +296,7 @@ export default function Clientes() {
                   <div className="hidden md:block">
                     <VirtualizedClienteTable 
                       clientes={clientes} 
-                      onEdit={handleEdit} 
+                      onEdit={handleEdit}
                     />
                   </div>
                 </>
@@ -550,6 +558,13 @@ export default function Clientes() {
         onSave={handleSave}
         cliente={selectedCliente}
         isLoading={isSaving}
+      />
+
+      <ClienteDetalhesDrawer
+        open={detalhesOpen}
+        onOpenChange={setDetalhesOpen}
+        cliente={detalhesCliente}
+        onEdit={handleEdit}
       />
     </div>
   );

@@ -11,6 +11,8 @@ export interface ClienteComAulas {
   telefone: string | null;
   status: string | null;
   tags: string[] | null;
+  store_credit: number;
+  created_at: string | null;
   total_aulas: number;
   ultima_aula: string | null;
 }
@@ -26,7 +28,7 @@ export function useClientesListagem(searchTerm?: string) {
       // Buscar clientes
       let query = supabase
         .from('clientes')
-        .select('id, nome, email, telefone, status, tags')
+        .select('id, nome, email, telefone, status, tags, store_credit, created_at')
         .order('nome', { ascending: true });
 
       if (searchTerm && searchTerm.trim()) {
@@ -78,7 +80,7 @@ export function useClientesInfinite(searchTerm?: string) {
     queryFn: async ({ pageParam = 0 }): Promise<ClienteComAulas[]> => {
       let query = supabase
         .from('clientes')
-        .select('id, nome, email, telefone, status, tags')
+        .select('id, nome, email, telefone, status, tags, store_credit, created_at')
         .order('nome', { ascending: true })
         .range(pageParam * PAGE_SIZE, (pageParam + 1) * PAGE_SIZE - 1);
 

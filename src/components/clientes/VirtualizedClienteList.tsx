@@ -6,9 +6,10 @@ import type { ClienteComAulas } from "@/hooks/useSupabaseClientes";
 interface VirtualizedClienteListProps {
   clientes: ClienteComAulas[];
   onEdit: (cliente: ClienteComAulas) => void;
+  onViewDetails?: (cliente: ClienteComAulas) => void;
 }
 
-export function VirtualizedClienteList({ clientes, onEdit }: VirtualizedClienteListProps) {
+export function VirtualizedClienteList({ clientes, onEdit, onViewDetails }: VirtualizedClienteListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -21,6 +22,10 @@ export function VirtualizedClienteList({ clientes, onEdit }: VirtualizedClienteL
   const handleEdit = useCallback((cliente: ClienteComAulas) => {
     onEdit(cliente);
   }, [onEdit]);
+
+  const handleViewDetails = useCallback((cliente: ClienteComAulas) => {
+    onViewDetails?.(cliente);
+  }, [onViewDetails]);
 
   return (
     <div 
@@ -52,6 +57,7 @@ export function VirtualizedClienteList({ clientes, onEdit }: VirtualizedClienteL
               <ClienteCard 
                 cliente={cliente} 
                 onEdit={handleEdit}
+                onViewDetails={onViewDetails ? handleViewDetails : undefined}
               />
             </div>
           );
