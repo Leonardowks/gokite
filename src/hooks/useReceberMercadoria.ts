@@ -87,6 +87,14 @@ export function useSearchByEan(ean: string | null) {
   });
 }
 
+interface AtualizacaoCusto {
+  custoAntigo: number;
+  custoNovo: number;
+  precoVendaAntigo: number;
+  precoVendaNovo: number;
+  percentualVariacao: number;
+}
+
 interface EntradaData {
   source: "supplier" | "equipamento";
   supplierId?: string;
@@ -96,6 +104,11 @@ interface EntradaData {
   // For supplier imports
   supplierProduct?: SupplierProduct;
   precoVenda?: number;
+  // For cost updates
+  atualizarCusto?: {
+    custoNovo: number;
+    precoVendaNovo?: number;
+  };
 }
 
 export function useConfirmarEntrada() {
@@ -154,7 +167,7 @@ export function useConfirmarEntrada() {
         // Update existing equipamento quantity
         const { data: equipamento, error: fetchError } = await supabase
           .from("equipamentos")
-          .select("quantidade_fisica")
+          .select("quantidade_fisica, cost_price, sale_price")
           .eq("id", data.equipamentoId)
           .single();
 
@@ -162,13 +175,26 @@ export function useConfirmarEntrada() {
 
         const novaQuantidade = (equipamento.quantidade_fisica || 0) + data.quantidade;
 
+        // Prepare update data
+        const updateData: Record<string, unknown> = {
+          quantidade_fisica: novaQuantidade,
+          source_type: "owned",
+          status: "disponivel",
+        };
+
+        // Apply cost update if provided
+        let notasMovimentacao = data.notas || "Entrada via scanner - Reposição de estoque";
+        if (data.atualizarCusto) {
+          updateData.cost_price = data.atualizarCusto.custoNovo;
+          if (data.atualizarCusto.precoVendaNovo) {
+            updateData.sale_price = data.atualizarCusto.precoVendaNovo;
+          }
+          notasMovimentacao += ` | Custo atualizado: R$ ${equipamento.cost_price} → R$ ${data.atualizarCusto.custoNovo}`;
+        }
+
         const { data: updated, error: updateError } = await supabase
           .from("equipamentos")
-          .update({
-            quantidade_fisica: novaQuantidade,
-            source_type: "owned",
-            status: "disponivel",
-          })
+          .update(updateData)
           .eq("id", data.equipamentoId)
           .select()
           .single();
@@ -181,7 +207,7 @@ export function useConfirmarEntrada() {
           tipo: "entrada_fisica",
           quantidade: data.quantidade,
           origem: "scanner",
-          notas: data.notas || "Entrada via scanner - Reposição de estoque",
+          notas: notasMovimentacao,
         });
 
         // Trigger Nuvemshop sync
@@ -211,6 +237,58 @@ export function useConfirmarEntrada() {
       console.error("Entrada error:", error);
       toast.error("Erro ao registrar entrada");
     },
+  });
+}
+
+// Hook to check for cost updates when scanning existing equipment
+export function useVerificarAtualizacaoCusto(equipamentoId: string | null, ean: string | null) {
+  return useQuery({
+    queryKey: ["verificar-custo", equipamentoId, ean],
+    queryFn: async (): Promise<AtualizacaoCusto | null> => {
+      if (!equipamentoId || !ean) return null;
+
+      // Get current supplier price
+      const { data: supplier } = await supabase
+        .from("supplier_catalogs")
+        .select("cost_price")
+        .or(`ean.eq.${ean},sku.eq.${ean}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (!supplier?.cost_price) return null;
+
+      // Get current equipment price
+      const { data: equipamento } = await supabase
+        .from("equipamentos")
+        .select("cost_price, sale_price")
+        .eq("id", equipamentoId)
+        .single();
+
+      if (!equipamento?.cost_price) return null;
+
+      // Check if prices differ
+      if (Math.abs(equipamento.cost_price - supplier.cost_price) < 0.01) {
+        return null; // No significant difference
+      }
+
+      // Calculate current margin
+      const margemAtual = equipamento.sale_price 
+        ? (equipamento.sale_price - equipamento.cost_price) / equipamento.cost_price
+        : 0.4; // Default 40% margin
+
+      // Calculate new sale price maintaining margin
+      const novoPrecoVenda = Math.round(supplier.cost_price * (1 + margemAtual));
+      const percentualVariacao = ((supplier.cost_price - equipamento.cost_price) / equipamento.cost_price) * 100;
+
+      return {
+        custoAntigo: equipamento.cost_price,
+        custoNovo: supplier.cost_price,
+        precoVendaAntigo: equipamento.sale_price || 0,
+        precoVendaNovo: novoPrecoVenda,
+        percentualVariacao,
+      };
+    },
+    enabled: !!equipamentoId && !!ean,
   });
 }
 
