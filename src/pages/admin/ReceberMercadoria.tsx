@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/AdminLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   ScanLine,
   Package,
@@ -20,8 +21,12 @@ import {
   Minus,
   Keyboard,
   Camera,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
 } from "lucide-react";
-import { useSearchByEan, useConfirmarEntrada, useMovimentacoesRecentes } from "@/hooks/useReceberMercadoria";
+import { useSearchByEan, useConfirmarEntrada, useMovimentacoesRecentes, useVerificarAtualizacaoCusto } from "@/hooks/useReceberMercadoria";
+import { useScannerFeedback } from "@/hooks/useScannerFeedback";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -34,17 +39,45 @@ export default function ReceberMercadoria() {
   const [notas, setNotas] = useState("");
   const [precoVenda, setPrecoVenda] = useState<number | null>(null);
   const [mode, setMode] = useState<"scan" | "manual">("scan");
+  const [manterPrecoAntigo, setManterPrecoAntigo] = useState(false);
+
+  const { feedback } = useScannerFeedback();
 
   const activeCode = mode === "scan" ? scannedCode : manualCode;
   const { data: searchResult, isLoading: isSearching } = useSearchByEan(activeCode);
   const { mutate: confirmarEntrada, isPending: isConfirming } = useConfirmarEntrada();
   const { data: movimentacoes } = useMovimentacoesRecentes(5);
 
+  // Check for cost updates when equipment is found
+  const equipamentoId = searchResult?.source === "equipamento" ? searchResult.equipamento?.id : null;
+  const equipamentoEan = searchResult?.equipamento?.ean || activeCode;
+  const { data: atualizacaoCusto } = useVerificarAtualizacaoCusto(
+    equipamentoId || null,
+    equipamentoEan || null
+  );
+
+  // Provide feedback when search result changes
+  useEffect(() => {
+    if (!isSearching && activeCode) {
+      if (searchResult?.found) {
+        // Product found - success feedback
+        if (atualizacaoCusto) {
+          // Cost changed - warning feedback
+          feedback('warning');
+        }
+      } else {
+        // Not found - error feedback
+        feedback('error');
+      }
+    }
+  }, [searchResult, isSearching, activeCode, atualizacaoCusto]);
+
   const handleScan = (code: string) => {
     setScannedCode(code);
     setQuantidade(1);
     setNotas("");
     setPrecoVenda(null);
+    setManterPrecoAntigo(false);
   };
 
   const handleConfirmarEntrada = () => {
@@ -58,6 +91,14 @@ export default function ReceberMercadoria() {
         notas,
         supplierProduct: searchResult.supplierProduct,
         precoVenda: precoVenda || searchResult.supplierProduct.cost_price * 1.4,
+      }, {
+        onSuccess: () => {
+          feedback('confirm');
+          resetState();
+        },
+        onError: () => {
+          feedback('error');
+        },
       });
     } else if (searchResult.source === "equipamento" && searchResult.equipamento) {
       confirmarEntrada({
@@ -65,15 +106,29 @@ export default function ReceberMercadoria() {
         equipamentoId: searchResult.equipamento.id,
         quantidade,
         notas,
+        atualizarCusto: atualizacaoCusto && !manterPrecoAntigo ? {
+          custoNovo: atualizacaoCusto.custoNovo,
+          precoVendaNovo: atualizacaoCusto.precoVendaNovo,
+        } : undefined,
+      }, {
+        onSuccess: () => {
+          feedback('confirm');
+          resetState();
+        },
+        onError: () => {
+          feedback('error');
+        },
       });
     }
+  };
 
-    // Reset state
+  const resetState = () => {
     setScannedCode(null);
     setManualCode("");
     setQuantidade(1);
     setNotas("");
     setPrecoVenda(null);
+    setManterPrecoAntigo(false);
     setScannerOpen(false);
   };
 
@@ -251,6 +306,78 @@ export default function ReceberMercadoria() {
                     <span className="text-xs text-muted-foreground">
                       (sugerido: +40% = R$ {suggestedPrice.toLocaleString("pt-BR")})
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Cost Update Alert (for existing equipment with price change) */}
+              {searchResult.source === "equipamento" && atualizacaoCusto && (
+                <div className="p-4 rounded-lg border-2 border-yellow-500/50 bg-yellow-500/10">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <h4 className="font-semibold text-yellow-700 dark:text-yellow-400">
+                          Preço de Custo Atualizado!
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          O fornecedor alterou o preço deste produto
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Custo:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="line-through text-muted-foreground">
+                              R$ {atualizacaoCusto.custoAntigo.toLocaleString("pt-BR")}
+                            </span>
+                            <ArrowRight className="h-3 w-3" />
+                            <span className="font-bold text-foreground">
+                              R$ {atualizacaoCusto.custoNovo.toLocaleString("pt-BR")}
+                            </span>
+                            <Badge 
+                              variant={atualizacaoCusto.percentualVariacao > 0 ? "destructive" : "default"}
+                              className="text-xs"
+                            >
+                              {atualizacaoCusto.percentualVariacao > 0 ? (
+                                <TrendingUp className="h-3 w-3 mr-1" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3 mr-1" />
+                              )}
+                              {atualizacaoCusto.percentualVariacao > 0 ? "+" : ""}
+                              {atualizacaoCusto.percentualVariacao.toFixed(1)}%
+                            </Badge>
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Venda sugerida:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="line-through text-muted-foreground">
+                              R$ {atualizacaoCusto.precoVendaAntigo.toLocaleString("pt-BR")}
+                            </span>
+                            <ArrowRight className="h-3 w-3" />
+                            <span className="font-bold text-foreground">
+                              R$ {atualizacaoCusto.precoVendaNovo.toLocaleString("pt-BR")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 border-t border-yellow-500/30">
+                        <Checkbox 
+                          id="manter-preco"
+                          checked={manterPrecoAntigo}
+                          onCheckedChange={(checked) => setManterPrecoAntigo(!!checked)}
+                        />
+                        <label 
+                          htmlFor="manter-preco" 
+                          className="text-sm cursor-pointer"
+                        >
+                          Manter preço de venda antigo (R$ {atualizacaoCusto.precoVendaAntigo.toLocaleString("pt-BR")})
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
