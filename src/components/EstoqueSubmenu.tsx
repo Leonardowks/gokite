@@ -70,7 +70,10 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className={cn("flex gap-2 flex-wrap", className)}>
+      <div className={cn(
+        "flex gap-2 overflow-x-auto pb-2 -mb-2 scroll-container-x scroll-fade-right",
+        className
+      )}>
         {menuItems.map((item) => {
           const active = isActive(item.url, item.exact);
           
@@ -79,19 +82,19 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
               key={item.url}
               to={item.disabled ? "#" : item.url}
               className={cn(
-                "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] group",
+                "relative flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[44px] shrink-0 group touch-active no-select",
                 active
                   ? "bg-primary text-primary-foreground shadow-md"
                   : item.disabled
                   ? "bg-muted/30 text-muted-foreground/50 cursor-not-allowed"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground hover:shadow-sm"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 hover:shadow-sm"
               )}
               onClick={(e) => item.disabled && e.preventDefault()}
             >
               {/* Icon with optional pulse animation */}
               <div className="relative">
                 <item.icon className={cn(
-                  "h-4 w-4 transition-transform duration-200",
+                  "h-4 w-4 transition-transform duration-200 shrink-0",
                   !item.disabled && !active && "group-hover:scale-110",
                   item.pulse && !active && "animate-pulse"
                 )} />
@@ -102,14 +105,14 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
                 )}
               </div>
               
-              {item.title}
+              <span className="hidden sm:inline">{item.title}</span>
               
               {/* Badge with count */}
               {item.showCount && item.count !== undefined && item.count > 0 && (
                 <Badge 
                   variant={active ? "secondary" : item.highlight ? "default" : "outline"}
                   className={cn(
-                    "ml-1 h-5 min-w-[20px] px-1.5 text-[10px] font-bold",
+                    "h-5 min-w-[20px] px-1.5 text-[10px] font-bold",
                     active && "bg-primary-foreground/20 text-primary-foreground",
                     item.highlight && !active && "bg-primary text-primary-foreground"
                   )}
@@ -132,7 +135,7 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
               
               {/* Disabled badge */}
               {item.disabled && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground/70">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground/70 hidden sm:inline">
                   Em breve
                 </span>
               )}

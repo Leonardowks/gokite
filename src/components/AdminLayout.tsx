@@ -250,9 +250,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-premium border-t border-primary/10 safe-area-bottom">
-        <div className="flex items-center justify-around h-16">
+      {/* Mobile Bottom Navigation - Enhanced for iPhone/Android */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden glass-premium border-t border-primary/10">
+        <div className="flex items-center justify-around min-h-[56px] pb-[env(safe-area-inset-bottom)]">
           {bottomNavItems.map((item) => {
             const active = isActive(item.url);
             return (
@@ -261,10 +261,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 to={item.url}
                 end={item.url === '/'}
                 className={`
-                  flex flex-col items-center justify-center flex-1 min-h-[48px] min-w-[48px] py-2 relative transition-all duration-200
+                  flex flex-col items-center justify-center flex-1 min-h-[56px] min-w-[56px] py-2 relative transition-all duration-200 touch-target no-select
                   ${active 
                     ? 'text-primary' 
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground active:text-foreground'
                   }
                 `}
                 activeClassName=""
@@ -277,12 +277,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </NavLink>
             );
           })}
-          {/* Voice Assistant Button - Central */}
+          {/* Voice Assistant Button - Central FAB */}
           <button
             onClick={() => setVoiceSheetOpen(true)}
-            className="flex flex-col items-center justify-center flex-1 min-h-[48px] min-w-[48px] py-2 transition-all duration-200 relative"
+            className="flex flex-col items-center justify-center flex-1 min-h-[56px] min-w-[56px] py-2 transition-all duration-200 relative no-select touch-active"
           >
-            <div className="absolute -top-4 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-cyan flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-background">
+            <div className="absolute -top-4 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-cyan flex items-center justify-center shadow-lg shadow-primary/30 border-4 border-background active:scale-95 transition-transform">
               <Mic className="h-6 w-6 text-primary-foreground" />
             </div>
             <span className="text-[10px] mt-6 font-medium text-primary">Assistente</span>
@@ -291,10 +291,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <button
             onClick={() => setMoreMenuOpen(true)}
             className={`
-              flex flex-col items-center justify-center flex-1 min-h-[48px] min-w-[48px] py-2 transition-all duration-200
+              flex flex-col items-center justify-center flex-1 min-h-[56px] min-w-[56px] py-2 transition-all duration-200 no-select touch-active
               ${moreMenuItems.some(item => isActive(item.url))
                 ? 'text-primary' 
-                : 'text-muted-foreground hover:text-foreground'
+                : 'text-muted-foreground active:text-foreground'
               }
             `}
           >
