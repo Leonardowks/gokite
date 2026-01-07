@@ -169,19 +169,19 @@ export default function ConfiguracoesFinanceiras() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      {/* Header responsivo */}
+      <div className="flex flex-col gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold font-display text-foreground">
             Configurações Financeiras
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Configure as taxas variáveis e metas para cálculos automáticos
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Taxas variáveis e metas para cálculos automáticos
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3">
           {hasChanges && (
-            <Button variant="outline" onClick={handleReset}>
+            <Button variant="outline" onClick={handleReset} className="min-h-[44px] w-full sm:w-auto">
               <RefreshCw className="h-4 w-4 mr-2" />
               Descartar
             </Button>
@@ -189,6 +189,7 @@ export default function ConfiguracoesFinanceiras() {
           <Button 
             onClick={handleSave} 
             disabled={!hasChanges || updateConfig.isPending}
+            className="min-h-[44px] w-full sm:w-auto"
           >
             {updateConfig.isPending ? (
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -201,11 +202,11 @@ export default function ConfiguracoesFinanceiras() {
       </div>
 
       <Tabs defaultValue="taxas" className="space-y-6">
-        <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:flex bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="taxas" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+        <TabsList className="w-full grid grid-cols-2 sm:flex sm:w-auto bg-muted/50 p-1 rounded-xl h-auto">
+          <TabsTrigger value="taxas" className="text-xs sm:text-sm rounded-lg min-h-[40px] data-[state=active]:bg-background data-[state=active]:shadow-sm">
             Taxas de Cartão
           </TabsTrigger>
-          <TabsTrigger value="categorias" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="categorias" className="text-xs sm:text-sm rounded-lg min-h-[40px] data-[state=active]:bg-background data-[state=active]:shadow-sm">
             Regras por Categoria
           </TabsTrigger>
         </TabsList>
