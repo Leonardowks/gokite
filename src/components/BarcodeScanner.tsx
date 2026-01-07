@@ -15,7 +15,17 @@ interface BarcodeScannerProps {
   isSearching?: boolean;
 }
 
-type ScannerStatus = "initializing" | "ready" | "scanning" | "detected" | "error";
+type ScannerStatus = "initializing" | "ready" | "scanning" | "confirming" | "detected" | "error";
+
+// Reading confirmation system - requires 3 consistent readings
+interface CodeReading {
+  code: string;
+  timestamp: number;
+}
+
+const CONFIRMATION_THRESHOLD = 3; // Number of consistent readings needed
+const READING_WINDOW_MS = 800; // Time window for readings to be considered together
+const COOLDOWN_MS = 2000; // Cooldown after successful scan
 
 export function BarcodeScanner({ onScan, onClose, isSearching = false }: BarcodeScannerProps) {
   const [status, setStatus] = useState<ScannerStatus>("initializing");
@@ -23,25 +33,109 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualCode, setManualCode] = useState("");
-  const [attempts, setAttempts] = useState(0);
+  const [showHint, setShowHint] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [torchOn, setTorchOn] = useState(false);
   const [hasTorch, setHasTorch] = useState(false);
+  const [confirmProgress, setConfirmProgress] = useState(0); // 0-3 confirmation dots
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const { feedback, playWarningTone } = useScannerFeedback();
+  const { feedback, playWarningTone, playDetectionBeep } = useScannerFeedback();
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const attemptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasScannedRef = useRef(false);
   const isMountedRef = useRef(true);
   const scannerIdRef = useRef(`barcode-reader-${Date.now()}`);
   const onScanRef = useRef(onScan);
   
+  // Reading confirmation refs
+  const readingsRef = useRef<CodeReading[]>([]);
+  const lastConfirmedRef = useRef<{ code: string; timestamp: number } | null>(null);
+  const confirmProgressResetRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Keep onScan ref updated
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
+
+  // Handle barcode read with confirmation system
+  const handleBarcodeRead = useCallback((decodedText: string) => {
+    if (!isMountedRef.current || hasScannedRef.current) return;
+    
+    const now = Date.now();
+    
+    // Check cooldown - ignore if we just confirmed this code
+    if (lastConfirmedRef.current && 
+        lastConfirmedRef.current.code === decodedText &&
+        now - lastConfirmedRef.current.timestamp < COOLDOWN_MS) {
+      return;
+    }
+    
+    // Add new reading
+    readingsRef.current.push({ code: decodedText, timestamp: now });
+    
+    // Keep only readings within the time window
+    readingsRef.current = readingsRef.current.filter(
+      r => now - r.timestamp < READING_WINDOW_MS
+    );
+    
+    // Count readings of the current code
+    const sameCodeCount = readingsRef.current.filter(
+      r => r.code === decodedText
+    ).length;
+    
+    // Update visual progress
+    const progressValue = Math.min(sameCodeCount, CONFIRMATION_THRESHOLD);
+    setConfirmProgress(progressValue);
+    
+    // Clear progress reset timer
+    if (confirmProgressResetRef.current) {
+      clearTimeout(confirmProgressResetRef.current);
+    }
+    
+    // Reset progress after window if no new readings
+    confirmProgressResetRef.current = setTimeout(() => {
+      if (isMountedRef.current && !hasScannedRef.current) {
+        setConfirmProgress(0);
+      }
+    }, READING_WINDOW_MS + 100);
+    
+    // Play subtle beep on detection (but not on every frame)
+    if (sameCodeCount === 1) {
+      playDetectionBeep();
+    }
+    
+    // Check if we have enough confirmations
+    if (sameCodeCount >= CONFIRMATION_THRESHOLD) {
+      // CODE CONFIRMED!
+      hasScannedRef.current = true;
+      lastConfirmedRef.current = { code: decodedText, timestamp: now };
+      readingsRef.current = [];
+      
+      setLastScanned(decodedText);
+      setStatus("detected");
+      setConfirmProgress(CONFIRMATION_THRESHOLD);
+      
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (confirmProgressResetRef.current) clearTimeout(confirmProgressResetRef.current);
+      
+      // Success feedback
+      feedback('success');
+      
+      // Visual flash effect
+      const flashEl = document.getElementById("scanner-flash");
+      if (flashEl) {
+        flashEl.classList.add("opacity-100");
+        setTimeout(() => flashEl.classList.remove("opacity-100"), 150);
+      }
+      
+      // Trigger callback
+      onScanRef.current(decodedText);
+    } else if (sameCodeCount > 0) {
+      // Show confirming status
+      setStatus("confirming");
+    }
+  }, [feedback, playDetectionBeep]);
 
   // Toggle torch
   const toggleTorch = useCallback(async () => {
@@ -73,11 +167,14 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
     }
   }, [zoom]);
 
-  // Reset scanner
+  // Reset scanner for new scan
   const resetScanner = useCallback(() => {
     hasScannedRef.current = false;
+    readingsRef.current = [];
+    lastConfirmedRef.current = null;
     setLastScanned(null);
-    setAttempts(0);
+    setShowHint(false);
+    setConfirmProgress(0);
     setStatus("ready");
     playWarningTone();
   }, [playWarningTone]);
@@ -116,30 +213,10 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         await scanner.start(
           { facingMode },
           {
-            fps: 10,
+            fps: 5, // Lower FPS for more stable readings
             qrbox: { width: 280, height: 100 },
           },
-          (decodedText) => {
-            if (!hasScannedRef.current && isMountedRef.current) {
-              hasScannedRef.current = true;
-              setLastScanned(decodedText);
-              setStatus("detected");
-              
-              if (timeoutRef.current) clearTimeout(timeoutRef.current);
-              if (attemptTimeoutRef.current) clearInterval(attemptTimeoutRef.current);
-              
-              feedback('success');
-              
-              // Visual flash effect
-              const flashEl = document.getElementById("scanner-flash");
-              if (flashEl) {
-                flashEl.classList.add("opacity-100");
-                setTimeout(() => flashEl.classList.remove("opacity-100"), 150);
-              }
-              
-              onScanRef.current(decodedText);
-            }
-          },
+          handleBarcodeRead,
           () => {
             // Silently handle scan errors
           }
@@ -194,19 +271,13 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
           // Torch not supported
         }
         
-        // Set timeout to show hint after 8 seconds
+        // Show positioning hint after 6 seconds if no scan
         timeoutRef.current = setTimeout(() => {
           if (isMountedRef.current && !hasScannedRef.current) {
+            setShowHint(true);
             playWarningTone();
           }
-        }, 8000);
-        
-        // Attempt counter
-        attemptTimeoutRef.current = setInterval(() => {
-          if (isMountedRef.current && !hasScannedRef.current) {
-            setAttempts(prev => prev + 1);
-          }
-        }, 2000);
+        }, 6000);
       } else {
         // Both cameras failed
         let errorMessage = "Não foi possível acessar a câmera.";
@@ -242,9 +313,9 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      if (attemptTimeoutRef.current) {
-        clearInterval(attemptTimeoutRef.current);
-        attemptTimeoutRef.current = null;
+      if (confirmProgressResetRef.current) {
+        clearTimeout(confirmProgressResetRef.current);
+        confirmProgressResetRef.current = null;
       }
       
       // Robust cleanup
@@ -257,7 +328,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         });
       }
     };
-  }, [feedback, playWarningTone]);
+  }, [feedback, playWarningTone, handleBarcodeRead]);
 
   const handleManualSubmit = () => {
     if (manualCode.length >= 3) {
@@ -271,20 +342,39 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
   const getStatusColor = () => {
     switch (status) {
       case "detected": return "bg-success";
+      case "confirming": return "bg-primary";
       case "error": return "bg-destructive";
       case "initializing": return "bg-muted";
-      default: return attempts > 3 ? "bg-warning" : "bg-primary";
+      default: return showHint ? "bg-warning" : "bg-primary";
     }
   };
 
   const getStatusText = () => {
     switch (status) {
       case "initializing": return "Iniciando câmera...";
-      case "detected": return "Código detectado!";
+      case "detected": return "Código confirmado!";
+      case "confirming": return "Confirmando leitura...";
       case "error": return "Erro na câmera";
-      default: return attempts > 3 ? "Posicione o código de barras" : "Buscando código...";
+      default: return showHint ? "Ajuste o posicionamento" : "Buscando código...";
     }
   };
+
+  // Confirmation progress dots
+  const ConfirmationDots = () => (
+    <div className="flex items-center gap-1.5">
+      {[1, 2, 3].map((dot) => (
+        <div
+          key={dot}
+          className={cn(
+            "w-2.5 h-2.5 rounded-full transition-all duration-150",
+            confirmProgress >= dot 
+              ? dot === 3 ? "bg-success scale-110" : "bg-primary" 
+              : "bg-white/20"
+          )}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full bg-background" ref={containerRef}>
@@ -299,11 +389,13 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-10 h-10 rounded-xl flex items-center justify-center transition-colors",
-            status === "detected" ? "bg-success/20" : "bg-primary/10"
+            status === "detected" ? "bg-success/20" : 
+            status === "confirming" ? "bg-primary/20" : "bg-primary/10"
           )}>
             <ScanLine className={cn(
               "h-5 w-5 transition-colors",
-              status === "detected" ? "text-success" : "text-primary"
+              status === "detected" ? "text-success" : 
+              status === "confirming" ? "text-primary animate-pulse" : "text-primary"
             )} />
           </div>
           <div>
@@ -345,7 +437,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
       <div className={cn(
         "h-1 transition-all duration-300 shrink-0",
         getStatusColor(),
-        status === "ready" && "animate-pulse"
+        (status === "ready" || status === "confirming") && "animate-pulse"
       )} />
 
       {/* Scanner Area */}
@@ -420,22 +512,41 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                 <div className="w-[85%] h-[60%] relative">
                   {/* Corners */}
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-primary rounded-tl-lg" />
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-primary rounded-tr-lg" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-primary rounded-bl-lg" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-primary rounded-br-lg" />
+                  <div className={cn(
+                    "absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 rounded-tl-lg transition-colors",
+                    status === "confirming" ? "border-primary" : 
+                    status === "detected" ? "border-success" : "border-primary"
+                  )} />
+                  <div className={cn(
+                    "absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 rounded-tr-lg transition-colors",
+                    status === "confirming" ? "border-primary" : 
+                    status === "detected" ? "border-success" : "border-primary"
+                  )} />
+                  <div className={cn(
+                    "absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 rounded-bl-lg transition-colors",
+                    status === "confirming" ? "border-primary" : 
+                    status === "detected" ? "border-success" : "border-primary"
+                  )} />
+                  <div className={cn(
+                    "absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 rounded-br-lg transition-colors",
+                    status === "confirming" ? "border-primary" : 
+                    status === "detected" ? "border-success" : "border-primary"
+                  )} />
                   
                   {/* Animated laser line */}
-                  {status === "ready" && (
+                  {(status === "ready" || status === "confirming") && (
                     <div className="absolute inset-x-4 top-1/2 -translate-y-1/2">
                       <div className={cn(
-                        "h-0.5 rounded-full animate-pulse",
-                        attempts > 3 ? "bg-warning" : "bg-primary"
+                        "h-0.5 rounded-full transition-colors",
+                        status === "confirming" ? "bg-primary animate-pulse" :
+                        showHint ? "bg-warning animate-pulse" : "bg-primary animate-pulse"
                       )} 
                       style={{
-                        boxShadow: attempts > 3 
-                          ? '0 0 8px 2px hsl(var(--warning))' 
-                          : '0 0 8px 2px hsl(var(--primary))'
+                        boxShadow: status === "confirming" 
+                          ? '0 0 12px 3px hsl(var(--primary))' 
+                          : showHint 
+                            ? '0 0 8px 2px hsl(var(--warning))' 
+                            : '0 0 8px 2px hsl(var(--primary))'
                       }}
                       />
                     </div>
@@ -463,28 +574,29 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
               )}
             </div>
             
-            {/* Status indicator */}
+            {/* Status indicator with confirmation dots */}
             <div className={cn(
               "mt-4 py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-colors",
               status === "detected" ? "bg-success/20" : 
-              attempts > 3 ? "bg-warning/20" : "bg-white/10"
+              status === "confirming" ? "bg-primary/20" :
+              showHint ? "bg-warning/20" : "bg-white/10"
             )}>
-              <div className={cn(
-                "w-2 h-2 rounded-full animate-pulse",
-                getStatusColor()
-              )} />
+              {status === "confirming" || (status === "ready" && confirmProgress > 0) ? (
+                <ConfirmationDots />
+              ) : (
+                <div className={cn(
+                  "w-2 h-2 rounded-full animate-pulse",
+                  getStatusColor()
+                )} />
+              )}
               <span className={cn(
                 "text-sm font-medium",
                 status === "detected" ? "text-success" :
-                attempts > 3 ? "text-warning" : "text-white/80"
+                status === "confirming" ? "text-primary" :
+                showHint ? "text-warning" : "text-white/80"
               )}>
                 {getStatusText()}
               </span>
-              {attempts > 0 && status === "ready" && (
-                <span className="text-xs text-white/50">
-                  Tentativa {Math.min(attempts, 10)}
-                </span>
-              )}
             </div>
           </div>
         )}
@@ -500,7 +612,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         ) : lastScanned ? (
           <div className="flex items-center justify-between p-3 rounded-xl bg-success/10 border border-success/20">
             <div>
-              <p className="text-xs text-muted-foreground">Código detectado</p>
+              <p className="text-xs text-muted-foreground">Código confirmado</p>
               <p className="text-xl font-mono font-bold text-success">{lastScanned}</p>
             </div>
             <Button variant="ghost" size="sm" onClick={resetScanner} className="gap-2">
@@ -511,9 +623,9 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         ) : (
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {attempts > 5 
-                ? "Dificuldade para ler? Tente ajustar a distância ou iluminação" 
-                : "Posicione o código de barras no centro da tela"}
+              {showHint 
+                ? "Ajuste distância ou iluminação" 
+                : "Posicione o código no centro"}
             </p>
             <Button
               variant="outline"
