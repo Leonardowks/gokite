@@ -2,19 +2,22 @@ import { useState } from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, MapPin, DollarSign, Calendar, AlertTriangle, Plus, Wrench, CheckCircle, RefreshCw, ArrowRight, Clock } from "lucide-react";
+import { Package, MapPin, DollarSign, Calendar, AlertTriangle, Plus, Wrench, CheckCircle, RefreshCw, ArrowRight, Clock, Barcode } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
 import { TradeInRapidoDrawer } from "@/components/TradeInRapidoDrawer";
+import { EquipamentoDialog } from "@/components/EquipamentoDialog";
 import { useEquipamentosListagem, useEquipamentosOcupacao } from "@/hooks/useSupabaseEquipamentos";
 import { useTradeIns, useTradeInsSummary } from "@/hooks/useTradeIns";
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 
 export default function Estoque() {
   const navigate = useNavigate();
   const [tradeInOpen, setTradeInOpen] = useState(false);
+  const [equipamentoDialogOpen, setEquipamentoDialogOpen] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
 
   // Dados do Supabase
@@ -34,6 +37,10 @@ export default function Estoque() {
     const dias = Math.floor((Date.now() - new Date(t.data_entrada).getTime()) / 86400000);
     return dias > 60;
   }).length;
+
+  // Equipamentos com EAN (escaneáveis)
+  const comEan = equipamentos.filter(e => e.ean).length;
+  const percentualEan = totalEquipamentos > 0 ? Math.round((comEan / totalEquipamentos) * 100) : 0;
 
   const equipamentosFiltrados = equipamentos.filter(eq => 
     filtroStatus === 'todos' || eq.status === filtroStatus
@@ -107,7 +114,10 @@ export default function Estoque() {
             <RefreshCw className="h-4 w-4" />
             Trade-in
           </Button>
-          <Button className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
+          <Button 
+            className="gap-2 min-h-[44px] flex-1 sm:flex-initial"
+            onClick={() => setEquipamentoDialogOpen(true)}
+          >
             <Plus className="h-4 w-4" />
             Equipamento
           </Button>
@@ -475,7 +485,7 @@ export default function Estoque() {
                 ? 'Não há equipamentos com este status' 
                 : 'Adicione equipamentos ao estoque da escola'}
             </p>
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={() => setEquipamentoDialogOpen(true)}>
               <Plus className="h-4 w-4" />
               Adicionar Equipamento
             </Button>
@@ -485,6 +495,9 @@ export default function Estoque() {
 
       {/* Trade-in Drawer */}
       <TradeInRapidoDrawer open={tradeInOpen} onOpenChange={setTradeInOpen} />
+      
+      {/* Equipamento Dialog */}
+      <EquipamentoDialog open={equipamentoDialogOpen} onOpenChange={setEquipamentoDialogOpen} />
     </div>
   );
 }

@@ -1,26 +1,47 @@
 /**
  * Hook para feedback sonoro e háptico no scanner de código de barras
  * Usa Web Audio API para gerar sons sem arquivos externos
+ * Sons mais sofisticados e padrões de vibração diferenciados
  */
 
+import { useCallback } from 'react';
 import { useHapticFeedback } from './useHapticFeedback';
 
-type FeedbackType = 'success' | 'error' | 'warning' | 'confirm';
+type FeedbackType = 'success' | 'error' | 'warning' | 'confirm' | 'scan';
+
+let audioContext: AudioContext | null = null;
+
+const getAudioContext = (): AudioContext => {
+  if (!audioContext) {
+    audioContext = new AudioContext();
+  }
+  return audioContext;
+};
 
 export function useScannerFeedback() {
   const haptic = useHapticFeedback();
 
-  const playTone = (frequency: number, duration: number, type: OscillatorType = 'sine') => {
+  const playTone = useCallback((
+    frequency: number, 
+    duration: number, 
+    type: OscillatorType = 'sine',
+    volume: number = 0.3
+  ) => {
     try {
-      const ctx = new AudioContext();
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
       
       oscillator.type = type;
-      oscillator.frequency.value = frequency;
+      oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
       
-      // Fade out para som mais suave
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      // Attack and decay envelope
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
       gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
       
       oscillator.connect(gainNode);
@@ -28,36 +49,47 @@ export function useScannerFeedback() {
       
       oscillator.start(ctx.currentTime);
       oscillator.stop(ctx.currentTime + duration);
-      
-      // Limpar contexto após uso
-      setTimeout(() => ctx.close(), duration * 1000 + 100);
     } catch (error) {
       console.warn('[ScannerFeedback] Audio playback failed:', error);
     }
-  };
+  }, []);
 
-  const playSuccessBeep = () => {
-    // Tom agudo = sucesso (1200Hz, curto)
-    playTone(1200, 0.1, 'sine');
-  };
+  const playSuccessBeep = useCallback(() => {
+    // Tom agudo duplo = sucesso (mais musical)
+    playTone(880, 0.1, 'sine', 0.25);
+    setTimeout(() => playTone(1100, 0.12, 'sine', 0.3), 100);
+  }, [playTone]);
 
-  const playErrorBuzz = () => {
-    // Tom grave = erro (200Hz, mais longo)
-    playTone(200, 0.3, 'square');
-  };
+  const playErrorBuzz = useCallback(() => {
+    // Tom grave = erro (200Hz, mais longo, com vibrato)
+    playTone(200, 0.25, 'square', 0.2);
+    setTimeout(() => playTone(180, 0.15, 'square', 0.15), 200);
+  }, [playTone]);
 
-  const playWarningTone = () => {
-    // Tom médio = atenção (600Hz)
-    playTone(600, 0.15, 'triangle');
-  };
+  const playWarningTone = useCallback(() => {
+    // Tom médio descendente = atenção
+    playTone(600, 0.1, 'triangle', 0.2);
+    setTimeout(() => playTone(500, 0.15, 'triangle', 0.2), 120);
+  }, [playTone]);
 
-  const playConfirmBeep = () => {
-    // Duplo bip para confirmação
-    playTone(1200, 0.08, 'sine');
-    setTimeout(() => playTone(1400, 0.1, 'sine'), 120);
-  };
+  const playConfirmChime = useCallback(() => {
+    // Melodia de 3 notas para confirmação (cha-ching!)
+    playTone(800, 0.08, 'sine', 0.2);
+    setTimeout(() => playTone(1000, 0.08, 'sine', 0.25), 80);
+    setTimeout(() => playTone(1200, 0.15, 'sine', 0.3), 160);
+  }, [playTone]);
 
-  const feedback = (type: FeedbackType) => {
+  const playScanTick = useCallback(() => {
+    // Tick sutil para indicar que está escaneando
+    playTone(2000, 0.02, 'sine', 0.1);
+  }, [playTone]);
+
+  const playDetectionBeep = useCallback(() => {
+    // Beep curto quando detecta algo
+    playTone(1400, 0.05, 'sine', 0.15);
+  }, [playTone]);
+
+  const feedback = useCallback((type: FeedbackType) => {
     switch (type) {
       case 'success':
         playSuccessBeep();
@@ -72,17 +104,23 @@ export function useScannerFeedback() {
         haptic.warning();
         break;
       case 'confirm':
-        playConfirmBeep();
+        playConfirmChime();
         haptic.heavy();
         break;
+      case 'scan':
+        playScanTick();
+        haptic.light();
+        break;
     }
-  };
+  }, [playSuccessBeep, playErrorBuzz, playWarningTone, playConfirmChime, playScanTick, haptic]);
 
   return {
     playSuccessBeep,
     playErrorBuzz,
     playWarningTone,
-    playConfirmBeep,
+    playConfirmChime: playConfirmChime,
+    playScanTick,
+    playDetectionBeep,
     feedback,
     haptic,
   };
