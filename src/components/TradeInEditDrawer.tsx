@@ -65,7 +65,12 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
       setValorEntrada(tradeIn.valor_entrada?.toString() || "");
       setDescricao(tradeIn.descricao || "");
       setNotas(tradeIn.notas || "");
-      setFotos(Array.isArray(tradeIn.fotos) ? tradeIn.fotos : []);
+      
+      // Carregar fotos: primeiro tenta array fotos, senão usa foto_url como fallback
+      const fotosArray = Array.isArray(tradeIn.fotos) && tradeIn.fotos.length > 0 
+        ? tradeIn.fotos 
+        : (tradeIn.foto_url ? [tradeIn.foto_url] : []);
+      setFotos(fotosArray);
 
       // Pre-fill estruturado a partir do nome/descrição quando vier vazio (trade-ins antigos)
       const nome = tradeIn.equipamento_recebido || "";
