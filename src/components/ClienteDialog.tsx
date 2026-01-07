@@ -90,7 +90,7 @@ export function ClienteDialog({ open, onOpenChange, onSave, cliente, isLoading }
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               placeholder="João Silva"
-              className={errors.nome ? "border-destructive" : ""}
+              className={`min-h-[48px] ${errors.nome ? "border-destructive" : ""}`}
               disabled={isLoading}
             />
             {errors.nome && <p className="text-xs text-destructive">{errors.nome}</p>}
@@ -103,7 +103,7 @@ export function ClienteDialog({ open, onOpenChange, onSave, cliente, isLoading }
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="joao@email.com"
-              className={errors.email ? "border-destructive" : ""}
+              className={`min-h-[48px] ${errors.email ? "border-destructive" : ""}`}
               disabled={isLoading}
             />
             {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
@@ -114,19 +114,30 @@ export function ClienteDialog({ open, onOpenChange, onSave, cliente, isLoading }
               id="telefone"
               value={formData.telefone}
               onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-              placeholder="(48) 99999-9999"
-              className={errors.telefone ? "border-destructive" : ""}
+              placeholder="55 48 99999-9999"
+              className={`min-h-[48px] ${errors.telefone ? "border-destructive" : ""}`}
               disabled={isLoading}
             />
             {errors.telefone && <p className="text-xs text-destructive">{errors.telefone}</p>}
+            <p className="text-xs text-muted-foreground">Inclua o código do país (55 para Brasil)</p>
           </div>
-          <div className="flex gap-3 pt-4">
-            <Button type="submit" className="flex-1" disabled={isLoading}>
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => onOpenChange(false)} 
+              disabled={isLoading}
+              className="w-full sm:w-auto min-h-[48px]"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit" 
+              className="w-full sm:flex-1 min-h-[48px]" 
+              disabled={isLoading}
+            >
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {cliente ? "Atualizar" : "Adicionar"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-              Cancelar
             </Button>
           </div>
         </form>

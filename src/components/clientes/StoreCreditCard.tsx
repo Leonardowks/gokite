@@ -486,7 +486,7 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
                   type="button"
                   variant={tipoAjuste === 'adicionar' ? 'default' : 'outline'}
                   onClick={() => setTipoAjuste('adicionar')}
-                  className="gap-2"
+                  className="gap-2 min-h-[48px]"
                 >
                   <Plus className="h-4 w-4" />
                   Adicionar
@@ -495,7 +495,7 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
                   type="button"
                   variant={tipoAjuste === 'remover' ? 'destructive' : 'outline'}
                   onClick={() => setTipoAjuste('remover')}
-                  className="gap-2"
+                  className="gap-2 min-h-[48px]"
                 >
                   <Minus className="h-4 w-4" />
                   Remover
@@ -521,7 +521,7 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
                 placeholder="0,00"
                 value={valorAjuste}
                 onChange={(e) => setValorAjuste(e.target.value)}
-                className="min-h-[44px]"
+                className="min-h-[48px]"
               />
             </div>
 
@@ -579,19 +579,20 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2">
             <Button
               variant="outline"
               onClick={() => setAjusteDialogOpen(false)}
+              className="w-full sm:w-auto min-h-[48px]"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleAjustarCredito}
-              disabled={ajustarCreditoMutation.isPending || !valorAjuste || !motivoAjuste}
-              className="gap-2"
+              disabled={ajustarCreditoMutation.isPending || enviandoNotificacao || !valorAjuste || !motivoAjuste}
+              className="gap-2 w-full sm:w-auto min-h-[48px]"
             >
-              {ajustarCreditoMutation.isPending ? (
+              {ajustarCreditoMutation.isPending || enviandoNotificacao ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : tipoAjuste === 'adicionar' ? (
                 <Plus className="h-4 w-4" />

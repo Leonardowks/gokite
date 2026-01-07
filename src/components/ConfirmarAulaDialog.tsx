@@ -197,7 +197,7 @@ export function ConfirmarAulaDialog({ open, onOpenChange, aula }: ConfirmarAulaD
           <div className="space-y-2">
             <Label>Parcelas</Label>
             <Select value={parcelas} onValueChange={setParcelas}>
-              <SelectTrigger>
+              <SelectTrigger className="min-h-[48px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -218,11 +218,20 @@ export function ConfirmarAulaDialog({ open, onOpenChange, aula }: ConfirmarAulaD
           </p>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConfirming}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)} 
+            disabled={isConfirming}
+            className="w-full sm:w-auto min-h-[48px]"
+          >
             Cancelar
           </Button>
-          <Button onClick={handleConfirmar} disabled={isConfirming} className="gap-2">
+          <Button 
+            onClick={handleConfirmar} 
+            disabled={isConfirming} 
+            className="gap-2 w-full sm:w-auto min-h-[48px]"
+          >
             {isConfirming ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

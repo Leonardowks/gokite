@@ -265,13 +265,18 @@ export function ImportarContatosDialog({ open, onOpenChange }: ImportarContatosD
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto min-h-[48px]"
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleImport}
             disabled={preview.length === 0 || importarMutation.isPending}
+            className="w-full sm:w-auto min-h-[48px]"
           >
             {importarMutation.isPending ? 'Importando...' : `Importar ${preview.length} contatos`}
           </Button>

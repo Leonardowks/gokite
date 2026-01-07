@@ -214,14 +214,18 @@ export function VenderTradeInDialog({ open, onOpenChange, tradeIn }: VenderTrade
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-3 sm:gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="w-full sm:w-auto min-h-[48px]"
+          >
             Cancelar
           </Button>
           <Button
             onClick={handleVender}
             disabled={venderTradeIn.isPending || valorVendaNum <= 0}
-            className="gap-2"
+            className="gap-2 w-full sm:w-auto min-h-[48px]"
           >
             {venderTradeIn.isPending ? (
               <>
