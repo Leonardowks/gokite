@@ -20,8 +20,11 @@ export function useEquipmentAnalysis() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<EquipmentAnalysis | null>(null);
 
-  const analyzeEquipment = async (imageUrl: string): Promise<EquipmentAnalysis | null> => {
-    if (!imageUrl) {
+  const analyzeEquipment = async (imageUrls: string[]): Promise<EquipmentAnalysis | null> => {
+    // Filtrar URLs vazias
+    const validUrls = imageUrls.filter(url => url && url.trim() !== "");
+    
+    if (validUrls.length === 0) {
       toast({
         title: "Nenhuma foto",
         description: "Adicione pelo menos uma foto para análise.",
@@ -33,7 +36,7 @@ export function useEquipmentAnalysis() {
     setIsAnalyzing(true);
     try {
       const { data, error } = await supabase.functions.invoke("analyze-equipment", {
-        body: { imageUrl },
+        body: { imageUrls: validUrls },
       });
 
       if (error) {
@@ -46,9 +49,12 @@ export function useEquipmentAnalysis() {
 
       if (data?.analysis) {
         setAnalysis(data.analysis);
+        const numFotos = data.fotosAnalisadas || validUrls.length;
         toast({
           title: "✨ Análise concluída!",
-          description: "Os campos foram preenchidos automaticamente.",
+          description: numFotos > 1 
+            ? `${numFotos} fotos analisadas. Campos preenchidos automaticamente.`
+            : "Os campos foram preenchidos automaticamente.",
         });
         return data.analysis;
       }
@@ -57,7 +63,7 @@ export function useEquipmentAnalysis() {
     } catch (error) {
       console.error("Erro na análise:", error);
       
-      let message = "Não foi possível analisar a imagem.";
+      let message = "Não foi possível analisar as imagens.";
       if (error instanceof Error) {
         if (error.message.includes("429") || error.message.includes("limite")) {
           message = "Limite de requisições excedido. Aguarde alguns segundos.";

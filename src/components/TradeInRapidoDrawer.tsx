@@ -122,14 +122,15 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
   const handleAnalyzeWithAI = async () => {
     if (fotos.length === 0) {
       toast({
-        title: "Adicione uma foto",
-        description: "É necessário pelo menos uma foto para análise por IA.",
+        title: "Adicione fotos",
+        description: "Adicione pelo menos uma foto para análise com IA.",
         variant: "destructive",
       });
       return;
     }
 
-    const analysis = await analyzeEquipment(fotos[0]);
+    // Passar todas as fotos para análise multi-foto
+    const analysis = await analyzeEquipment(fotos);
     
     if (analysis) {
       // Preencher campos automaticamente
@@ -283,7 +284,9 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
                 ) : (
                   <>
                     <Wand2 className="h-4 w-4" />
-                    ✨ Analisar com IA
+                    {fotos.length > 1 
+                      ? `✨ Analisar ${fotos.length} fotos com IA` 
+                      : "✨ Analisar com IA"}
                   </>
                 )}
               </Button>
