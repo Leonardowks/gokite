@@ -45,6 +45,7 @@ export default function DuotoneSync() {
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("novidades");
+  const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
 
   const { data: savedUrl } = useSupplierSheetUrl();
   const { data: stats, isLoading: statsLoading } = useSupplierStats();
@@ -64,12 +65,36 @@ export default function DuotoneSync() {
       const result = await syncMutation.mutateAsync(currentUrl);
       setSyncResult(result);
       setSelectedSkus(new Set());
+      
+      // Inicializar preços com margem 40% como sugestão
+      const initialPrices: Record<string, number> = {};
+      result.new_products.forEach((p) => {
+        initialPrices[p.sku] = Math.round(p.cost_price * 1.4);
+      });
+      setCustomPrices(initialPrices);
+      
       toast.success(
         `Sincronizado! ${result.stats.total_parsed} produtos encontrados`
       );
     } catch (error) {
       console.error("Sync error:", error);
     }
+  };
+
+  const handlePriceChange = (sku: string, value: string) => {
+    const numValue = parseFloat(value.replace(/\D/g, "")) || 0;
+    setCustomPrices((prev) => ({ ...prev, [sku]: numValue }));
+  };
+
+  const calculateMargin = (cost: number, sale: number) => {
+    if (cost <= 0) return 0;
+    return Math.round(((sale - cost) / cost) * 100);
+  };
+
+  const getMarginColor = (margin: number) => {
+    if (margin >= 30) return "text-green-600";
+    if (margin >= 15) return "text-yellow-600";
+    return "text-red-600";
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -97,7 +122,12 @@ export default function DuotoneSync() {
     }
 
     const productsToImport =
-      syncResult?.new_products.filter((p) => selectedSkus.has(p.sku)) || [];
+      syncResult?.new_products
+        .filter((p) => selectedSkus.has(p.sku))
+        .map((p) => ({
+          ...p,
+          sale_price: customPrices[p.sku] || Math.round(p.cost_price * 1.4),
+        })) || [];
 
     try {
       await importMutation.mutateAsync(productsToImport);
@@ -127,10 +157,6 @@ export default function DuotoneSync() {
       style: "currency",
       currency: "BRL",
     }).format(value);
-  };
-
-  const calculateSalePrice = (cost: number, margin = 1.4) => {
-    return Math.round(cost * margin);
   };
 
   return (
@@ -348,57 +374,79 @@ export default function DuotoneSync() {
                         </TableHead>
                         <TableHead>Produto</TableHead>
                         <TableHead>Tamanho</TableHead>
-                        <TableHead>Estoque Fornecedor</TableHead>
+                        <TableHead>Estoque</TableHead>
                         <TableHead className="text-right">
-                          Preço Custo
+                          Custo
                         </TableHead>
                         <TableHead className="text-right">
-                          Preço Venda (+40%)
+                          Preço Venda
+                        </TableHead>
+                        <TableHead className="text-right">
+                          Margem
+                        </TableHead>
+                        <TableHead>
+                          Categoria Fiscal
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {syncResult.new_products.map((product) => (
-                        <TableRow key={product.sku}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedSkus.has(product.sku)}
-                              onCheckedChange={(checked) =>
-                                handleSelectProduct(
-                                  product.sku,
-                                  checked as boolean
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">
-                                {product.brand} {product.product_name}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                SKU: {product.sku}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {product.size || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {product.supplier_stock_qty} un.
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatPrice(product.cost_price)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-green-600">
-                            {formatPrice(
-                              calculateSalePrice(product.cost_price)
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {syncResult.new_products.map((product) => {
+                        const salePrice = customPrices[product.sku] || Math.round(product.cost_price * 1.4);
+                        const margin = calculateMargin(product.cost_price, salePrice);
+                        
+                        return (
+                          <TableRow key={product.sku}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedSkus.has(product.sku)}
+                                onCheckedChange={(checked) =>
+                                  handleSelectProduct(
+                                    product.sku,
+                                    checked as boolean
+                                  )
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">
+                                  {product.brand} {product.product_name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  SKU: {product.sku}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {product.size || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {product.supplier_stock_qty} un.
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-muted-foreground">
+                              {formatPrice(product.cost_price)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Input
+                                type="text"
+                                value={formatPrice(salePrice).replace("R$", "").trim()}
+                                onChange={(e) => handlePriceChange(product.sku, e.target.value)}
+                                className="w-28 text-right font-mono"
+                              />
+                            </TableCell>
+                            <TableCell className={`text-right font-mono font-semibold ${getMarginColor(margin)}`}>
+                              {margin}%
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className="text-xs">
+                                Produto Novo (8%)
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>

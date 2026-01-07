@@ -122,9 +122,8 @@ export function useImportSupplierProducts() {
       brand: string;
       size: string | null;
       cost_price: number;
+      sale_price: number; // Preço de venda definido manualmente
     }>) => {
-      const defaultMargin = 1.4; // 40% de margem
-
       const equipamentos = products.map((p) => ({
         nome: `${p.brand} ${p.product_name}${p.size ? ` ${p.size}` : ""}`,
         tipo: p.category || "kite",
@@ -134,8 +133,9 @@ export function useImportSupplierProducts() {
         source_type: "virtual_supplier",
         supplier_sku: p.sku,
         cost_price: p.cost_price,
-        sale_price: Math.round(p.cost_price * defaultMargin),
+        sale_price: p.sale_price,
         preco_aluguel_dia: 0,
+        fiscal_category: "venda_produto", // Categoria fiscal "Produto Novo"
       }));
 
       const { data, error } = await supabase

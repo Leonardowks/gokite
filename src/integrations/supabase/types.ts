@@ -580,6 +580,7 @@ export type Database = {
           cost_price: number | null
           created_at: string | null
           data_proxima_manutencao: string | null
+          fiscal_category: string | null
           id: string
           localizacao: string | null
           nome: string
@@ -596,6 +597,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           data_proxima_manutencao?: string | null
+          fiscal_category?: string | null
           id?: string
           localizacao?: string | null
           nome: string
@@ -612,6 +614,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string | null
           data_proxima_manutencao?: string | null
+          fiscal_category?: string | null
           id?: string
           localizacao?: string | null
           nome?: string
