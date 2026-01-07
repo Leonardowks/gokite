@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Search, Package, DollarSign, X, CheckCircle, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Search, Package, DollarSign, X, CheckCircle, Loader2, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { MediaGallery } from "@/components/MediaGallery";
 import { CATEGORIAS, CONDICOES, MARCAS_COMUNS, formatNomeEquipamento } from "@/lib/tradeInConfig";
+import { useEquipmentAnalysis } from "@/hooks/useEquipmentAnalysis";
+import { cn } from "@/lib/utils";
 
 interface TradeInRapidoDrawerProps {
   open: boolean;
@@ -40,6 +42,7 @@ interface ClienteOption {
 export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAnalyzing, analyzeEquipment } = useEquipmentAnalysis();
   
   const [busca, setBusca] = useState("");
   const [clientes, setClientes] = useState<ClienteOption[]>([]);
@@ -59,6 +62,7 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
   const [fotos, setFotos] = useState<string[]>([]);
   
   const [salvando, setSalvando] = useState(false);
+  const [analisado, setAnalisado] = useState(false);
 
   // Gera nome do equipamento automaticamente
   const nomeEquipamento = formatNomeEquipamento(marca, modelo, tamanho);
@@ -111,6 +115,34 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
     setDescricao("");
     setValorAcordado("");
     setFotos([]);
+    setAnalisado(false);
+  };
+
+  // Análise por IA
+  const handleAnalyzeWithAI = async () => {
+    if (fotos.length === 0) {
+      toast({
+        title: "Adicione uma foto",
+        description: "É necessário pelo menos uma foto para análise por IA.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const analysis = await analyzeEquipment(fotos[0]);
+    
+    if (analysis) {
+      // Preencher campos automaticamente
+      if (analysis.categoria) setCategoria(analysis.categoria);
+      if (analysis.marca) setMarca(analysis.marca);
+      if (analysis.modelo) setModelo(analysis.modelo);
+      if (analysis.tamanho) setTamanho(analysis.tamanho);
+      if (analysis.ano) setAno(analysis.ano.toString());
+      if (analysis.condicao) setCondicao(analysis.condicao);
+      if (analysis.descricaoComercial) setDescricao(analysis.descricaoComercial);
+      
+      setAnalisado(true);
+    }
   };
 
   const confirmarEntrada = async () => {
@@ -213,6 +245,51 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
         </DrawerHeader>
 
         <div className="px-4 space-y-4 overflow-y-auto flex-1 pb-4">
+          {/* Galeria de Fotos - Primeiro para permitir análise IA */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Fotos do Equipamento</Label>
+            <MediaGallery
+              fotos={fotos}
+              onFotosChange={(newFotos) => {
+                setFotos(newFotos);
+                setAnalisado(false); // Reset análise quando mudar fotos
+              }}
+              maxFotos={6}
+              bucketPath="trade-ins"
+            />
+            
+            {/* Botão de Análise IA */}
+            {fotos.length > 0 && (
+              <Button
+                type="button"
+                variant={analisado ? "secondary" : "outline"}
+                onClick={handleAnalyzeWithAI}
+                disabled={isAnalyzing}
+                className={cn(
+                  "w-full gap-2 min-h-[44px] border-primary/30",
+                  analisado && "bg-primary/10 border-primary/50"
+                )}
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analisando com IA...
+                  </>
+                ) : analisado ? (
+                  <>
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    Analisado ✓ (clique para re-analisar)
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" />
+                    ✨ Analisar com IA
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+
           {/* Busca de Cliente */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Cliente (opcional)</Label>
@@ -391,23 +468,14 @@ export function TradeInRapidoDrawer({ open, onOpenChange }: TradeInRapidoDrawerP
 
           {/* Descrição */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Observações (opcional)</Label>
+            <Label className="text-sm font-medium">
+              Descrição {analisado && <span className="text-primary text-xs">(gerada por IA)</span>}
+            </Label>
             <Textarea
               placeholder="Detalhes, danos, peças faltando..."
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              className="min-h-[70px] resize-none"
-            />
-          </div>
-
-          {/* Galeria de Fotos */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Fotos do Equipamento</Label>
-            <MediaGallery
-              fotos={fotos}
-              onFotosChange={setFotos}
-              maxFotos={6}
-              bucketPath="trade-ins"
+              className="min-h-[80px] resize-none"
             />
           </div>
         </div>
