@@ -234,10 +234,36 @@ Deno.serve(async (req) => {
       );
     }
 
+    // === SINCRONIZAR EANs COM EQUIPAMENTOS EXISTENTES ===
+    // Atualizar equipamentos que têm supplier_sku mas não têm EAN
+    const productsWithEan = products.filter(p => p.ean);
+    let eansUpdated = 0;
+    
+    if (productsWithEan.length > 0) {
+      console.log(`Syncing ${productsWithEan.length} EANs to equipamentos...`);
+      
+      for (const product of productsWithEan) {
+        // Atualizar equipamento pelo supplier_sku onde EAN é null
+        const { data: updated, error: updateError } = await supabase
+          .from("equipamentos")
+          .update({ ean: product.ean })
+          .eq("supplier_sku", product.sku)
+          .is("ean", null)
+          .select("id");
+        
+        if (!updateError && updated && updated.length > 0) {
+          eansUpdated += updated.length;
+          console.log(`Updated EAN for equipment with SKU ${product.sku}: ${product.ean}`);
+        }
+      }
+      
+      console.log(`Total EANs synchronized: ${eansUpdated}`);
+    }
+
     // Buscar equipamentos existentes para comparação
     const { data: existingEquipments } = await supabase
       .from("equipamentos")
-      .select("id, nome, supplier_sku, source_type, status, tamanho");
+      .select("id, nome, supplier_sku, source_type, status, tamanho, ean");
 
     // Criar mapas para comparação
     const existingBySupplierSku = new Map(
@@ -287,6 +313,8 @@ Deno.serve(async (req) => {
         new_products: newProducts.length,
         restock_needed: restockProducts.length,
         already_imported: alreadyImported.length,
+        eans_synced: eansUpdated,
+        eans_in_catalog: productsWithEan.length,
       },
       columns_detected: Object.keys(columnMap),
       new_products: newProducts.slice(0, 50), // Limitar para performance
