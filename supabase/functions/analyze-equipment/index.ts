@@ -32,12 +32,22 @@ serve(async (req) => {
 
     const body = await req.json();
     
+    // Extensões de vídeo que devem ser filtradas (não suportadas pela IA Vision)
+    const videoExtensions = ['.mp4', '.mov', '.avi', '.webm', '.mkv', '.m4v', '.3gp'];
+    const isVideoUrl = (url: string): boolean => {
+      const lowerUrl = url.toLowerCase();
+      return videoExtensions.some(ext => lowerUrl.includes(ext));
+    };
+    
     // Suporte para array de imagens (novo) ou imagem única (retrocompatível)
     let imageUrls: string[] = [];
     
     if (body.imageUrls && Array.isArray(body.imageUrls)) {
-      imageUrls = body.imageUrls.filter((url: string) => url && url.trim() !== "");
-    } else if (body.imageUrl) {
+      // Filtrar URLs vazias E arquivos de vídeo
+      imageUrls = body.imageUrls.filter((url: string) => 
+        url && url.trim() !== "" && !isVideoUrl(url)
+      );
+    } else if (body.imageUrl && !isVideoUrl(body.imageUrl)) {
       imageUrls = [body.imageUrl];
     } else if (body.imageBase64) {
       imageUrls = [body.imageBase64];
@@ -45,7 +55,7 @@ serve(async (req) => {
 
     if (imageUrls.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Pelo menos uma imagem é obrigatória (imageUrls ou imageUrl)" }),
+        JSON.stringify({ error: "Nenhuma imagem válida encontrada. Formatos suportados: PNG, JPEG, WebP, GIF. Vídeos não são suportados." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
