@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -24,7 +25,8 @@ import {
   Repeat,
   Loader2,
   ShoppingCart,
-  UserPlus
+  UserPlus,
+  Wallet
 } from "lucide-react";
 import { useTransacaoAutomatica, getCentroCustoPorOrigem } from "@/hooks/useTransacaoAutomatica";
 import { useClientesListagem } from "@/hooks/useSupabaseClientes";
@@ -52,6 +54,9 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
   const [clienteId, setClienteId] = useState('');
   const [centroCusto, setCentroCusto] = useState<CentroCusto>('Escola');
   
+  // Store Credit
+  const [usarStoreCredit, setUsarStoreCredit] = useState(false);
+  
   // Campos para criar cliente novo
   const [criarNovoCliente, setCriarNovoCliente] = useState(false);
   const [novoClienteNome, setNovoClienteNome] = useState('');
@@ -64,11 +69,34 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
   const { data: config } = useConfigFinanceiro();
   const haptic = useHapticFeedback();
 
-  // Calculate preview based on tax_rules
+  // Cliente selecionado com crédito
+  const clienteSelecionado = useMemo(() => {
+    if (criarNovoCliente || !clienteId) return null;
+    return clientes.find(c => c.id === clienteId) || null;
+  }, [clienteId, clientes, criarNovoCliente]);
+
+  const storeCreditDisponivel = clienteSelecionado?.store_credit || 0;
+  
+  // Reset usar store credit quando mudar cliente
+  useEffect(() => {
+    if (!clienteSelecionado || storeCreditDisponivel <= 0) {
+      setUsarStoreCredit(false);
+    }
+  }, [clienteSelecionado, storeCreditDisponivel]);
+
+  // Calcular valores com store credit
+  const valorOriginal = parseFloat(valorBruto) || 0;
+  const storeCreditAplicado = usarStoreCredit 
+    ? Math.min(storeCreditDisponivel, valorOriginal) 
+    : 0;
+  const valorFinal = valorOriginal - storeCreditAplicado;
+  const storeCreditRestante = storeCreditDisponivel - storeCreditAplicado;
+
+  // Calculate preview based on tax_rules (usando valor final)
   const previewCalc = useMemo(() => {
-    const valor = parseFloat(valorBruto) || 0;
+    const valor = valorFinal;
     const custo = parseFloat(custoProduto) || 0;
-    if (valor <= 0) return null;
+    if (valorOriginal <= 0) return null;
 
     const categoryRates = getTaxRateFromMap(taxRulesMap, tipoVenda);
     const taxaCartaoPercent = formaPagamento === 'pix' 
@@ -81,10 +109,10 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
     const taxaCartao = (valor * taxaCartaoPercent) / 100;
     const imposto = (valor * taxaImpostoPercent) / 100;
     const lucro = valor - custo - taxaCartao - imposto;
-    const margem = valor > 0 ? (lucro / valor) * 100 : 0;
+    const margem = valorOriginal > 0 ? (lucro / valorOriginal) * 100 : 0;
 
     return { taxaCartao, imposto, lucro, margem, taxaImpostoPercent };
-  }, [valorBruto, custoProduto, tipoVenda, formaPagamento, parcelas, taxRulesMap, config]);
+  }, [valorOriginal, valorFinal, custoProduto, tipoVenda, formaPagamento, parcelas, taxRulesMap, config]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,8 +120,10 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
     await criarTransacaoCompleta({
       tipo: 'receita',
       origem: tipoVenda === 'manual' ? 'manual' : tipoVenda as any,
-      descricao,
-      valor_bruto: parseFloat(valorBruto) || 0,
+      descricao: storeCreditAplicado > 0 
+        ? `${descricao} (R$ ${storeCreditAplicado.toFixed(2)} em crédito de loja)`
+        : descricao,
+      valor_bruto: valorFinal, // Valor após desconto do crédito
       custo_produto: parseFloat(custoProduto) || 0,
       forma_pagamento: formaPagamento,
       parcelas: parseInt(parcelas) || 1,
@@ -105,6 +135,8 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
         email: novoClienteEmail,
         telefone: novoClienteTelefone || undefined,
       } : undefined,
+      // Store credit a descontar
+      store_credit_usado: storeCreditAplicado,
     });
     
     haptic.success();
@@ -122,6 +154,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
     setNovoClienteNome('');
     setNovoClienteEmail('');
     setNovoClienteTelefone('');
+    setUsarStoreCredit(false);
 
     onOpenChange(false);
     onSuccess?.();
@@ -148,7 +181,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Nova Venda</DialogTitle>
           <DialogDescription>
@@ -315,13 +348,63 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
                   <SelectItem value="_none">Nenhum</SelectItem>
                   {clientes.map((cliente) => (
                     <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.nome}
+                      <div className="flex items-center gap-2">
+                        {cliente.nome}
+                        {(cliente.store_credit || 0) > 0 && (
+                          <span className="text-xs text-success font-medium">
+                            💰 R$ {cliente.store_credit?.toLocaleString('pt-BR')}
+                          </span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
           </div>
+
+          {/* Store Credit */}
+          {!criarNovoCliente && storeCreditDisponivel > 0 && valorOriginal > 0 && (
+            <div className="p-4 rounded-lg border-2 border-success/30 bg-success/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-success" />
+                  <div>
+                    <p className="font-medium text-success">Crédito de Loja Disponível</p>
+                    <p className="text-sm text-muted-foreground">
+                      Saldo: R$ {storeCreditDisponivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={usarStoreCredit}
+                  onCheckedChange={setUsarStoreCredit}
+                />
+              </div>
+              
+              {usarStoreCredit && (
+                <div className="pt-2 border-t border-success/20 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Valor original:</span>
+                    <span>R$ {valorOriginal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between text-success">
+                    <span>Crédito aplicado:</span>
+                    <span>- R$ {storeCreditAplicado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-lg pt-1">
+                    <span>A pagar:</span>
+                    <span>R$ {valorFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  {storeCreditRestante > 0 && (
+                    <p className="text-xs text-muted-foreground pt-1">
+                      Saldo restante após venda: R$ {storeCreditRestante.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
             
           {/* Centro de Custo */}
           <div className="space-y-2">
@@ -344,8 +427,21 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
             <div className="p-3 rounded-lg bg-muted/50 space-y-1">
               <p className="text-sm font-medium">Resumo estimado:</p>
               <div className="grid grid-cols-2 gap-1 text-sm">
-                <span className="text-muted-foreground">Valor bruto:</span>
-                <span className="text-right font-medium">R$ {parseFloat(valorBruto || '0').toLocaleString('pt-BR')}</span>
+                {storeCreditAplicado > 0 ? (
+                  <>
+                    <span className="text-muted-foreground">Valor original:</span>
+                    <span className="text-right">R$ {valorOriginal.toLocaleString('pt-BR')}</span>
+                    <span className="text-success">Crédito aplicado:</span>
+                    <span className="text-right text-success">- R$ {storeCreditAplicado.toLocaleString('pt-BR')}</span>
+                    <span className="text-muted-foreground font-medium">A receber:</span>
+                    <span className="text-right font-medium">R$ {valorFinal.toLocaleString('pt-BR')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-muted-foreground">Valor bruto:</span>
+                    <span className="text-right font-medium">R$ {valorOriginal.toLocaleString('pt-BR')}</span>
+                  </>
+                )}
                 
                 {custoProduto && parseFloat(custoProduto) > 0 && (
                   <>
@@ -388,7 +484,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
               ) : (
                 <ShoppingCart className="h-4 w-4" />
               )}
-              Registrar Venda
+              {storeCreditAplicado > 0 ? `Registrar (R$ ${valorFinal.toFixed(2)})` : 'Registrar Venda'}
             </Button>
           </div>
         </form>

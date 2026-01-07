@@ -31,6 +31,8 @@ interface TransacaoAutomaticaInput {
   tags_cliente?: string[];
   // Atualizar status do cliente para 'aluno' se for aula
   atualizar_status_aluno?: boolean;
+  // Store credit a descontar do saldo do cliente
+  store_credit_usado?: number;
 }
 
 interface TransacaoAutomaticaResult {
@@ -94,8 +96,18 @@ export function useTransacaoAutomatica() {
         }
       }
 
-      // 2. Atualizar cliente se necessário (status e tags)
-      if (clienteId && (input.atualizar_status_aluno || input.tags_cliente?.length)) {
+      // 2. Atualizar cliente se necessário (status, tags, store_credit)
+      if (clienteId && (input.atualizar_status_aluno || input.tags_cliente?.length || input.store_credit_usado)) {
+        // Buscar dados atuais do cliente se ainda não temos
+        if (!clienteData) {
+          const { data: clienteAtual } = await supabase
+            .from('clientes')
+            .select('id, nome, email, telefone, status, tags, store_credit')
+            .eq('id', clienteId)
+            .single();
+          clienteData = clienteAtual;
+        }
+
         const updates: Record<string, any> = {};
         
         if (input.atualizar_status_aluno) {
@@ -106,6 +118,13 @@ export function useTransacaoAutomatica() {
           const tagsAtuais = clienteData.tags || [];
           const novasTags = [...new Set([...tagsAtuais, ...input.tags_cliente])];
           updates.tags = novasTags;
+        }
+
+        // Descontar store credit usado
+        if (input.store_credit_usado && input.store_credit_usado > 0 && clienteData) {
+          const creditoAtual = clienteData.store_credit || 0;
+          const novoCredito = Math.max(0, creditoAtual - input.store_credit_usado);
+          updates.store_credit = novoCredito;
         }
 
         if (Object.keys(updates).length > 0) {
