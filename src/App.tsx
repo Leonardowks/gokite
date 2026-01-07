@@ -26,6 +26,7 @@ const ContasAPagar = lazy(() => import("./pages/admin/ContasAPagar"));
 const Assistente = lazy(() => import("./pages/Assistente"));
 const Inteligencia = lazy(() => import("./pages/admin/Inteligencia"));
 const Conversas = lazy(() => import("./pages/Conversas"));
+const ProvisaoImpostos = lazy(() => import("./pages/admin/ProvisaoImpostos"));
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => {
             <Route path="/financeiro/configuracoes" element={<ConfiguracoesFinanceiras />} />
             <Route path="/financeiro/dre" element={<RelatorioDRE />} />
             <Route path="/financeiro/contas" element={<ContasAPagar />} />
+            <Route path="/financeiro/impostos" element={<ProvisaoImpostos />} />
             <Route path="/relatorios" element={<Relatorios />} />
             <Route path="/configuracoes" element={<Configuracoes />} />
             <Route path="/assistente" element={<Assistente />} />

@@ -496,6 +496,11 @@ export default function Financeiro() {
               Contas a Pagar {contasSummary?.qtdPendente ? `(${contasSummary.qtdPendente})` : ''}
             </PremiumBadge>
           </Link>
+          <Link to="/financeiro/impostos">
+            <PremiumBadge variant="warning" icon={Landmark} className="cursor-pointer hover:scale-105 transition-transform">
+              Provisão Impostos
+            </PremiumBadge>
+          </Link>
           <Link to="/financeiro/configuracoes">
             <PremiumBadge variant="neutral" icon={Settings2} className="cursor-pointer hover:scale-105 transition-transform">
               Configurar Taxas
