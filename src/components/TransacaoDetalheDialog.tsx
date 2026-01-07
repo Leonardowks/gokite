@@ -165,16 +165,16 @@ export function TransacaoDetalheDialog({ transacao, open, onOpenChange }: Transa
 
           {/* Breakdown Governo vs Seu */}
           {isReceita && totalDeducoes > 0 && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-3 rounded-lg bg-success/5 border border-success/20 text-center">
                 <Wallet className="h-5 w-5 text-success mx-auto mb-1" />
                 <p className="text-xs text-muted-foreground">Dinheiro seu</p>
-                <p className="text-lg font-bold text-success">{formatCurrency(transacao.lucro_liquido)}</p>
+                <p className="text-lg sm:text-xl font-bold text-success">{formatCurrency(transacao.lucro_liquido)}</p>
               </div>
               <div className="p-3 rounded-lg bg-muted/50 border border-border text-center">
                 <Landmark className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
                 <p className="text-xs text-muted-foreground">Governo/Banco</p>
-                <p className="text-lg font-bold text-muted-foreground">
+                <p className="text-lg sm:text-xl font-bold text-muted-foreground">
                   {formatCurrency(transacao.taxa_cartao_estimada + transacao.imposto_provisionado)}
                 </p>
               </div>

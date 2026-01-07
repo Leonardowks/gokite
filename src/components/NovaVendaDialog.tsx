@@ -130,7 +130,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
           {/* Tipo de Venda - Cards */}
           <div className="space-y-2">
             <Label>Tipo de Venda</Label>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {tiposVenda.map((tipo) => {
                 const Icon = tipo.icon;
                 const isSelected = tipoVenda === tipo.value;
@@ -142,7 +142,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
                       setTipoVenda(tipo.value as TipoVenda);
                       setCentroCusto(getCentroCustoSugerido(tipo.value as TipoVenda));
                     }}
-                    className={`flex flex-col items-center gap-1 p-3 rounded-lg border-2 transition-all ${
+                    className={`flex flex-col items-center justify-center gap-1.5 p-3 sm:p-3 min-h-[64px] rounded-lg border-2 transition-all ${
                       isSelected 
                         ? 'border-primary bg-primary/5' 
                         : 'border-border hover:border-primary/50'
@@ -171,7 +171,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
           </div>
 
           {/* Valor e Custo */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="valor">Valor (R$)</Label>
               <Input
@@ -182,6 +182,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
                 value={valorBruto}
                 onChange={(e) => setValorBruto(e.target.value)}
                 required
+                className="min-h-[44px]"
               />
             </div>
             <div className="space-y-2">
@@ -193,17 +194,18 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
                 placeholder="0,00"
                 value={custoProduto}
                 onChange={(e) => setCustoProduto(e.target.value)}
+                className="min-h-[44px]"
               />
               <p className="text-xs text-muted-foreground">Para cálculo de margem</p>
             </div>
           </div>
 
           {/* Forma de Pagamento e Parcelas */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Forma de Pagamento</Label>
               <Select value={formaPagamento} onValueChange={(v) => setFormaPagamento(v as FormaPagamento)}>
-                <SelectTrigger>
+                <SelectTrigger className="min-h-[44px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -220,7 +222,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
               <div className="space-y-2">
                 <Label htmlFor="parcelas">Parcelas</Label>
                 <Select value={parcelas} onValueChange={setParcelas}>
-                  <SelectTrigger>
+                  <SelectTrigger className="min-h-[44px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -255,17 +257,20 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
                   placeholder="Nome do cliente"
                   value={novoClienteNome}
                   onChange={(e) => setNovoClienteNome(e.target.value)}
+                  className="min-h-[44px]"
                 />
                 <Input
                   type="email"
                   placeholder="Email do cliente"
                   value={novoClienteEmail}
                   onChange={(e) => setNovoClienteEmail(e.target.value)}
+                  className="min-h-[44px]"
                 />
                 <Input
                   placeholder="Telefone (opcional)"
                   value={novoClienteTelefone}
                   onChange={(e) => setNovoClienteTelefone(e.target.value)}
+                  className="min-h-[44px]"
                 />
                 <p className="text-xs text-muted-foreground">
                   ✓ Cliente será criado automaticamente ao registrar a venda
@@ -273,7 +278,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
               </div>
             ) : (
               <Select value={clienteId} onValueChange={(v) => setClienteId(v === '_none' ? '' : v)}>
-                <SelectTrigger>
+                <SelectTrigger className="min-h-[44px]">
                   <SelectValue placeholder="Selecionar cliente (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -292,7 +297,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
           <div className="space-y-2">
             <Label>Centro de Custo</Label>
             <Select value={centroCusto} onValueChange={(v) => setCentroCusto(v as CentroCusto)}>
-              <SelectTrigger>
+              <SelectTrigger className="min-h-[44px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -326,19 +331,19 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
           )}
 
           {/* Botões */}
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1"
+              className="flex-1 min-h-[48px]"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={isPending || !valorBruto || (criarNovoCliente && (!novoClienteNome || !novoClienteEmail))}
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 min-h-[48px]"
             >
               {isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

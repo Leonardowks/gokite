@@ -416,50 +416,109 @@ export default function Vendas() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Pagamento</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead className="text-right">Lucro</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {transacoesFiltradas.map((transacao) => (
-                    <TableRow key={transacao.id}>
-                      <TableCell className="whitespace-nowrap">
-                        {format(new Date(transacao.data_transacao), "dd/MM/yyyy", { locale: ptBR })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
+            <>
+              {/* Mobile Cards */}
+              <div className="lg:hidden space-y-3 p-4">
+                {transacoesFiltradas.map((transacao) => (
+                  <div 
+                    key={transacao.id} 
+                    className="p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors"
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                           {getOrigemIcon(transacao.origem)}
-                          <span>{getOrigemLabel(transacao.origem)}</span>
                         </div>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {transacao.descricao || '-'}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {getPagamentoIcon(transacao.forma_pagamento)}
-                          <span>{getPagamentoLabel(transacao.forma_pagamento)}</span>
+                        <div>
+                          <p className="font-medium text-sm line-clamp-1">
+                            {transacao.descricao || getOrigemLabel(transacao.origem)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(transacao.data_transacao), "dd/MM/yyyy", { locale: ptBR })}
+                          </p>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        R$ {transacao.valor_bruto.toLocaleString('pt-BR')}
-                      </TableCell>
-                      <TableCell className={`text-right font-medium ${transacao.lucro_liquido >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        R$ {transacao.lucro_liquido.toLocaleString('pt-BR')}
-                      </TableCell>
+                      </div>
+                      <PremiumBadge 
+                        variant={transacao.lucro_liquido >= 0 ? 'success' : 'warning'}
+                        size="sm"
+                      >
+                        {getOrigemLabel(transacao.origem)}
+                      </PremiumBadge>
+                    </div>
+                    
+                    {/* Values Grid */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-2 rounded-lg bg-muted/30">
+                        <p className="text-xs text-muted-foreground mb-0.5">Valor</p>
+                        <p className="font-semibold">R$ {transacao.valor_bruto.toLocaleString('pt-BR')}</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-muted/30">
+                        <p className="text-xs text-muted-foreground mb-0.5">Lucro</p>
+                        <p className={`font-semibold ${transacao.lucro_liquido >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          R$ {transacao.lucro_liquido.toLocaleString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Footer */}
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                      {getPagamentoIcon(transacao.forma_pagamento)}
+                      <span className="text-xs text-muted-foreground">
+                        {getPagamentoLabel(transacao.forma_pagamento)}
+                        {transacao.parcelas > 1 && ` (${transacao.parcelas}x)`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden lg:block overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Pagamento</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-right">Lucro</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {transacoesFiltradas.map((transacao) => (
+                      <TableRow key={transacao.id}>
+                        <TableCell className="whitespace-nowrap">
+                          {format(new Date(transacao.data_transacao), "dd/MM/yyyy", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getOrigemIcon(transacao.origem)}
+                            <span>{getOrigemLabel(transacao.origem)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {transacao.descricao || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getPagamentoIcon(transacao.forma_pagamento)}
+                            <span>{getPagamentoLabel(transacao.forma_pagamento)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          R$ {transacao.valor_bruto.toLocaleString('pt-BR')}
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${transacao.lucro_liquido >= 0 ? 'text-success' : 'text-destructive'}`}>
+                          R$ {transacao.lucro_liquido.toLocaleString('pt-BR')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </PremiumCard>
