@@ -769,9 +769,156 @@
   box-shadow: 0 0 12px hsl(185 100% 50% / 0.5);
 }
 
-/* Safe area for mobile devices with home indicator */
+/* ==========================================
+   MOBILE-FIRST RESPONSIVE UTILITIES
+   ========================================== */
+
+/* Safe areas for mobile devices (iPhone X+, Android notches) */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left, 0);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+.safe-area-x {
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+.safe-area-y {
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Touch-friendly target sizes (44px minimum per Apple HIG) */
+.touch-target {
+  min-height: var(--touch-target-min, 44px);
+  min-width: var(--touch-target-min, 44px);
+}
+
+.touch-target-lg {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+.touch-target-xl {
+  min-height: 56px;
+  min-width: 56px;
+}
+
+/* Prevent iOS zoom on input focus (font-size must be 16px+) */
+@supports (-webkit-touch-callout: none) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Responsive text utilities using clamp() */
+.text-responsive-xs {
+  font-size: clamp(0.625rem, 1.5vw, 0.75rem);
+}
+
+.text-responsive-sm {
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
+}
+
+.text-responsive {
+  font-size: clamp(0.875rem, 2.5vw, 1rem);
+}
+
+.text-responsive-lg {
+  font-size: clamp(1rem, 3vw, 1.125rem);
+}
+
+.text-responsive-xl {
+  font-size: clamp(1.125rem, 4vw, 1.5rem);
+}
+
+.text-responsive-2xl {
+  font-size: clamp(1.5rem, 5vw, 2rem);
+}
+
+.text-responsive-3xl {
+  font-size: clamp(1.875rem, 6vw, 2.5rem);
+}
+
+/* Horizontal scroll container (for submenus, tabs) */
+.scroll-container-x {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-container-x::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-container-x > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+/* Scroll fade indicators */
+.scroll-fade-right {
+  position: relative;
+}
+
+.scroll-fade-right::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to left, hsl(var(--background)), transparent);
+  pointer-events: none;
+}
+
+/* Mobile-first card stack */
+.card-stack-mobile {
+  @apply space-y-3;
+}
+
+@media (min-width: 1024px) {
+  .card-stack-mobile {
+    @apply space-y-0;
+  }
+}
+
+/* Responsive padding */
+.p-responsive {
+  padding: var(--spacing-mobile);
+}
+
+@media (min-width: 768px) {
+  .p-responsive {
+    padding: var(--spacing-desktop);
+  }
 }
 
 /* Bottom navigation glass effect */
@@ -780,4 +927,58 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
+}
+
+/* Prevent text selection on interactive elements (mobile UX) */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Active state for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .touch-active:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+  
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Hide on mobile, show on desktop */
+.mobile-hidden {
+  @apply hidden md:block;
+}
+
+/* Show on mobile, hide on desktop */
+.mobile-only {
+  @apply block md:hidden;
+}
+
+/* Improve tap highlight on iOS */
+* {
+  -webkit-tap-highlight-color: hsl(var(--primary) / 0.1);
+}
+
+/* Number display - prevent layout shift */
+.number-display {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  @apply font-bold tracking-tight tabular-nums;
+}
+
+/* Icon container with minimum touch target */
+.icon-container {
+  @apply flex items-center justify-center rounded-xl transition-all duration-200;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.icon-container-destructive {
+  @apply bg-destructive/10 text-destructive;
 }
