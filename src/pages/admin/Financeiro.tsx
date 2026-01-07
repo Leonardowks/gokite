@@ -29,12 +29,14 @@ import {
   BarChart3,
   GraduationCap,
   Home,
-  ShoppingBag
+  ShoppingBag,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { PremiumCard, PremiumCardContent, PremiumCardHeader, PremiumCardTitle, PremiumCardDescription } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
@@ -59,19 +61,22 @@ import {
   Area,
   AreaChart
 } from "recharts";
-import { localStorageService, Agendamento, Aluguel } from "@/lib/localStorage";
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useTransacoes, useTransacoesSummary, Transacao } from "@/hooks/useTransacoes";
+import { useTransacoes, useTransacoesSummary, Transacao, useConfigFinanceiro } from "@/hooks/useTransacoes";
 import { TransacaoDetalheDialog } from "@/components/TransacaoDetalheDialog";
 import { useContasAPagarSummary } from "@/hooks/useContasAPagar";
 import { QuickFinancialEntry, type ParsedTransaction } from "@/components/QuickFinancialEntry";
 import { NovaTransacaoDialog } from "@/components/NovaTransacaoDialog";
+import { FinanceiroSubmenu } from "@/components/FinanceiroSubmenu";
+import { exportTransacoesToCsv } from "@/lib/exportCsv";
+import { toast } from "sonner";
 
 interface FinanceiroStats {
   receitaTotal: number;
   receitaAulas: number;
   receitaAluguel: number;
+  receitaProdutos: number;
   ticketMedio: number;
   metaMensal: number;
   progressoMeta: number;
@@ -96,7 +101,7 @@ interface DailyRevenue {
   aulas: number;
   aluguel: number;
   total: number;
-  liquido: number; // Caixa real (após taxas e impostos)
+  liquido: number;
 }
 
 const chartConfig = {
@@ -119,25 +124,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function Financeiro() {
-  const [stats, setStats] = useState<FinanceiroStats>({
-    receitaTotal: 0,
-    receitaAulas: 0,
-    receitaAluguel: 0,
-    ticketMedio: 0,
-    metaMensal: 15000,
-    progressoMeta: 0,
-    receitaHoje: 0,
-    receitaSemana: 0,
-    receitaMes: 0,
-    crescimentoMes: 0,
-    transacoesHoje: 0,
-    aReceber: 0,
-  });
-  const [dailyData, setDailyData] = useState<DailyRevenue[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
-  const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
-  const [alugueis, setAlugueis] = useState<Aluguel[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedTransacao, setSelectedTransacao] = useState<Transacao | null>(null);
   const [isDetalheOpen, setIsDetalheOpen] = useState(false);
   const [novaTransacaoOpen, setNovaTransacaoOpen] = useState(false);
@@ -149,294 +136,162 @@ export default function Financeiro() {
     setNovaTransacaoOpen(true);
   };
 
-  // Fetch transações from Supabase
+  // Fetch data from Supabase
   const { data: transacoes = [], isLoading: isLoadingTransacoes } = useTransacoes({ limit: 10 });
-  const { data: transacoesSummary } = useTransacoesSummary('mes');
+  const { data: transacoesSummary, isLoading: isLoadingSummary } = useTransacoesSummary('mes');
+  const { data: transacoesSemana } = useTransacoesSummary('semana');
+  const { data: transacoesHoje } = useTransacoesSummary('hoje');
   const { data: contasSummary } = useContasAPagarSummary();
+  const { data: config } = useConfigFinanceiro();
 
-  useEffect(() => {
-    loadFinancialData();
-  }, []);
+  // Fetch transações for chart (last 14 days)
+  const hojeDate = new Date();
+  const startDate14Days = format(subDays(hojeDate, 13), 'yyyy-MM-dd');
+  const { data: transacoesChart = [] } = useTransacoes({ 
+    startDate: startDate14Days,
+    tipo: 'receita'
+  });
+
+  // Calculate stats from Supabase data
+  const stats = useMemo(() => {
+    const metaMensal = config?.meta_mensal || 15000;
+    const receitaMes = transacoesSummary?.totalReceitas || 0;
+    const progressoMeta = metaMensal > 0 ? (receitaMes / metaMensal) * 100 : 0;
+    
+    // Breakdown por origem
+    const receitaAulas = transacoesSummary?.porOrigem?.aula?.receita || 0;
+    const receitaAluguel = transacoesSummary?.porOrigem?.aluguel?.receita || 0;
+    const receitaProdutos = transacoesSummary?.porOrigem?.venda_produto?.receita || 0;
+    
+    const totalTransacoes = transacoesSummary?.qtdTransacoes || 0;
+    const ticketMedio = totalTransacoes > 0 ? receitaMes / totalTransacoes : 0;
+
+    return {
+      receitaTotal: receitaMes,
+      receitaAulas,
+      receitaAluguel,
+      receitaProdutos,
+      ticketMedio,
+      metaMensal,
+      progressoMeta: Math.min(progressoMeta, 100),
+      receitaHoje: transacoesHoje?.totalReceitas || 0,
+      receitaSemana: transacoesSemana?.totalReceitas || 0,
+      receitaMes,
+      crescimentoMes: 0, // Would need previous month data
+      transacoesHoje: transacoesHoje?.qtdTransacoes || 0,
+      aReceber: 0, // TODO: implement pending amounts
+    } as FinanceiroStats;
+  }, [transacoesSummary, transacoesSemana, transacoesHoje, config]);
+
+  // Generate daily data for chart from Supabase transactions
+  const dailyData = useMemo(() => {
+    const dias = eachDayOfInterval({
+      start: subDays(hojeDate, 13),
+      end: hojeDate,
+    });
+
+    return dias.map(dia => {
+      const diaStr = format(dia, 'yyyy-MM-dd');
+      
+      // Filter transactions for this day
+      const transacoesDia = transacoesChart.filter(t => 
+        t.data_transacao.startsWith(diaStr)
+      );
+      
+      const receitaAulasDia = transacoesDia
+        .filter(t => t.origem === 'aula' || t.origem === 'pacote')
+        .reduce((sum, t) => sum + t.valor_bruto, 0);
+      
+      const receitaAluguelDia = transacoesDia
+        .filter(t => t.origem === 'aluguel')
+        .reduce((sum, t) => sum + t.valor_bruto, 0);
+      
+      const totalDia = transacoesDia.reduce((sum, t) => sum + t.valor_bruto, 0);
+      const liquidoDia = transacoesDia.reduce((sum, t) => sum + t.lucro_liquido, 0);
+
+      return {
+        data: diaStr,
+        dataFormatada: format(dia, 'dd/MM', { locale: ptBR }),
+        aulas: receitaAulasDia,
+        aluguel: receitaAluguelDia,
+        total: totalDia,
+        liquido: Math.round(liquidoDia),
+      };
+    });
+  }, [transacoesChart, hojeDate]);
+
+  // Pie chart data
+  const pieData = useMemo(() => {
+    const data = [
+      { name: 'Aulas', value: stats.receitaAulas, fill: 'hsl(var(--chart-1))' },
+      { name: 'Aluguel', value: stats.receitaAluguel, fill: 'hsl(var(--chart-2))' },
+    ].filter(item => item.value > 0);
+    
+    if (stats.receitaProdutos > 0) {
+      data.push({ name: 'Produtos', value: stats.receitaProdutos, fill: 'hsl(var(--chart-3))' });
+    }
+    
+    return data;
+  }, [stats]);
 
   // Add insight for overdue bills
   useEffect(() => {
+    const newInsights: Insight[] = [];
+    
     if (contasSummary?.qtdVencido && contasSummary.qtdVencido > 0) {
-      setInsights(prev => {
-        const hasContasInsight = prev.some(i => i.titulo.includes('conta(s) vencida'));
-        if (hasContasInsight) return prev;
-        return [{
-          tipo: 'alerta' as const,
-          titulo: `${contasSummary.qtdVencido} conta(s) vencida(s)`,
-          descricao: `R$ ${contasSummary.totalVencido.toLocaleString('pt-BR')} em contas atrasadas. Regularize para evitar multas!`,
-          acao: 'Ver contas',
-        }, ...prev];
+      newInsights.push({
+        tipo: 'alerta',
+        titulo: `${contasSummary.qtdVencido} conta(s) vencida(s)`,
+        descricao: `R$ ${contasSummary.totalVencido.toLocaleString('pt-BR')} em contas atrasadas. Regularize para evitar multas!`,
+        acao: 'Ver contas',
       });
     } else if (contasSummary?.qtdVencendo7Dias && contasSummary.qtdVencendo7Dias > 0) {
-      setInsights(prev => {
-        const hasContasInsight = prev.some(i => i.titulo.includes('vencendo em 7 dias'));
-        if (hasContasInsight) return prev;
-        return [{
-          tipo: 'dica' as const,
-          titulo: `${contasSummary.qtdVencendo7Dias} conta(s) vencendo em 7 dias`,
-          descricao: `R$ ${contasSummary.totalVencendo7Dias.toLocaleString('pt-BR')} a pagar em breve. Programe-se!`,
-          acao: 'Ver contas',
-        }, ...prev];
+      newInsights.push({
+        tipo: 'dica',
+        titulo: `${contasSummary.qtdVencendo7Dias} conta(s) vencendo em 7 dias`,
+        descricao: `R$ ${contasSummary.totalVencendo7Dias.toLocaleString('pt-BR')} a pagar em breve. Programe-se!`,
+        acao: 'Ver contas',
       });
     }
-  }, [contasSummary]);
 
-  const loadFinancialData = () => {
-    setIsLoading(true);
-    
-    // Simulate loading for premium feel
-    setTimeout(() => {
-      const agendamentosData = localStorageService.listarAgendamentos();
-      const alugueisData = localStorageService.listarAlugueis();
-      
-      setAgendamentos(agendamentosData);
-      setAlugueis(alugueisData);
-
-      const hoje = new Date();
-      const inicioSemana = subDays(hoje, 7);
-      const inicioMes = startOfMonth(hoje);
-      const fimMes = endOfMonth(hoje);
-      const mesPassadoInicio = startOfMonth(subDays(inicioMes, 1));
-      const mesPassadoFim = endOfMonth(subDays(inicioMes, 1));
-
-      // Receita de aulas confirmadas
-      const aulasConfirmadas = agendamentosData.filter(a => a.status === 'confirmada');
-      const receitaAulas = aulasConfirmadas.reduce((sum, a) => sum + a.valor, 0);
-
-      // Receita de aluguéis ativos e concluídos
-      const alugueisValidos = alugueisData.filter(a => a.status === 'ativo' || a.status === 'concluido');
-      const receitaAluguel = alugueisValidos.reduce((sum, a) => sum + a.valor_total, 0);
-
-      // Receita total
-      const receitaTotal = receitaAulas + receitaAluguel;
-
-      // Receita hoje
-      const hojeStr = format(hoje, 'yyyy-MM-dd');
-      const aulasHoje = aulasConfirmadas.filter(a => a.data.startsWith(hojeStr));
-      const receitaAulasHoje = aulasHoje.reduce((sum, a) => sum + a.valor, 0);
-      const alugueisHoje = alugueisValidos.filter(a => a.created_at.startsWith(hojeStr));
-      const receitaAluguelHoje = alugueisHoje.reduce((sum, a) => sum + a.valor_total, 0);
-      const receitaHoje = receitaAulasHoje + receitaAluguelHoje;
-
-      // Receita semana
-      const aulasSemana = aulasConfirmadas.filter(a => {
-        const dataAula = parseISO(a.data);
-        return dataAula >= inicioSemana && dataAula <= hoje;
-      });
-      const receitaAulasSemana = aulasSemana.reduce((sum, a) => sum + a.valor, 0);
-      const alugueisSemana = alugueisValidos.filter(a => {
-        const dataAluguel = parseISO(a.created_at);
-        return dataAluguel >= inicioSemana && dataAluguel <= hoje;
-      });
-      const receitaAluguelSemana = alugueisSemana.reduce((sum, a) => sum + a.valor_total, 0);
-      const receitaSemana = receitaAulasSemana + receitaAluguelSemana;
-
-      // Receita mês atual
-      const aulasMes = aulasConfirmadas.filter(a => {
-        const dataAula = parseISO(a.data);
-        return dataAula >= inicioMes && dataAula <= fimMes;
-      });
-      const receitaAulasMes = aulasMes.reduce((sum, a) => sum + a.valor, 0);
-      const alugueisMes = alugueisValidos.filter(a => {
-        const dataAluguel = parseISO(a.created_at);
-        return dataAluguel >= inicioMes && dataAluguel <= fimMes;
-      });
-      const receitaAluguelMes = alugueisMes.reduce((sum, a) => sum + a.valor_total, 0);
-      const receitaMes = receitaAulasMes + receitaAluguelMes;
-
-      // Receita mês passado
-      const aulasMesPassado = aulasConfirmadas.filter(a => {
-        const dataAula = parseISO(a.data);
-        return dataAula >= mesPassadoInicio && dataAula <= mesPassadoFim;
-      });
-      const receitaAulasMesPassado = aulasMesPassado.reduce((sum, a) => sum + a.valor, 0);
-      const alugueisMesPassado = alugueisValidos.filter(a => {
-        const dataAluguel = parseISO(a.created_at);
-        return dataAluguel >= mesPassadoInicio && dataAluguel <= mesPassadoFim;
-      });
-      const receitaAluguelMesPassado = alugueisMesPassado.reduce((sum, a) => sum + a.valor_total, 0);
-      const receitaMesPassado = receitaAulasMesPassado + receitaAluguelMesPassado;
-
-      // Crescimento
-      const crescimentoMes = receitaMesPassado > 0 
-        ? ((receitaMes - receitaMesPassado) / receitaMesPassado) * 100 
-        : 0;
-
-      // Ticket médio
-      const totalTransacoes = aulasConfirmadas.length + alugueisValidos.length;
-      const ticketMedio = totalTransacoes > 0 ? receitaTotal / totalTransacoes : 0;
-
-      // Transações hoje
-      const transacoesHoje = aulasHoje.length + alugueisHoje.length;
-
-      // A receber (aulas pendentes)
-      const aulasPendentes = agendamentosData.filter(a => a.status === 'pendente');
-      const aReceber = aulasPendentes.reduce((sum, a) => sum + a.valor, 0);
-
-      // Meta mensal
-      const metaMensal = 15000;
-      const progressoMeta = (receitaMes / metaMensal) * 100;
-
-      setStats({
-        receitaTotal,
-        receitaAulas,
-        receitaAluguel,
-        ticketMedio,
-        metaMensal,
-        progressoMeta: Math.min(progressoMeta, 100),
-        receitaHoje,
-        receitaSemana,
-        receitaMes,
-        crescimentoMes,
-        transacoesHoje,
-        aReceber,
-      });
-
-      // Gerar dados diários para gráfico (últimos 14 dias)
-      const dias = eachDayOfInterval({
-        start: subDays(hoje, 13),
-        end: hoje,
-      });
-
-      const dadosDiarios: DailyRevenue[] = dias.map(dia => {
-        const diaStr = format(dia, 'yyyy-MM-dd');
-        const aulaDia = aulasConfirmadas.filter(a => a.data.startsWith(diaStr));
-        const aluguelDia = alugueisValidos.filter(a => a.created_at.startsWith(diaStr));
-        
-        const receitaAulasDia = aulaDia.reduce((sum, a) => sum + a.valor, 0);
-        const receitaAluguelDia = aluguelDia.reduce((sum, a) => sum + a.valor_total, 0);
-        const totalDia = receitaAulasDia + receitaAluguelDia;
-        
-        // Cálculo do líquido: total - (taxa cartão ~4%) - (imposto ~6%)
-        // Aproximação para visualização (o cálculo real está no banco)
-        const taxaCartaoMedia = 0.04; // 4% média
-        const taxaImpostoMedia = 0.06; // 6% 
-        const liquidoDia = totalDia * (1 - taxaCartaoMedia - taxaImpostoMedia);
-
-        return {
-          data: diaStr,
-          dataFormatada: format(dia, 'dd/MM', { locale: ptBR }),
-          aulas: receitaAulasDia,
-          aluguel: receitaAluguelDia,
-          total: totalDia,
-          liquido: Math.round(liquidoDia),
-        };
-      });
-
-      setDailyData(dadosDiarios);
-
-      // Gerar insights
-      generateInsights(
-        receitaMes,
-        metaMensal,
-        crescimentoMes,
-        aReceber,
-        ticketMedio,
-        agendamentosData,
-        alugueisData
-      );
-      
-      setIsLoading(false);
-    }, 300);
-  };
-
-  const generateInsights = (
-    receitaMes: number,
-    metaMensal: number,
-    crescimento: number,
-    aReceber: number,
-    ticketMedio: number,
-    agendamentos: Agendamento[],
-    alugueis: Aluguel[]
-  ) => {
-    const newInsights: Insight[] = [];
-    const hoje = new Date();
-    const diasRestantesMes = differenceInDays(endOfMonth(hoje), hoje);
-    const progressoMeta = (receitaMes / metaMensal) * 100;
-
-    if (progressoMeta >= 100) {
+    // Meta insights
+    if (stats.progressoMeta >= 100) {
       newInsights.push({
         tipo: 'sucesso',
         titulo: 'Meta batida!',
-        descricao: `Você alcançou ${progressoMeta.toFixed(0)}% da meta mensal. Parabéns pelo excelente resultado!`,
+        descricao: `Você alcançou ${stats.progressoMeta.toFixed(0)}% da meta mensal. Parabéns!`,
       });
-    } else if (progressoMeta >= 80) {
+    } else if (stats.progressoMeta >= 80) {
       newInsights.push({
         tipo: 'meta',
         titulo: 'Quase lá!',
-        descricao: `Faltam R$ ${(metaMensal - receitaMes).toLocaleString('pt-BR')} para bater a meta. Você consegue!`,
-        acao: 'Confirmar aulas pendentes',
+        descricao: `Faltam R$ ${(stats.metaMensal - stats.receitaMes).toLocaleString('pt-BR')} para bater a meta.`,
+        acao: 'Ver vendas',
       });
-    } else if (diasRestantesMes <= 7 && progressoMeta < 60) {
+    }
+
+    // Margin insights
+    if (transacoesSummary?.margemLiquida && transacoesSummary.margemLiquida < 15) {
       newInsights.push({
         tipo: 'alerta',
-        titulo: 'Atenção com a meta',
-        descricao: `Restam ${diasRestantesMes} dias e você está em ${progressoMeta.toFixed(0)}% da meta.`,
-        acao: 'Ver estratégias',
-      });
-    }
-
-    if (crescimento > 20) {
-      newInsights.push({
-        tipo: 'sucesso',
-        titulo: 'Crescimento acelerado',
-        descricao: `Receita +${crescimento.toFixed(0)}% vs. mês anterior. Seu negócio está decolando!`,
-      });
-    } else if (crescimento < -10) {
-      newInsights.push({
-        tipo: 'alerta',
-        titulo: 'Queda de receita',
-        descricao: `Receita ${crescimento.toFixed(0)}% vs. mês anterior. Analise o que mudou.`,
-        acao: 'Ver comparativo',
-      });
-    }
-
-    if (aReceber > 0) {
-      newInsights.push({
-        tipo: 'dica',
-        titulo: `R$ ${aReceber.toLocaleString('pt-BR')} a confirmar`,
-        descricao: `Você tem aulas pendentes que podem virar receita. Confirme agora!`,
-        acao: 'Confirmar aulas',
-      });
-    }
-
-    if (ticketMedio > 0 && ticketMedio < 300) {
-      newInsights.push({
-        tipo: 'dica',
-        titulo: 'Aumente o ticket médio',
-        descricao: `Seu ticket médio é R$ ${ticketMedio.toFixed(0)}. Ofereça pacotes para aumentar o valor.`,
-        acao: 'Criar pacote',
-      });
-    }
-
-    const alugueisAtrasados = alugueis.filter(a => {
-      if (a.status !== 'ativo') return false;
-      const dataFim = parseISO(a.data_fim);
-      return dataFim < hoje;
-    });
-
-    if (alugueisAtrasados.length > 0) {
-      const valorAtrasado = alugueisAtrasados.reduce((sum, a) => sum + a.valor_total, 0);
-      newInsights.push({
-        tipo: 'alerta',
-        titulo: `${alugueisAtrasados.length} aluguel(éis) atrasado(s)`,
-        descricao: `Total de R$ ${valorAtrasado.toLocaleString('pt-BR')} em equipamentos não devolvidos.`,
-        acao: 'Cobrar devolução',
+        titulo: 'Margem líquida baixa',
+        descricao: `Margem de ${transacoesSummary.margemLiquida.toFixed(1)}% está abaixo do ideal (15%). Revise custos!`,
+        acao: 'Ver DRE',
       });
     }
 
     setInsights(newInsights);
-  };
+  }, [contasSummary, stats, transacoesSummary]);
 
-  // Dados para gráfico de pizza
-  const pieData = useMemo(() => [
-    { name: 'Aulas', value: stats.receitaAulas, fill: 'hsl(var(--chart-1))' },
-    { name: 'Aluguel', value: stats.receitaAluguel, fill: 'hsl(var(--chart-2))' },
-  ].filter(item => item.value > 0), [stats]);
+  // Export handler
+  const handleExportCsv = () => {
+    if (transacoes.length === 0) {
+      toast.error("Nenhuma transação para exportar");
+      return;
+    }
+    exportTransacoesToCsv(transacoes);
+    toast.success("CSV exportado com sucesso!");
+  };
 
   const formatCurrency = (value: number) => {
     return `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}`;
@@ -465,6 +320,22 @@ export default function Financeiro() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* Submenu de Navegação */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <FinanceiroSubmenu />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleExportCsv}
+            className="gap-2 self-start sm:self-auto"
+          >
+            <Download className="h-4 w-4" />
+            Exportar CSV
+          </Button>
+        </div>
+      </div>
+
       {/* Premium Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div className="space-y-1">
@@ -481,31 +352,6 @@ export default function Financeiro() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          <Link to="/financeiro/dre">
-            <PremiumBadge variant="success" icon={FileText} className="cursor-pointer hover:scale-105 transition-transform">
-              Relatório DRE
-            </PremiumBadge>
-          </Link>
-          <Link to="/financeiro/contas">
-            <PremiumBadge 
-              variant={contasSummary?.qtdVencido ? "urgent" : "warning"} 
-              icon={FileWarning} 
-              className="cursor-pointer hover:scale-105 transition-transform"
-              pulse={contasSummary?.qtdVencido ? true : false}
-            >
-              Contas a Pagar {contasSummary?.qtdPendente ? `(${contasSummary.qtdPendente})` : ''}
-            </PremiumBadge>
-          </Link>
-          <Link to="/financeiro/impostos">
-            <PremiumBadge variant="warning" icon={Landmark} className="cursor-pointer hover:scale-105 transition-transform">
-              Provisão Impostos
-            </PremiumBadge>
-          </Link>
-          <Link to="/financeiro/configuracoes">
-            <PremiumBadge variant="neutral" icon={Settings2} className="cursor-pointer hover:scale-105 transition-transform">
-              Configurar Taxas
-            </PremiumBadge>
-          </Link>
           <PremiumBadge variant="info" icon={Calendar}>
             {format(new Date(), "MMMM 'de' yyyy", { locale: ptBR })}
           </PremiumBadge>

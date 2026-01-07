@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,8 @@ import {
 import { useTransacaoAutomatica, getCentroCustoPorOrigem } from "@/hooks/useTransacaoAutomatica";
 import { useClientesListagem } from "@/hooks/useSupabaseClientes";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
+import { useTaxRulesMap, getTaxRateFromMap } from "@/hooks/useTaxRulesByCategory";
+import { useConfigFinanceiro, getTaxaCartao } from "@/hooks/useTransacoes";
 
 interface NovaVendaDialogProps {
   open: boolean;
@@ -58,7 +60,31 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
 
   const { criarTransacaoCompleta, isPending } = useTransacaoAutomatica();
   const { data: clientes = [] } = useClientesListagem();
+  const { data: taxRulesMap } = useTaxRulesMap();
+  const { data: config } = useConfigFinanceiro();
   const haptic = useHapticFeedback();
+
+  // Calculate preview based on tax_rules
+  const previewCalc = useMemo(() => {
+    const valor = parseFloat(valorBruto) || 0;
+    const custo = parseFloat(custoProduto) || 0;
+    if (valor <= 0) return null;
+
+    const categoryRates = getTaxRateFromMap(taxRulesMap, tipoVenda);
+    const taxaCartaoPercent = formaPagamento === 'pix' 
+      ? (config?.taxa_pix || 0)
+      : formaPagamento === 'dinheiro' || formaPagamento === 'trade_in'
+        ? 0
+        : getTaxaCartao(config?.taxas_cartao, formaPagamento, parseInt(parcelas) || 1);
+    
+    const taxaImpostoPercent = categoryRates.taxRate;
+    const taxaCartao = (valor * taxaCartaoPercent) / 100;
+    const imposto = (valor * taxaImpostoPercent) / 100;
+    const lucro = valor - custo - taxaCartao - imposto;
+    const margem = valor > 0 ? (lucro / valor) * 100 : 0;
+
+    return { taxaCartao, imposto, lucro, margem, taxaImpostoPercent };
+  }, [valorBruto, custoProduto, tipoVenda, formaPagamento, parcelas, taxRulesMap, config]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,22 +340,30 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
           </div>
 
           {/* Resumo de cálculo */}
-          {valorBruto && (
+          {previewCalc && (
             <div className="p-3 rounded-lg bg-muted/50 space-y-1">
               <p className="text-sm font-medium">Resumo estimado:</p>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="grid grid-cols-2 gap-1 text-sm">
                 <span className="text-muted-foreground">Valor bruto:</span>
                 <span className="text-right font-medium">R$ {parseFloat(valorBruto || '0').toLocaleString('pt-BR')}</span>
                 
-                {custoProduto && (
+                {custoProduto && parseFloat(custoProduto) > 0 && (
                   <>
                     <span className="text-muted-foreground">Custo:</span>
                     <span className="text-right text-destructive">- R$ {parseFloat(custoProduto).toLocaleString('pt-BR')}</span>
                   </>
                 )}
                 
-                <span className="text-muted-foreground">Taxas + Impostos:</span>
-                <span className="text-right text-muted-foreground">Calculado automaticamente</span>
+                <span className="text-muted-foreground">Taxa cartão:</span>
+                <span className="text-right text-destructive">- R$ {previewCalc.taxaCartao.toFixed(2)}</span>
+                
+                <span className="text-muted-foreground">Imposto ({previewCalc.taxaImpostoPercent}%):</span>
+                <span className="text-right text-destructive">- R$ {previewCalc.imposto.toFixed(2)}</span>
+                
+                <span className={`font-semibold ${previewCalc.lucro >= 0 ? 'text-success' : 'text-destructive'}`}>Lucro líquido:</span>
+                <span className={`text-right font-semibold ${previewCalc.lucro >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  R$ {previewCalc.lucro.toFixed(2)} ({previewCalc.margem.toFixed(0)}%)
+                </span>
               </div>
             </div>
           )}
