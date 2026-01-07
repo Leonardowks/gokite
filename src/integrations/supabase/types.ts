@@ -893,6 +893,45 @@ export type Database = {
         }
         Relationships: []
       }
+      tax_rules: {
+        Row: {
+          card_fee_rate: number
+          category: string
+          created_at: string
+          description: string | null
+          estimated_tax_rate: number
+          icon: string | null
+          id: string
+          is_active: boolean
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          card_fee_rate?: number
+          category: string
+          created_at?: string
+          description?: string | null
+          estimated_tax_rate?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          updated_at?: string
+        }
+        Update: {
+          card_fee_rate?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          estimated_tax_rate?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       trade_ins: {
         Row: {
           comprador_id: string | null
