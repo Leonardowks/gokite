@@ -16,6 +16,7 @@ interface SupplierProduct {
   supplier_stock_qty: number;
   supplier_name: string;
   sheet_url: string;
+  ean: string | null;
 }
 
 // Detectar colunas automaticamente baseado nos headers
@@ -32,6 +33,7 @@ function detectColumns(headers: string[]): Record<string, number> {
     supplier_stock_qty: [/quantidade/i, /estoque/i, /qty/i, /stock/i, /quant/i, /disp/i],
     category: [/categoria/i, /category/i, /tipo/i, /type/i],
     brand: [/marca/i, /brand/i, /fabricante/i],
+    ean: [/ean/i, /barcode/i, /c[oó]digo.?barra/i, /gtin/i, /upc/i, /cod\.?\s*barra/i],
   };
   
   for (const [field, regexList] of Object.entries(patterns)) {
@@ -179,6 +181,16 @@ Deno.serve(async (req) => {
         ? parseInt(values[columnMap.supplier_stock_qty]) || 0 
         : 1;
       
+      // Capturar EAN/código de barras (limpar para apenas números)
+      let ean: string | null = null;
+      if (columnMap.ean !== undefined && values[columnMap.ean]) {
+        const eanRaw = values[columnMap.ean].trim().replace(/[^0-9]/g, '');
+        // Validar EAN (8, 12, 13 ou 14 dígitos)
+        if ([8, 12, 13, 14].includes(eanRaw.length)) {
+          ean = eanRaw;
+        }
+      }
+      
       const sku = generateSKU(brand, productName, size, color);
       
       products.push({
@@ -192,6 +204,7 @@ Deno.serve(async (req) => {
         supplier_stock_qty: stockQty,
         supplier_name: "Duotone Sul",
         sheet_url: sheetUrl,
+        ean,
       });
     }
 
