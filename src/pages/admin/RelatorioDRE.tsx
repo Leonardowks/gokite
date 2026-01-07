@@ -109,21 +109,55 @@ export default function RelatorioDRE() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Link to="/financeiro"><Button variant="ghost" size="icon" className="h-8 w-8"><ChevronLeft className="h-4 w-4" /></Button></Link>
-            <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">DRE - Demonstrativo de Resultado</h1>
-          </div>
-          <p className="text-sm sm:text-base text-muted-foreground ml-10">Análise completa de receitas, custos e lucro</p>
-        </div>
+      {/* Header responsivo */}
+      <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportPDF} disabled={isExporting} className="gap-2">
-            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}Exportar PDF
+          <Link to="/financeiro">
+            <Button variant="ghost" size="icon" className="h-10 w-10 min-h-[44px] min-w-[44px]">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold font-display text-foreground truncate">
+              DRE - Demonstrativo
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Receitas, custos e lucro</p>
+          </div>
+        </div>
+        
+        {/* Controles em linha separada no mobile */}
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 justify-center sm:justify-start">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setSelectedDate(prev => subMonths(prev, 1))}
+              className="h-10 w-10 min-h-[44px] min-w-[44px]"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <PremiumBadge variant="info" icon={Calendar} size="lg" className="text-xs sm:text-sm">
+              {format(selectedDate, "MMM 'de' yyyy", { locale: ptBR })}
+            </PremiumBadge>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setSelectedDate(prev => addMonths(prev, 1))} 
+              disabled={selectedDate >= new Date()}
+              className="h-10 w-10 min-h-[44px] min-w-[44px]"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={handleExportPDF} 
+            disabled={isExporting} 
+            className="gap-2 w-full sm:w-auto min-h-[44px]"
+          >
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Exportar PDF
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setSelectedDate(prev => subMonths(prev, 1))}><ChevronLeft className="h-4 w-4" /></Button>
-          <PremiumBadge variant="info" icon={Calendar} size="lg">{format(selectedDate, "MMMM 'de' yyyy", { locale: ptBR })}</PremiumBadge>
-          <Button variant="outline" size="icon" onClick={() => setSelectedDate(prev => addMonths(prev, 1))} disabled={selectedDate >= new Date()}><ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>
 
@@ -131,11 +165,23 @@ export default function RelatorioDRE() {
       <DREKPIs margemBruta={dreData.margemBruta} margemLiquida={dreData.margemLiquida} ticketMedio={dreData.ticketMedio} impostosProvisionados={dreData.impostosProvisionados} />
 
       <Tabs defaultValue="centro-custo" className="space-y-4">
-        <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:grid-cols-4 bg-muted/50 p-1 rounded-xl">
-          <TabsTrigger value="centro-custo" className="text-xs sm:text-sm rounded-lg"><Building2 className="h-4 w-4 mr-2" />Centro de Custo</TabsTrigger>
-          <TabsTrigger value="pagamento" className="text-xs sm:text-sm rounded-lg"><CreditCard className="h-4 w-4 mr-2" />Pagamento</TabsTrigger>
-          <TabsTrigger value="instrutor" className="text-xs sm:text-sm rounded-lg"><User className="h-4 w-4 mr-2" />Instrutor</TabsTrigger>
-          <TabsTrigger value="tipo-aula" className="text-xs sm:text-sm rounded-lg"><BookOpen className="h-4 w-4 mr-2" />Tipo Aula</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-2 gap-1 sm:flex sm:w-auto bg-muted/50 p-1 rounded-xl h-auto">
+          <TabsTrigger value="centro-custo" className="text-xs sm:text-sm rounded-lg min-h-[40px] flex items-center justify-center gap-1 sm:gap-2">
+            <Building2 className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="truncate">Centro Custo</span>
+          </TabsTrigger>
+          <TabsTrigger value="pagamento" className="text-xs sm:text-sm rounded-lg min-h-[40px] flex items-center justify-center gap-1 sm:gap-2">
+            <CreditCard className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="truncate">Pagamento</span>
+          </TabsTrigger>
+          <TabsTrigger value="instrutor" className="text-xs sm:text-sm rounded-lg min-h-[40px] flex items-center justify-center gap-1 sm:gap-2">
+            <User className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="truncate">Instrutor</span>
+          </TabsTrigger>
+          <TabsTrigger value="tipo-aula" className="text-xs sm:text-sm rounded-lg min-h-[40px] flex items-center justify-center gap-1 sm:gap-2">
+            <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="truncate">Tipo Aula</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="centro-custo" className="space-y-4">

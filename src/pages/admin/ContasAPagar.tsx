@@ -158,119 +158,125 @@ export default function ContasAPagar() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Link to="/financeiro">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <h1 className="text-2xl sm:text-3xl font-bold font-display text-foreground">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Link to="/financeiro">
+            <Button variant="ghost" size="icon" className="h-10 w-10 min-h-[44px] min-w-[44px]">
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold font-display text-foreground">
               Contas a Pagar
             </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Gerencie seus compromissos financeiros
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground ml-10">
-            Gerencie seus compromissos financeiros
-          </p>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="min-h-[44px] gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nova Conta</span>
+                <span className="sm:hidden">Nova</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Nova Conta a Pagar</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="descricao">Descrição *</Label>
+                  <Input
+                    id="descricao"
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    placeholder="Ex: Aluguel do galpão"
+                    className="min-h-[48px]"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="valor">Valor (R$) *</Label>
+                    <Input
+                      id="valor"
+                      type="number"
+                      step="0.01"
+                      value={formData.valor}
+                      onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                      placeholder="0,00"
+                      className="min-h-[48px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="vencimento">Vencimento *</Label>
+                    <Input
+                      id="vencimento"
+                      type="date"
+                      value={formData.data_vencimento}
+                      onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
+                      className="min-h-[48px]"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <Select value={formData.categoria} onValueChange={(v) => setFormData({ ...formData, categoria: v })}>
+                      <SelectTrigger className="min-h-[48px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIAS.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Centro de Custo</Label>
+                    <Select value={formData.centro_de_custo} onValueChange={(v) => setFormData({ ...formData, centro_de_custo: v })}>
+                      <SelectTrigger className="min-h-[48px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CENTROS_CUSTO.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fornecedor">Fornecedor</Label>
+                  <Input
+                    id="fornecedor"
+                    value={formData.fornecedor}
+                    onChange={(e) => setFormData({ ...formData, fornecedor: e.target.value })}
+                    placeholder="Nome do fornecedor"
+                    className="min-h-[48px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notas">Observações</Label>
+                  <Textarea
+                    id="notas"
+                    value={formData.notas}
+                    onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                    placeholder="Notas adicionais..."
+                    rows={2}
+                    className="min-h-[60px]"
+                  />
+                </div>
+                <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+                  <Button type="button" variant="outline" className="w-full sm:flex-1 min-h-[48px]" onClick={() => setIsDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="w-full sm:flex-1 min-h-[48px]" disabled={createMutation.isPending}>
+                    Salvar
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Conta
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Nova Conta a Pagar</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="descricao">Descrição *</Label>
-                <Input
-                  id="descricao"
-                  value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                  placeholder="Ex: Aluguel do galpão"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="valor">Valor (R$) *</Label>
-                  <Input
-                    id="valor"
-                    type="number"
-                    step="0.01"
-                    value={formData.valor}
-                    onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                    placeholder="0,00"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="vencimento">Vencimento *</Label>
-                  <Input
-                    id="vencimento"
-                    type="date"
-                    value={formData.data_vencimento}
-                    onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Categoria</Label>
-                  <Select value={formData.categoria} onValueChange={(v) => setFormData({ ...formData, categoria: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CATEGORIAS.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Centro de Custo</Label>
-                  <Select value={formData.centro_de_custo} onValueChange={(v) => setFormData({ ...formData, centro_de_custo: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {CENTROS_CUSTO.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="fornecedor">Fornecedor</Label>
-                <Input
-                  id="fornecedor"
-                  value={formData.fornecedor}
-                  onChange={(e) => setFormData({ ...formData, fornecedor: e.target.value })}
-                  placeholder="Nome do fornecedor"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notas">Observações</Label>
-                <Textarea
-                  id="notas"
-                  value={formData.notas}
-                  onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
-                  placeholder="Notas adicionais..."
-                  rows={2}
-                />
-              </div>
-              <div className="flex gap-2 pt-2">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="flex-1" disabled={createMutation.isPending}>
-                  Salvar
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Summary Cards */}
