@@ -522,95 +522,133 @@ export default function ConfiguracoesFinanceiras() {
         </TabsContent>
 
         <TabsContent value="categorias" className="space-y-6">
-          <PremiumCard>
-            <PremiumCardHeader>
-              <div className="flex items-center gap-3">
-                <div className="icon-container icon-container-accent h-10 w-10">
-                  <Landmark className="h-5 w-5" />
-                </div>
-                <div>
-                  <PremiumCardTitle>Regras Fiscais por Categoria</PremiumCardTitle>
-                  <PremiumCardDescription>
-                    Configure taxas específicas para cada tipo de receita
-                  </PremiumCardDescription>
-                </div>
+          {/* Banner Explicativo */}
+          <div className="p-4 sm:p-5 rounded-xl bg-gradient-to-r from-accent/10 to-primary/5 border border-accent/20">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-accent/10">
+                <Info className="h-5 w-5 text-accent" />
               </div>
-            </PremiumCardHeader>
-            <PremiumCardContent>
-              {isLoadingRules ? (
-                <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {taxRules.map((rule) => {
-                    const Icon = getCategoryIcon(rule.icon);
-                    return (
-                      <div 
-                        key={rule.id} 
-                        className={`p-4 rounded-xl border ${rule.is_active ? 'bg-background border-border' : 'bg-muted/30 border-muted opacity-60'}`}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`p-2 rounded-lg ${rule.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                              <Icon className="h-5 w-5" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{rule.label}</p>
-                              <p className="text-xs text-muted-foreground">{rule.description}</p>
-                            </div>
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">Como funciona?</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Cada tipo de receita pode ter uma <span className="font-medium text-foreground">taxa de imposto diferente</span>. 
+                  Quando você registra uma venda ou aula, o sistema aplica automaticamente a regra correspondente para 
+                  calcular seu <span className="font-medium text-success">lucro líquido real</span>.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  💡 As taxas de cartão são aplicadas conforme a forma de pagamento escolhida (configuradas na aba anterior).
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid de Cards de Categorias */}
+          {isLoadingRules ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
+              {taxRules.map((rule) => {
+                const Icon = getCategoryIcon(rule.icon);
+                const simulationValue = 500;
+                const impostoValue = (simulationValue * rule.estimated_tax_rate) / 100;
+                const liquidoValue = simulationValue - impostoValue;
+                const margemPercent = ((liquidoValue / simulationValue) * 100).toFixed(1);
+                
+                return (
+                  <PremiumCard 
+                    key={rule.id} 
+                    className={`transition-all duration-300 ${!rule.is_active ? 'opacity-50 grayscale' : ''}`}
+                  >
+                    <PremiumCardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2.5 rounded-xl ${rule.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <PremiumCardTitle className="text-base sm:text-lg">{rule.label}</PremiumCardTitle>
+                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{rule.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-medium ${rule.is_active ? 'text-success' : 'text-muted-foreground'}`}>
+                            {rule.is_active ? 'Ativa' : 'Inativa'}
+                          </span>
+                          <Switch
+                            checked={rule.is_active}
+                            onCheckedChange={(checked) => handleTaxRuleToggle(rule, checked)}
+                            className="data-[state=checked]:bg-success"
+                          />
+                        </div>
+                      </div>
+                    </PremiumCardHeader>
+                    
+                    <PremiumCardContent className="space-y-4">
+                      {/* Campo de Taxa de Imposto */}
+                      <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-muted/30 border border-border/50">
+                        <div className="flex items-center gap-2">
+                          <Landmark className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Taxa de Imposto</span>
+                        </div>
+                        <div className="relative w-24">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={rule.estimated_tax_rate}
+                            onChange={(e) => handleTaxRuleUpdate(rule, 'estimated_tax_rate', parseFloat(e.target.value) || 0)}
+                            className="pr-7 h-10 text-right font-medium min-h-[44px]"
+                            disabled={!rule.is_active}
+                          />
+                          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                        </div>
+                      </div>
+                      
+                      {/* Simulação em Tempo Real */}
+                      <div className={`p-4 rounded-xl border-2 border-dashed transition-colors ${rule.is_active ? 'border-success/30 bg-success/5' : 'border-muted bg-muted/20'}`}>
+                        <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                          SIMULAÇÃO: Venda de R$ {simulationValue.toLocaleString('pt-BR')}
+                        </p>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-muted-foreground">Valor Bruto</span>
+                            <span className="font-medium">R$ {simulationValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                           </div>
                           
-                          <div className="flex items-center gap-4">
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">Imposto</Label>
-                              <div className="relative w-20">
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  max="100"
-                                  value={rule.estimated_tax_rate}
-                                  onChange={(e) => handleTaxRuleUpdate(rule, 'estimated_tax_rate', parseFloat(e.target.value) || 0)}
-                                  className="pr-6 h-8 text-sm"
-                                  disabled={!rule.is_active}
-                                />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
-                              </div>
-                            </div>
-                            
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">Taxa Cartão</Label>
-                              <div className="relative w-20">
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  min="0"
-                                  max="100"
-                                  value={rule.card_fee_rate}
-                                  onChange={(e) => handleTaxRuleUpdate(rule, 'card_fee_rate', parseFloat(e.target.value) || 0)}
-                                  className="pr-6 h-8 text-sm"
-                                  disabled={!rule.is_active}
-                                />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
-                              </div>
-                            </div>
-                            
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-destructive/80">Imposto ({rule.estimated_tax_rate}%)</span>
+                            <span className="font-medium text-destructive">- R$ {impostoValue.toFixed(2)}</span>
+                          </div>
+                          
+                          <Separator className="my-2" />
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium text-success">Você recebe</span>
                             <div className="flex items-center gap-2">
-                              <Switch
-                                checked={rule.is_active}
-                                onCheckedChange={(checked) => handleTaxRuleToggle(rule, checked)}
-                              />
+                              <span className="text-lg font-bold text-success">
+                                R$ {liquidoValue.toFixed(2)}
+                              </span>
+                              <PremiumBadge 
+                                variant={Number(margemPercent) >= 90 ? "success" : Number(margemPercent) >= 80 ? "warning" : "urgent"} 
+                                size="sm"
+                              >
+                                {margemPercent}%
+                              </PremiumBadge>
                             </div>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </PremiumCardContent>
-          </PremiumCard>
+                    </PremiumCardContent>
+                  </PremiumCard>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
