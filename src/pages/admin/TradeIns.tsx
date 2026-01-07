@@ -17,6 +17,8 @@ import {
   ChevronRight,
   BarChart3,
   List,
+  Share2,
+  Loader2,
 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -43,6 +45,8 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function TradeIns() {
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
@@ -88,6 +92,32 @@ export default function TradeIns() {
   const handleVender = (tradeIn: TradeIn) => {
     setTradeInSelecionado(tradeIn);
     setVendaDialogOpen(true);
+  };
+
+  const handlePublicarStatus = async (tradeIn: TradeIn) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-status', {
+        body: {
+          action: 'publish_single',
+          item_id: tradeIn.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast.success("Publicado no Status do WhatsApp!", {
+          description: `${tradeIn.equipamento_recebido} foi publicado com sucesso.`
+        });
+      } else {
+        throw new Error(data?.error || 'Erro ao publicar');
+      }
+    } catch (error) {
+      console.error('Erro ao publicar no status:', error);
+      toast.error("Erro ao publicar", {
+        description: "Verifique a configuração do Evolution API."
+      });
+    }
   };
 
   if (isLoading) {
@@ -364,6 +394,7 @@ export default function TradeIns() {
                 fotoPrincipal={fotoPrincipal}
                 fotos={fotos}
                 onVender={() => handleVender(item)}
+                onPublicarStatus={handlePublicarStatus}
               />
             );
           })}
@@ -400,6 +431,7 @@ interface TradeInCardProps {
   fotoPrincipal: string | null;
   fotos: string[];
   onVender: () => void;
+  onPublicarStatus: (item: TradeIn) => Promise<void>;
 }
 
 function TradeInCard({ 
@@ -410,10 +442,22 @@ function TradeInCard({
   condicao, 
   fotoPrincipal, 
   fotos,
-  onVender 
+  onVender,
+  onPublicarStatus
 }: TradeInCardProps) {
   const [fotoAtual, setFotoAtual] = useState(0);
+  const [publicando, setPublicando] = useState(false);
   const todasFotos = fotos.length > 0 ? fotos : (fotoPrincipal ? [fotoPrincipal] : []);
+
+  const handlePublicar = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPublicando(true);
+    try {
+      await onPublicarStatus(item);
+    } finally {
+      setPublicando(false);
+    }
+  };
 
   const proximaFoto = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -600,13 +644,29 @@ function TradeInCard({
         </div>
 
         {item.status === "em_estoque" && (
-          <Button 
-            className="w-full gap-2 min-h-[44px]"
-            onClick={onVender}
-          >
-            <ArrowUpRight className="h-4 w-4" />
-            Vender
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              size="icon"
+              className="min-h-[44px] min-w-[44px] shrink-0"
+              onClick={handlePublicar}
+              disabled={publicando}
+              title="Publicar no Status do WhatsApp"
+            >
+              {publicando ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Share2 className="h-4 w-4" />
+              )}
+            </Button>
+            <Button 
+              className="flex-1 gap-2 min-h-[44px]"
+              onClick={onVender}
+            >
+              <ArrowUpRight className="h-4 w-4" />
+              Vender
+            </Button>
+          </div>
         )}
       </CardContent>
     </PremiumCard>
