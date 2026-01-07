@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { useScannerFeedback } from "@/hooks/useScannerFeedback";
 import { cn } from "@/lib/utils";
@@ -238,7 +238,11 @@ export function ModoContagem({ sessao, onScan, onEncerrar }: ModoContagemProps) 
 
       {/* Scanner Dialog */}
       <Dialog open={showScanner} onOpenChange={setShowScanner}>
-        <DialogContent className="p-0 max-w-lg h-[85vh] overflow-hidden">
+        <DialogContent className="p-0 max-w-lg h-[85vh] overflow-hidden flex flex-col">
+          <DialogTitle className="sr-only">Scanner de Código de Barras</DialogTitle>
+          <DialogDescription className="sr-only">
+            Use a câmera para escanear códigos de barras ou digite manualmente
+          </DialogDescription>
           <BarcodeScanner
             onScan={handleScan}
             onClose={() => setShowScanner(false)}

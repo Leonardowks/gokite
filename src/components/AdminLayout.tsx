@@ -306,14 +306,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* "Mais" Menu Sheet */}
       <Sheet open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-        <SheetContent side="bottom" className="rounded-t-3xl max-h-[70vh] flex flex-col">
-          <SheetHeader className="pb-4 border-b border-border/50">
+        <SheetContent side="bottom" className="rounded-t-3xl h-[85vh] flex flex-col">
+          <SheetHeader className="pb-4 border-b border-border/50 flex-shrink-0">
             <SheetTitle className="text-left">Mais Opções</SheetTitle>
-            <SheetDescription className="text-left text-sm">
+            <SheetDescription className="text-left text-sm text-muted-foreground">
               Acesse outras funcionalidades do sistema
             </SheetDescription>
           </SheetHeader>
-          <ScrollArea className="flex-1 max-h-[calc(70vh-160px)]">
+          <ScrollArea className="flex-1 min-h-0">
             <div className="py-4 space-y-1">
               {moreMenuItems.map((item) => {
               const active = isActive(item.url);
@@ -347,7 +347,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
           </ScrollArea>
           {/* Logout in More Menu */}
-          <div className="pt-4 border-t border-border/50">
+          <div className="pt-4 border-t border-border/50 flex-shrink-0 pb-6">
             <button
               onClick={() => {
                 setMoreMenuOpen(false);

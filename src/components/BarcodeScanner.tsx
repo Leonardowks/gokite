@@ -34,6 +34,14 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
   const containerRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const attemptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasScannedRef = useRef(false);
+  const scannerIdRef = useRef(`barcode-reader`);
+  const onScanRef = useRef(onScan);
+  
+  // Keep onScan ref updated
+  useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
 
   // Toggle torch
   const toggleTorch = useCallback(async () => {
@@ -73,9 +81,14 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
     playWarningTone();
   }, [playWarningTone]);
 
-  // Ref to prevent duplicate scans
-  const hasScannedRef = useRef(false);
-  const scannerIdRef = useRef(`barcode-reader`);
+  // Trigger haptic for feedback (use from hook)
+  const triggerHaptic = useCallback((type: 'success' | 'warning' | 'error') => {
+    if (navigator.vibrate) {
+      if (type === 'success') navigator.vibrate([50, 30, 50]);
+      else if (type === 'error') navigator.vibrate([200]);
+      else navigator.vibrate([30]);
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -140,7 +153,8 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
                 setTimeout(() => flash.classList.remove("opacity-100"), 150);
               }
               
-              onScan(decodedText);
+              // Use ref to call onScan
+              onScanRef.current(decodedText);
             }
           },
           () => {
@@ -209,7 +223,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
         scannerRef.current.stop().catch(() => {});
       }
     };
-  }, [onScan, feedback, playWarningTone]);
+  }, [feedback, playWarningTone, triggerHaptic]);
 
   const handleManualSubmit = () => {
     if (manualCode.length >= 3) {
@@ -239,7 +253,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background">
+    <div className="flex flex-col h-full bg-background" ref={containerRef}>
       {/* Flash overlay */}
       <div 
         id="scanner-flash"
