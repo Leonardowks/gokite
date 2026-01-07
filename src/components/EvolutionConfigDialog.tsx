@@ -381,7 +381,7 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-green-500" />
@@ -395,7 +395,7 @@ export function EvolutionConfigDialog({ open, onOpenChange }: EvolutionConfigDia
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-y-auto pr-1">
           {statusLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

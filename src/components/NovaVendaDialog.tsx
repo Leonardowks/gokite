@@ -186,7 +186,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="font-display text-xl">Nova Venda</DialogTitle>
           <DialogDescription>
@@ -194,7 +194,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5 overflow-y-auto flex-1 pr-1">
           {/* Tipo de Venda - Cards */}
           <div className="space-y-2">
             <Label>Tipo de Venda</Label>

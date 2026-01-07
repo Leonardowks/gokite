@@ -126,7 +126,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{aulaId ? "Editar Aula" : "Nova Aula"}</DialogTitle>
           <DialogDescription>
@@ -141,7 +141,7 @@ export function AulaDialogSupabase({ open, onOpenChange, aulaId }: AulaDialogSup
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4 overflow-y-auto flex-1 pr-1">
             <div className="space-y-2">
               <Label htmlFor="cliente_id">Cliente</Label>
               <Select
