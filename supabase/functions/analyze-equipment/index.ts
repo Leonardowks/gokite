@@ -30,23 +30,48 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY não configurada");
     }
 
-    const { imageUrl, imageBase64 } = await req.json();
+    const body = await req.json();
+    
+    // Suporte para array de imagens (novo) ou imagem única (retrocompatível)
+    let imageUrls: string[] = [];
+    
+    if (body.imageUrls && Array.isArray(body.imageUrls)) {
+      imageUrls = body.imageUrls.filter((url: string) => url && url.trim() !== "");
+    } else if (body.imageUrl) {
+      imageUrls = [body.imageUrl];
+    } else if (body.imageBase64) {
+      imageUrls = [body.imageBase64];
+    }
 
-    if (!imageUrl && !imageBase64) {
+    if (imageUrls.length === 0) {
       return new Response(
-        JSON.stringify({ error: "imageUrl ou imageBase64 é obrigatório" }),
+        JSON.stringify({ error: "Pelo menos uma imagem é obrigatória (imageUrls ou imageUrl)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Analisando equipamento com IA Vision...");
+    const numFotos = imageUrls.length;
+    console.log(`Analisando ${numFotos} foto(s) do equipamento com IA Vision...`);
 
-    const imageContent = imageBase64 
-      ? { type: "image_url", image_url: { url: imageBase64 } }
-      : { type: "image_url", image_url: { url: imageUrl } };
+    // Montar array de conteúdo de imagens para enviar ao modelo
+    const imageContents = imageUrls.map((url, index) => ({
+      type: "image_url" as const,
+      image_url: { url }
+    }));
 
     const systemPrompt = `Você é um especialista em equipamentos de kitesurf, wing foil e esportes aquáticos. 
-Analise a foto do equipamento e extraia as informações com precisão.
+${numFotos > 1 ? `Você receberá ${numFotos} fotos do MESMO equipamento de diferentes ângulos.` : 'Analise a foto do equipamento.'}
+
+${numFotos > 1 ? `
+INSTRUÇÕES PARA MÚLTIPLAS FOTOS:
+- Analise CADA foto cuidadosamente para extrair informações complementares
+- Foto 1 pode mostrar: logo, visual geral, cor
+- Foto 2 pode mostrar: etiqueta com marca/modelo/ano/tamanho
+- Fotos adicionais: detalhes de desgaste, costuras, válvulas, reparos
+- COMBINE todas as informações em UMA análise consolidada
+- O score de condição deve considerar TODAS as fotos (ex: se uma foto mostra desgaste, considere isso)
+- Liste TODOS os problemas vistos em QUALQUER uma das fotos
+` : ''}
 
 CATEGORIAS VÁLIDAS:
 - kite: Kites de todas as marcas e modelos
@@ -68,6 +93,7 @@ CONDIÇÕES (escolha uma):
 - desgastado: Muito usado, desgaste significativo, preço baixo
 
 SCORE DE CONDIÇÃO: De 1 a 10 (10 = perfeito, 1 = muito desgastado)
+${numFotos > 1 ? '- Baseie o score na PIOR condição vista entre TODAS as fotos' : ''}
 
 Responda SEMPRE neste formato JSON exato:
 {
@@ -79,11 +105,15 @@ Responda SEMPRE neste formato JSON exato:
   "condicao": "usado_bom",
   "scoreCondicao": 7,
   "descricaoComercial": "Uma descrição atrativa de 2-3 linhas para venda",
-  "detalhesVisuais": "Descrição técnica do que você vê na imagem",
-  "problemasIdentificados": ["lista", "de", "problemas", "se houver"]
+  "detalhesVisuais": "Descrição técnica consolidada de TODAS as fotos analisadas",
+  "problemasIdentificados": ["lista", "de", "problemas", "vistos em qualquer foto"]
 }
 
 Se não conseguir identificar algum campo, use null. Nunca invente informações - se não tiver certeza, deixe null.`;
+
+    const userPrompt = numFotos > 1 
+      ? `Analise estas ${numFotos} fotos do MESMO equipamento de kitesurf/wing. Combine as informações de todos os ângulos para uma análise completa. Responda apenas com o JSON.`
+      : "Analise este equipamento de kitesurf/wing e extraia todas as informações possíveis. Responda apenas com o JSON.";
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -98,8 +128,8 @@ Se não conseguir identificar algum campo, use null. Nunca invente informações
           {
             role: "user",
             content: [
-              { type: "text", text: "Analise este equipamento de kitesurf/wing e extraia todas as informações possíveis. Responda apenas com o JSON." },
-              imageContent
+              { type: "text", text: userPrompt },
+              ...imageContents
             ]
           }
         ],
@@ -177,10 +207,10 @@ Se não conseguir identificar algum campo, use null. Nunca invente informações
       analysis.scoreCondicao = 5;
     }
 
-    console.log("Análise finalizada:", analysis);
+    console.log(`Análise de ${numFotos} foto(s) finalizada:`, analysis);
 
     return new Response(
-      JSON.stringify({ success: true, analysis }),
+      JSON.stringify({ success: true, analysis, fotosAnalisadas: numFotos }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
