@@ -30,6 +30,7 @@ const ProvisaoImpostos = lazy(() => import("./pages/admin/ProvisaoImpostos"));
 const TradeIns = lazy(() => import("./pages/admin/TradeIns"));
 const DuotoneSync = lazy(() => import("./pages/admin/DuotoneSync"));
 const ReceberMercadoria = lazy(() => import("./pages/admin/ReceberMercadoria"));
+const PedidosNuvemshop = lazy(() => import("./pages/admin/PedidosNuvemshop"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
 
 const queryClient = new QueryClient();
@@ -71,6 +72,7 @@ const App = () => {
             <Route path="/estoque/duotone" element={<DuotoneSync />} />
             <Route path="/estoque/receber-mercadoria" element={<ReceberMercadoria />} />
             <Route path="/aluguel" element={<Aluguel />} />
+            <Route path="/pedidos" element={<PedidosNuvemshop />} />
             <Route path="/ecommerce" element={<Ecommerce />} />
             <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/financeiro/configuracoes" element={<ConfiguracoesFinanceiras />} />
