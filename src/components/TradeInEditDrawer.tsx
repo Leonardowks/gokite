@@ -51,9 +51,10 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
   const [fotos, setFotos] = useState<string[]>([]);
   const [salvando, setSalvando] = useState(false);
 
-  // Populate form when tradeIn changes
+  // Populate form when drawer opens with a tradeIn
   useEffect(() => {
-    if (tradeIn) {
+    if (open && tradeIn) {
+      console.log("Populating form with tradeIn:", tradeIn);
       setCategoria(tradeIn.categoria || "");
       setMarca(tradeIn.marca || "");
       setModelo(tradeIn.modelo || "");
@@ -65,7 +66,7 @@ export function TradeInEditDrawer({ open, onOpenChange, tradeIn }: TradeInEditDr
       setNotas(tradeIn.notas || "");
       setFotos(Array.isArray(tradeIn.fotos) ? tradeIn.fotos : []);
     }
-  }, [tradeIn]);
+  }, [open, tradeIn]);
 
   const handleAnalyzeWithAI = async () => {
     if (fotos.length === 0) {
