@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats, Html5QrcodeScannerState } from "html5-qrcode";
 import { 
   X, Camera, Loader2, ScanLine, Keyboard, Flashlight, 
   ZoomIn, RotateCcw, CheckCircle
@@ -24,8 +24,8 @@ interface CodeReading {
 }
 
 const CONFIRMATION_THRESHOLD = 3; // Number of consistent readings needed
-const READING_WINDOW_MS = 800; // Time window for readings to be considered together
-const COOLDOWN_MS = 2000; // Cooldown after successful scan
+const READING_WINDOW_MS = 1200; // Time window for readings - increased for stability
+const COOLDOWN_MS = 2500; // Cooldown after successful scan
 
 export function BarcodeScanner({ onScan, onClose, isSearching = false }: BarcodeScannerProps) {
   const [status, setStatus] = useState<ScannerStatus>("initializing");
@@ -102,8 +102,8 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
       }
     }, READING_WINDOW_MS + 100);
     
-    // Play subtle beep on detection (but not on every frame)
-    if (sameCodeCount === 1) {
+    // Play subtle beep on second detection (not every frame, avoid false positives)
+    if (sameCodeCount === 2) {
       playDetectionBeep();
     }
     
@@ -139,50 +139,81 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
     }
   }, [feedback, playDetectionBeep]);
 
-  // Toggle torch - using correct API: torchFeature() is a function
+  // Toggle torch with state verification and fallback
   const toggleTorch = useCallback(async () => {
     if (!scannerRef.current) return;
     
     try {
+      // Verify scanner is in valid state
+      const state = scannerRef.current.getState();
+      if (state !== Html5QrcodeScannerState.SCANNING && 
+          state !== Html5QrcodeScannerState.PAUSED) {
+        console.warn("Scanner not in valid state for torch");
+        return;
+      }
+      
       const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
       const torch = capabilities.torchFeature();
       
-      if (torch.isSupported()) {
-        const newState = !torchOn;
-        await torch.apply(newState);
-        setTorchOn(newState);
+      if (!torch.isSupported()) {
+        console.warn("Torch not supported on this device");
+        return;
       }
+      
+      const newState = !torchOn;
+      await torch.apply(newState);
+      setTorchOn(newState);
+      feedback('scan');
+      
     } catch (err) {
-      console.warn("Torch toggle failed:", err);
+      console.error("Torch toggle failed:", err);
+      // Try alternative method via video constraints
+      try {
+        await scannerRef.current.applyVideoConstraints({
+          advanced: [{ torch: !torchOn } as MediaTrackConstraintSet]
+        });
+        setTorchOn(!torchOn);
+        feedback('scan');
+      } catch (fallbackErr) {
+        console.error("Torch fallback also failed:", fallbackErr);
+        feedback('error');
+      }
     }
-  }, [torchOn]);
+  }, [torchOn, feedback]);
 
-  // Cycle zoom - using correct API: zoomFeature() is a function
+  // Cycle zoom with state verification
   const cycleZoom = useCallback(async () => {
     if (!scannerRef.current) return;
     
     try {
-      const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
-      const zoomCapability = capabilities.zoomFeature();
-      
-      if (zoomCapability.isSupported()) {
-        const minZoom = zoomCapability.min();
-        const maxZoom = zoomCapability.max();
-        const step = zoomCapability.step() || 0.5;
-        
-        // Calculate next zoom level respecting limits
-        let nextZoom = zoom + step;
-        if (nextZoom > maxZoom) {
-          nextZoom = minZoom;
-        }
-        
-        await zoomCapability.apply(nextZoom);
-        setZoom(nextZoom);
+      // Verify scanner is in valid state
+      const state = scannerRef.current.getState();
+      if (state !== Html5QrcodeScannerState.SCANNING && 
+          state !== Html5QrcodeScannerState.PAUSED) {
+        return;
       }
+      
+      const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
+      const zoomCap = capabilities.zoomFeature();
+      
+      if (!zoomCap.isSupported()) return;
+      
+      const currentZoom = zoomCap.value() || zoom;
+      const minZ = zoomCap.min();
+      const maxZ = zoomCap.max();
+      const step = zoomCap.step() || 0.5;
+      
+      // Cycle zoom levels respecting camera limits
+      let nextZoom = currentZoom + step;
+      if (nextZoom > maxZ) nextZoom = minZ;
+      
+      await zoomCap.apply(nextZoom);
+      setZoom(nextZoom);
+      feedback('scan');
     } catch (err) {
       console.warn("Zoom change failed:", err);
     }
-  }, [zoom]);
+  }, [zoom, feedback]);
 
   // Reset scanner for new scan
   const resetScanner = useCallback(() => {
@@ -278,36 +309,62 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
       if (started) {
         setStatus("ready");
         
-        // Detect camera capabilities after a brief delay to ensure camera is ready
-        setTimeout(() => {
+        // Detect camera capabilities with retry mechanism
+        const detectCapabilities = async (retryCount = 0) => {
           try {
             if (!scannerRef.current || !isMountedRef.current) return;
+            
+            // Verify scanner is in valid state before accessing capabilities
+            const state = scannerRef.current.getState();
+            if (state !== Html5QrcodeScannerState.SCANNING) {
+              if (retryCount < 5) {
+                setTimeout(() => detectCapabilities(retryCount + 1), 400);
+                return;
+              }
+              console.warn("Scanner never reached SCANNING state for capabilities");
+              return;
+            }
             
             const capabilities = scannerRef.current.getRunningTrackCameraCapabilities();
             
             // Check torch capability
-            const torch = capabilities.torchFeature();
-            if (torch.isSupported()) {
-              setHasTorch(true);
+            try {
+              const torch = capabilities.torchFeature();
+              const torchSupported = torch.isSupported();
+              setHasTorch(torchSupported);
+              console.log("Torch capability:", torchSupported);
+            } catch (e) {
+              console.warn("Torch feature not available:", e);
             }
             
             // Check zoom capability
-            const zoomCap = capabilities.zoomFeature();
-            if (zoomCap.isSupported()) {
-              setHasZoom(true);
-              setZoomLimits({
-                min: zoomCap.min(),
-                max: zoomCap.max(),
-                step: zoomCap.step() || 0.5
-              });
-              // Set initial zoom value
-              const currentZoom = zoomCap.value();
-              if (currentZoom) setZoom(currentZoom);
+            try {
+              const zoomCap = capabilities.zoomFeature();
+              const zoomSupported = zoomCap.isSupported();
+              if (zoomSupported) {
+                setHasZoom(true);
+                setZoomLimits({
+                  min: zoomCap.min(),
+                  max: zoomCap.max(),
+                  step: zoomCap.step() || 0.5
+                });
+                const currentZoom = zoomCap.value();
+                if (currentZoom) setZoom(currentZoom);
+                console.log("Zoom capability:", { min: zoomCap.min(), max: zoomCap.max() });
+              }
+            } catch (e) {
+              console.warn("Zoom feature not available:", e);
             }
           } catch (err) {
-            console.warn("Could not detect camera capabilities:", err);
+            console.warn("Could not detect capabilities, retrying...", err);
+            if (retryCount < 5) {
+              setTimeout(() => detectCapabilities(retryCount + 1), 400);
+            }
           }
-        }, 300);
+        };
+        
+        // Start capability detection after scanner is stable
+        setTimeout(() => detectCapabilities(), 600);
         
         // Show positioning hint after 6 seconds if no scan
         timeoutRef.current = setTimeout(() => {
@@ -391,9 +448,9 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
     switch (status) {
       case "initializing": return "Iniciando câmera...";
       case "detected": return "Código confirmado!";
-      case "confirming": return "Confirmando leitura...";
+      case "confirming": return `Confirmando... (${confirmProgress}/${CONFIRMATION_THRESHOLD})`;
       case "error": return "Erro na câmera";
-      default: return showHint ? "Ajuste o posicionamento" : "Buscando código...";
+      default: return showHint ? "Aproxime ou afaste o código" : "Aponte para o código de barras";
     }
   };
 
@@ -543,6 +600,14 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
           </div>
         ) : (
           <div className="relative w-full max-w-md">
+            {/* Torch active indicator */}
+            {torchOn && (
+              <div className="absolute top-2 left-2 bg-warning/90 text-warning-foreground px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 z-20 animate-pulse">
+                <Flashlight className="h-3 w-3" />
+                Lanterna ON
+              </div>
+            )}
+            
             {/* Scanner viewport */}
             <div className="relative">
               <div
@@ -551,7 +616,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
                   "w-full rounded-2xl overflow-hidden transition-all duration-300",
                   status === "initializing" && "opacity-50"
                 )}
-                style={{ minHeight: '240px' }}
+                style={{ minHeight: '280px', backgroundColor: '#000' }}
               />
               
               {/* Laser line overlay */}
