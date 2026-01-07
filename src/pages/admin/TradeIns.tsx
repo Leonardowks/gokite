@@ -19,6 +19,7 @@ import {
   List,
   Share2,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -26,6 +27,7 @@ import { PremiumBadge } from "@/components/ui/premium-badge";
 import { useTradeIns, useTradeInsSummary, TradeIn } from "@/hooks/useTradeIns";
 import { SkeletonPremium } from "@/components/ui/skeleton-premium";
 import { TradeInRapidoDrawer } from "@/components/TradeInRapidoDrawer";
+import { TradeInEditDrawer } from "@/components/TradeInEditDrawer";
 import { VenderTradeInDialog } from "@/components/VenderTradeInDialog";
 import { TradeInsInsights } from "@/components/trade-ins/TradeInsInsights";
 import { format, differenceInDays } from "date-fns";
@@ -54,6 +56,7 @@ export default function TradeIns() {
   const [filtroCondicao, setFiltroCondicao] = useState<string>("todas");
   const [busca, setBusca] = useState("");
   const [tradeInDrawerOpen, setTradeInDrawerOpen] = useState(false);
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [vendaDialogOpen, setVendaDialogOpen] = useState(false);
   const [tradeInSelecionado, setTradeInSelecionado] = useState<TradeIn | null>(null);
 
@@ -92,6 +95,11 @@ export default function TradeIns() {
   const handleVender = (tradeIn: TradeIn) => {
     setTradeInSelecionado(tradeIn);
     setVendaDialogOpen(true);
+  };
+
+  const handleEditar = (tradeIn: TradeIn) => {
+    setTradeInSelecionado(tradeIn);
+    setEditDrawerOpen(true);
   };
 
   const handlePublicarStatus = async (tradeIn: TradeIn) => {
@@ -394,6 +402,7 @@ export default function TradeIns() {
                 fotoPrincipal={fotoPrincipal}
                 fotos={fotos}
                 onVender={() => handleVender(item)}
+                onEditar={() => handleEditar(item)}
                 onPublicarStatus={handlePublicarStatus}
               />
             );
@@ -409,6 +418,12 @@ export default function TradeIns() {
 
       {/* Drawers e Dialogs */}
       <TradeInRapidoDrawer open={tradeInDrawerOpen} onOpenChange={setTradeInDrawerOpen} />
+      
+      <TradeInEditDrawer 
+        open={editDrawerOpen} 
+        onOpenChange={setEditDrawerOpen}
+        tradeIn={tradeInSelecionado}
+      />
       
       {tradeInSelecionado && (
         <VenderTradeInDialog 
@@ -431,6 +446,7 @@ interface TradeInCardProps {
   fotoPrincipal: string | null;
   fotos: string[];
   onVender: () => void;
+  onEditar: () => void;
   onPublicarStatus: (item: TradeIn) => Promise<void>;
 }
 
@@ -443,6 +459,7 @@ function TradeInCard({
   fotoPrincipal, 
   fotos,
   onVender,
+  onEditar,
   onPublicarStatus
 }: TradeInCardProps) {
   const [fotoAtual, setFotoAtual] = useState(0);
@@ -643,8 +660,17 @@ function TradeInCard({
           </div>
         </div>
 
-        {item.status === "em_estoque" && (
+        {item.status === "em_estoque" ? (
           <div className="flex gap-2">
+            <Button 
+              variant="outline"
+              size="icon"
+              className="min-h-[44px] min-w-[44px] shrink-0"
+              onClick={(e) => { e.stopPropagation(); onEditar(); }}
+              title="Editar"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
             <Button 
               variant="outline"
               size="icon"
@@ -667,6 +693,16 @@ function TradeInCard({
               Vender
             </Button>
           </div>
+        ) : (
+          <Button 
+            variant="ghost"
+            size="sm"
+            className="w-full gap-2"
+            onClick={(e) => { e.stopPropagation(); onEditar(); }}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Editar Notas
+          </Button>
         )}
       </CardContent>
     </PremiumCard>
