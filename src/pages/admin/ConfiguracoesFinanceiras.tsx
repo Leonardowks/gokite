@@ -7,7 +7,14 @@ import {
   Save, 
   RefreshCw,
   Percent,
-  Info
+  Info,
+  GraduationCap,
+  ShoppingBag,
+  Package,
+  Home,
+  Globe,
+  Bed,
+  RotateCw
 } from "lucide-react";
 import { PremiumCard, PremiumCardContent, PremiumCardHeader, PremiumCardTitle, PremiumCardDescription } from "@/components/ui/premium-card";
 import { PremiumBadge } from "@/components/ui/premium-badge";
@@ -15,12 +22,31 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useConfigFinanceiro, useUpdateConfigFinanceiro, TaxasCartao } from "@/hooks/useTransacoes";
+import { useTaxRules, useUpdateTaxRule, TaxRule } from "@/hooks/useTaxRules";
 
 export default function ConfiguracoesFinanceiras() {
   const { data: config, isLoading, refetch } = useConfigFinanceiro();
   const updateConfig = useUpdateConfigFinanceiro();
+  const { data: taxRules = [], isLoading: isLoadingRules } = useTaxRules();
+  const updateTaxRule = useUpdateTaxRule();
+
+  // Mapa de ícones por categoria
+  const getCategoryIcon = (iconName: string | null) => {
+    switch (iconName) {
+      case 'GraduationCap': return GraduationCap;
+      case 'ShoppingBag': return ShoppingBag;
+      case 'Package': return Package;
+      case 'Home': return Home;
+      case 'Globe': return Globe;
+      case 'Bed': return Bed;
+      case 'RefreshCw': return RotateCw;
+      default: return Package;
+    }
+  };
 
   const [formData, setFormData] = useState({
     taxas_cartao: {
@@ -100,6 +126,33 @@ export default function ConfiguracoesFinanceiras() {
     }
   };
 
+  // Atualizar regra fiscal por categoria
+  const handleTaxRuleUpdate = async (rule: TaxRule, field: 'estimated_tax_rate' | 'card_fee_rate', value: number) => {
+    try {
+      await updateTaxRule.mutateAsync({
+        id: rule.id,
+        updates: { [field]: value }
+      });
+      toast.success(`Taxa de ${rule.label} atualizada!`);
+    } catch (error) {
+      toast.error("Erro ao atualizar regra");
+      console.error(error);
+    }
+  };
+
+  const handleTaxRuleToggle = async (rule: TaxRule, isActive: boolean) => {
+    try {
+      await updateTaxRule.mutateAsync({
+        id: rule.id,
+        updates: { is_active: isActive }
+      });
+      toast.success(`${rule.label} ${isActive ? 'ativada' : 'desativada'}`);
+    } catch (error) {
+      toast.error("Erro ao atualizar regra");
+      console.error(error);
+    }
+  };
+
   // Simulação: Venda de R$ 1000 no crédito 12x
   const exampleValue = 1000;
   const taxaCartao = (exampleValue * formData.taxas_cartao.credito_7x_12x) / 100;
@@ -147,9 +200,20 @@ export default function ConfiguracoesFinanceiras() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Taxas de Cartão - Nova estrutura com 4 campos */}
-        <PremiumCard className="lg:col-span-2">
+      <Tabs defaultValue="taxas" className="space-y-6">
+        <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:flex bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="taxas" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            Taxas de Cartão
+          </TabsTrigger>
+          <TabsTrigger value="categorias" className="text-xs sm:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            Regras por Categoria
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="taxas" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Taxas de Cartão - Nova estrutura com 4 campos */}
+            <PremiumCard className="lg:col-span-2">
           <PremiumCardHeader>
             <div className="flex items-center gap-3">
               <div className="icon-container icon-container-primary h-10 w-10">
@@ -454,7 +518,101 @@ export default function ConfiguracoesFinanceiras() {
             </div>
           </PremiumCardContent>
         </PremiumCard>
-      </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="categorias" className="space-y-6">
+          <PremiumCard>
+            <PremiumCardHeader>
+              <div className="flex items-center gap-3">
+                <div className="icon-container icon-container-accent h-10 w-10">
+                  <Landmark className="h-5 w-5" />
+                </div>
+                <div>
+                  <PremiumCardTitle>Regras Fiscais por Categoria</PremiumCardTitle>
+                  <PremiumCardDescription>
+                    Configure taxas específicas para cada tipo de receita
+                  </PremiumCardDescription>
+                </div>
+              </div>
+            </PremiumCardHeader>
+            <PremiumCardContent>
+              {isLoadingRules ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {taxRules.map((rule) => {
+                    const Icon = getCategoryIcon(rule.icon);
+                    return (
+                      <div 
+                        key={rule.id} 
+                        className={`p-4 rounded-xl border ${rule.is_active ? 'bg-background border-border' : 'bg-muted/30 border-muted opacity-60'}`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className={`p-2 rounded-lg ${rule.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                              <Icon className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{rule.label}</p>
+                              <p className="text-xs text-muted-foreground">{rule.description}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-4">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Imposto</Label>
+                              <div className="relative w-20">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  max="100"
+                                  value={rule.estimated_tax_rate}
+                                  onChange={(e) => handleTaxRuleUpdate(rule, 'estimated_tax_rate', parseFloat(e.target.value) || 0)}
+                                  className="pr-6 h-8 text-sm"
+                                  disabled={!rule.is_active}
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Taxa Cartão</Label>
+                              <div className="relative w-20">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  max="100"
+                                  value={rule.card_fee_rate}
+                                  onChange={(e) => handleTaxRuleUpdate(rule, 'card_fee_rate', parseFloat(e.target.value) || 0)}
+                                  className="pr-6 h-8 text-sm"
+                                  disabled={!rule.is_active}
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">%</span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={rule.is_active}
+                                onCheckedChange={(checked) => handleTaxRuleToggle(rule, checked)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </PremiumCardContent>
+          </PremiumCard>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

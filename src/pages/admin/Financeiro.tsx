@@ -96,6 +96,7 @@ interface DailyRevenue {
   aulas: number;
   aluguel: number;
   total: number;
+  liquido: number; // Caixa real (após taxas e impostos)
 }
 
 const chartConfig = {
@@ -108,8 +109,12 @@ const chartConfig = {
     color: "hsl(var(--chart-2))",
   },
   total: {
-    label: "Total",
+    label: "Faturamento Bruto",
     color: "hsl(var(--chart-1))",
+  },
+  liquido: {
+    label: "Caixa Real",
+    color: "hsl(var(--success))",
   },
 } satisfies ChartConfig;
 
@@ -304,13 +309,21 @@ export default function Financeiro() {
         
         const receitaAulasDia = aulaDia.reduce((sum, a) => sum + a.valor, 0);
         const receitaAluguelDia = aluguelDia.reduce((sum, a) => sum + a.valor_total, 0);
+        const totalDia = receitaAulasDia + receitaAluguelDia;
+        
+        // Cálculo do líquido: total - (taxa cartão ~4%) - (imposto ~6%)
+        // Aproximação para visualização (o cálculo real está no banco)
+        const taxaCartaoMedia = 0.04; // 4% média
+        const taxaImpostoMedia = 0.06; // 6% 
+        const liquidoDia = totalDia * (1 - taxaCartaoMedia - taxaImpostoMedia);
 
         return {
           data: diaStr,
           dataFormatada: format(dia, 'dd/MM', { locale: ptBR }),
           aulas: receitaAulasDia,
           aluguel: receitaAluguelDia,
-          total: receitaAulasDia + receitaAluguelDia,
+          total: totalDia,
+          liquido: Math.round(liquidoDia),
         };
       });
 
@@ -677,7 +690,99 @@ export default function Financeiro() {
         </Link>
       </div>
 
-      {/* Rentabilidade por Categoria */}
+      {/* KPIs Contábeis - Impostos e Taxas em Destaque */}
+      {transacoesSummary && (transacoesSummary.totalTaxasCartao > 0 || transacoesSummary.totalImpostos > 0) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <PremiumCard className="border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-transparent">
+            <PremiumCardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <CreditCard className="h-4 w-4 text-blue-500" />
+                    <span className="text-xs sm:text-sm text-muted-foreground">Taxas de Cartão</span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">
+                    <AnimatedNumber value={transacoesSummary.totalTaxasCartao} format="currency" />
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {((transacoesSummary.totalTaxasCartao / (transacoesSummary.totalReceitas || 1)) * 100).toFixed(1)}% da receita
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <CreditCard className="h-6 w-6 text-blue-500" />
+                </div>
+              </div>
+            </PremiumCardContent>
+          </PremiumCard>
+
+          <PremiumCard className="border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-transparent">
+            <PremiumCardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Landmark className="h-4 w-4 text-purple-500" />
+                    <span className="text-xs sm:text-sm text-muted-foreground">Impostos Provisionados</span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold text-foreground">
+                    <AnimatedNumber value={transacoesSummary.totalImpostos} format="currency" />
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {((transacoesSummary.totalImpostos / (transacoesSummary.totalReceitas || 1)) * 100).toFixed(1)}% da receita
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                  <Landmark className="h-6 w-6 text-purple-500" />
+                </div>
+              </div>
+            </PremiumCardContent>
+          </PremiumCard>
+
+          <PremiumCard className="border-success/20 bg-gradient-to-br from-success/5 to-transparent">
+            <PremiumCardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Wallet className="h-4 w-4 text-success" />
+                    <span className="text-xs sm:text-sm text-muted-foreground">Caixa Real</span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold text-success">
+                    <AnimatedNumber value={transacoesSummary.lucroLiquido} format="currency" />
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Após taxas e impostos
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-xl bg-success/10 flex items-center justify-center">
+                  <Wallet className="h-6 w-6 text-success" />
+                </div>
+              </div>
+            </PremiumCardContent>
+          </PremiumCard>
+
+          <PremiumCard className="border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
+            <PremiumCardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="h-4 w-4 text-accent" />
+                    <span className="text-xs sm:text-sm text-muted-foreground">Margem Média</span>
+                  </div>
+                  <p className="text-xl sm:text-2xl font-bold text-accent">
+                    {transacoesSummary.margemMedia.toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Por transação
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-xl bg-accent/10 flex items-center justify-center">
+                  <TrendingUp className="h-6 w-6 text-accent" />
+                </div>
+              </div>
+            </PremiumCardContent>
+          </PremiumCard>
+        </div>
+      )}
+
       {transacoesSummary?.porOrigem && Object.keys(transacoesSummary.porOrigem).some(k => transacoesSummary.porOrigem[k].receita > 0) && (
         <PremiumCard>
           <PremiumCardHeader className="p-4 sm:p-6">
@@ -904,18 +1009,36 @@ export default function Financeiro() {
         </TabsList>
 
         <TabsContent value="evolucao" className="space-y-4 animate-fade-in">
-          <PremiumCard>
+          <PremiumCard featured gradient="primary">
             <PremiumCardHeader>
-              <PremiumCardTitle>Receita Diária</PremiumCardTitle>
-              <PremiumCardDescription>Últimos 14 dias</PremiumCardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <PremiumCardTitle>Faturamento Bruto vs Caixa Real</PremiumCardTitle>
+                  <PremiumCardDescription>Últimos 14 dias - Regime de Competência</PremiumCardDescription>
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                    <span className="text-xs text-muted-foreground">Bruto</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-success" />
+                    <span className="text-xs text-muted-foreground">Líquido</span>
+                  </div>
+                </div>
+              </div>
             </PremiumCardHeader>
             <PremiumCardContent>
               <ChartContainer config={chartConfig} className="h-[220px] sm:h-[300px] w-full">
                 <AreaChart data={dailyData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="fillTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.4} />
+                      <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="fillLiquido" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
@@ -935,15 +1058,28 @@ export default function Financeiro() {
                   />
                   <ChartTooltip 
                     content={<ChartTooltipContent 
-                      formatter={(value) => formatCurrency(Number(value))}
+                      formatter={(value, name) => [
+                        formatCurrency(Number(value)),
+                        name === 'total' ? 'Faturamento Bruto' : 'Caixa Real'
+                      ]}
                     />} 
                   />
                   <Area
                     type="monotone"
                     dataKey="total"
+                    name="total"
                     stroke="hsl(var(--chart-1))"
                     fill="url(#fillTotal)"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="liquido"
+                    name="liquido"
+                    stroke="hsl(var(--success))"
                     strokeWidth={2.5}
+                    strokeDasharray="5 5"
+                    dot={false}
                   />
                 </AreaChart>
               </ChartContainer>
