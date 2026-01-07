@@ -52,6 +52,21 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+// Formato compacto para mobile (ex: R$ 6.5K, R$ 1.2M)
+const formatCurrencyCompact = (value: number) => {
+  if (value >= 1000000) {
+    return `R$ ${(value / 1000000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `R$ ${(value / 1000).toFixed(1)}K`;
+  }
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
 const getCategoryIcon = (category: string) => {
   switch (category) {
     case "servico_aula":
@@ -309,13 +324,18 @@ export default function ProvisaoImpostos() {
             <CardContent className="p-3 sm:pt-4 sm:p-6">
               <div className="flex items-start sm:items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Mês Atual</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Mês Atual</p>
                   {isLoading ? (
                     <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-lg sm:text-2xl font-bold text-amber-600 truncate">
-                      {formatCurrency(totais.mesAtual)}
-                    </p>
+                    <>
+                      <p className="text-lg sm:text-2xl font-bold text-amber-600 sm:hidden">
+                        {formatCurrencyCompact(totais.mesAtual)}
+                      </p>
+                      <p className="text-lg sm:text-2xl font-bold text-amber-600 hidden sm:block">
+                        {formatCurrency(totais.mesAtual)}
+                      </p>
+                    </>
                   )}
                 </div>
                 <PiggyBank className="h-6 w-6 sm:h-8 sm:w-8 text-amber-500 shrink-0" />
@@ -335,13 +355,18 @@ export default function ProvisaoImpostos() {
             <CardContent className="p-3 sm:pt-4 sm:p-6">
               <div className="flex items-start sm:items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Média Mensal</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Média Mensal</p>
                   {isLoading ? (
                     <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-lg sm:text-2xl font-bold text-blue-600 truncate">
-                      {formatCurrency(totais.media)}
-                    </p>
+                    <>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600 sm:hidden">
+                        {formatCurrencyCompact(totais.media)}
+                      </p>
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600 hidden sm:block">
+                        {formatCurrency(totais.media)}
+                      </p>
+                    </>
                   )}
                 </div>
                 <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500 shrink-0" />
@@ -356,13 +381,18 @@ export default function ProvisaoImpostos() {
             <CardContent className="p-3 sm:pt-4 sm:p-6">
               <div className="flex items-start sm:items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Acumulado</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Acumulado</p>
                   {isLoading ? (
                     <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-lg sm:text-2xl font-bold text-purple-600 truncate">
-                      {formatCurrency(totais.acumulado)}
-                    </p>
+                    <>
+                      <p className="text-lg sm:text-2xl font-bold text-purple-600 sm:hidden">
+                        {formatCurrencyCompact(totais.acumulado)}
+                      </p>
+                      <p className="text-lg sm:text-2xl font-bold text-purple-600 hidden sm:block">
+                        {formatCurrency(totais.acumulado)}
+                      </p>
+                    </>
                   )}
                 </div>
                 <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500 shrink-0" />
@@ -374,18 +404,18 @@ export default function ProvisaoImpostos() {
             <CardContent className="p-3 sm:pt-4 sm:p-6">
               <div className="flex items-start sm:items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate">Status</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Status</p>
                   {isLoading ? (
                     <Skeleton className="h-6 sm:h-8 w-20 sm:w-24 mt-1" />
                   ) : (
-                    <p className="text-sm sm:text-lg font-semibold text-orange-600 truncate">
+                    <p className="text-base sm:text-lg font-semibold text-orange-600">
                       {totais.mesAtual > totais.media * 1.2 ? "Acima" : "Normal"}
                     </p>
                   )}
                 </div>
                 <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500 shrink-0" />
               </div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2 truncate">
+              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                 vs média mensal
               </p>
             </CardContent>
