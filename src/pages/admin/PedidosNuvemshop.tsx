@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AdminLayout } from "@/components/AdminLayout";
+
 import { PageHeader } from "@/components/PageHeader";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { Button } from "@/components/ui/button";
@@ -97,7 +97,7 @@ export default function PedidosNuvemshop() {
   };
 
   return (
-    <AdminLayout>
+    <>
       <PageHeader
         title="Pedidos Nuvemshop"
         description="Gerencie os pedidos recebidos pela loja virtual"
@@ -347,6 +347,6 @@ export default function PedidosNuvemshop() {
           </div>
         )}
       </PremiumCard>
-    </AdminLayout>
+    </>
   );
 }
