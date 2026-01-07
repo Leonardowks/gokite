@@ -34,7 +34,9 @@ import {
   Plus,
   Minus,
   Loader2,
-  Gift
+  Gift,
+  MessageCircle,
+  Send
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -42,6 +44,8 @@ import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useStoreCreditNotification } from "@/hooks/useStoreCreditNotification";
+import { Switch } from "@/components/ui/switch";
 
 interface StoreCreditCardProps {
   clienteId: string;
@@ -67,9 +71,12 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
   const [tipoAjuste, setTipoAjuste] = useState<TipoAjuste>('adicionar');
   const [valorAjuste, setValorAjuste] = useState('');
   const [motivoAjuste, setMotivoAjuste] = useState('');
+  const [enviarNotificacao, setEnviarNotificacao] = useState(true);
+  const [enviandoNotificacao, setEnviandoNotificacao] = useState(false);
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { enviarNotificacao: sendWhatsAppNotification } = useStoreCreditNotification();
 
   // Buscar trade-ins onde o cliente foi o fornecedor (deu o equipamento)
   const { data: tradeInsRecebidos = [], isLoading: loadingRecebidos } = useQuery({
@@ -166,9 +173,9 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
 
       if (erroTransacao) throw erroTransacao;
 
-      return { novoSaldo, tipo };
+      return { novoSaldo, tipo, valor, motivo };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ["clientes-listagem"] });
       queryClient.invalidateQueries({ queryKey: ["ajustes-credito-cliente", clienteId] });
       
@@ -176,6 +183,32 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
         title: result.tipo === 'adicionar' ? "✅ Crédito adicionado!" : "✅ Crédito removido!",
         description: `Novo saldo: R$ ${result.novoSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
       });
+
+      // Enviar notificação WhatsApp se habilitado
+      if (enviarNotificacao) {
+        setEnviandoNotificacao(true);
+        const notifResult = await sendWhatsAppNotification({
+          clienteId,
+          tipoMovimentacao: result.tipo === 'adicionar' ? 'credito' : 'debito',
+          valor: result.valor,
+          novoSaldo: result.novoSaldo,
+          motivo: result.motivo,
+        });
+        setEnviandoNotificacao(false);
+
+        if (notifResult.success) {
+          toast({
+            title: "📱 Notificação enviada!",
+            description: "O cliente foi notificado via WhatsApp",
+          });
+        } else if (notifResult.error !== 'Cliente não possui telefone cadastrado') {
+          toast({
+            title: "⚠️ Notificação não enviada",
+            description: notifResult.error,
+            variant: "destructive",
+          });
+        }
+      }
       
       setAjusteDialogOpen(false);
       setValorAjuste('');
@@ -249,15 +282,53 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
                 <p className="text-sm text-muted-foreground">Saldo disponível para compras</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAjusteDialogOpen(true)}
-              className="gap-1.5"
-            >
-              <Plus className="h-4 w-4" />
-              Ajustar
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  setEnviandoNotificacao(true);
+                  const result = await sendWhatsAppNotification({
+                    clienteId,
+                    tipoMovimentacao: 'saldo',
+                    valor: 0,
+                    novoSaldo: storeCredit,
+                  });
+                  setEnviandoNotificacao(false);
+                  
+                  if (result.success) {
+                    toast({
+                      title: "📱 Saldo enviado!",
+                      description: "O cliente recebeu seu saldo via WhatsApp",
+                    });
+                  } else {
+                    toast({
+                      title: "⚠️ Erro ao enviar",
+                      description: result.error,
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                disabled={enviandoNotificacao}
+                className="gap-1.5"
+                title="Enviar saldo via WhatsApp"
+              >
+                {enviandoNotificacao ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAjusteDialogOpen(true)}
+                className="gap-1.5"
+              >
+                <Plus className="h-4 w-4" />
+                Ajustar
+              </Button>
+            </div>
           </div>
         </CardHeader>
 
@@ -491,6 +562,21 @@ export function StoreCreditCard({ clienteId, storeCredit, className }: StoreCred
                 </p>
               </div>
             )}
+
+            {/* Notificação WhatsApp */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium">Notificar cliente</p>
+                  <p className="text-xs text-muted-foreground">Enviar via WhatsApp</p>
+                </div>
+              </div>
+              <Switch
+                checked={enviarNotificacao}
+                onCheckedChange={setEnviarNotificacao}
+              />
+            </div>
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">

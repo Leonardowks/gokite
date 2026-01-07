@@ -33,12 +33,16 @@ interface TransacaoAutomaticaInput {
   atualizar_status_aluno?: boolean;
   // Store credit a descontar do saldo do cliente
   store_credit_usado?: number;
+  // Enviar notificação WhatsApp quando usar store credit
+  notificar_store_credit?: boolean;
 }
 
 interface TransacaoAutomaticaResult {
   transacao: any;
   cliente: any | null;
   cliente_criado: boolean;
+  store_credit_usado?: number;
+  novo_saldo_credito?: number;
 }
 
 /**
@@ -121,10 +125,11 @@ export function useTransacaoAutomatica() {
         }
 
         // Descontar store credit usado
+        let novoSaldoCredito: number | undefined;
         if (input.store_credit_usado && input.store_credit_usado > 0 && clienteData) {
           const creditoAtual = clienteData.store_credit || 0;
-          const novoCredito = Math.max(0, creditoAtual - input.store_credit_usado);
-          updates.store_credit = novoCredito;
+          novoSaldoCredito = Math.max(0, creditoAtual - input.store_credit_usado);
+          updates.store_credit = novoSaldoCredito;
         }
 
         if (Object.keys(updates).length > 0) {
@@ -132,6 +137,38 @@ export function useTransacaoAutomatica() {
             .from('clientes')
             .update(updates)
             .eq('id', clienteId);
+        }
+
+        // Enviar notificação WhatsApp se habilitado e store_credit foi usado
+        if (input.notificar_store_credit && input.store_credit_usado && input.store_credit_usado > 0 && clienteData?.telefone) {
+          try {
+            const formatarMoeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const primeiroNome = clienteData.nome?.split(' ')[0] || 'Cliente';
+            
+            const mensagem = `Olá, ${primeiroNome}! 👋
+
+📝 *Movimentação na sua conta*
+
+💸 *Crédito utilizado:* ${formatarMoeda(input.store_credit_usado)}
+📋 *Referência:* ${input.descricao}
+
+💳 *Seu saldo atual:* ${formatarMoeda(novoSaldoCredito || 0)}
+
+Obrigado por usar seu crédito conosco!
+
+🏄 *GoKite* - Sua escola de kitesurf`;
+
+            await supabase.functions.invoke('send-message', {
+              body: {
+                phone: clienteData.telefone,
+                message: mensagem,
+              },
+            });
+            console.log('[TransacaoAutomatica] Notificação WhatsApp enviada para', clienteData.nome);
+          } catch (notifError) {
+            console.warn('[TransacaoAutomatica] Erro ao enviar notificação:', notifError);
+            // Não falha a transação se a notificação falhar
+          }
         }
       }
 

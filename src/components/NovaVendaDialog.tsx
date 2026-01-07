@@ -26,7 +26,8 @@ import {
   Loader2,
   ShoppingCart,
   UserPlus,
-  Wallet
+  Wallet,
+  MessageCircle
 } from "lucide-react";
 import { useTransacaoAutomatica, getCentroCustoPorOrigem } from "@/hooks/useTransacaoAutomatica";
 import { useClientesListagem } from "@/hooks/useSupabaseClientes";
@@ -56,6 +57,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
   
   // Store Credit
   const [usarStoreCredit, setUsarStoreCredit] = useState(false);
+  const [notificarStoreCredit, setNotificarStoreCredit] = useState(true);
   
   // Campos para criar cliente novo
   const [criarNovoCliente, setCriarNovoCliente] = useState(false);
@@ -137,6 +139,8 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
       } : undefined,
       // Store credit a descontar
       store_credit_usado: storeCreditAplicado,
+      // Notificar cliente via WhatsApp
+      notificar_store_credit: notificarStoreCredit && storeCreditAplicado > 0,
     });
     
     haptic.success();
@@ -155,6 +159,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
     setNovoClienteEmail('');
     setNovoClienteTelefone('');
     setUsarStoreCredit(false);
+    setNotificarStoreCredit(true);
 
     onOpenChange(false);
     onSuccess?.();
@@ -383,7 +388,7 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
               </div>
               
               {usarStoreCredit && (
-                <div className="pt-2 border-t border-success/20 space-y-1 text-sm">
+                <div className="pt-2 border-t border-success/20 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Valor original:</span>
                     <span>R$ {valorOriginal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
@@ -401,6 +406,18 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
                       Saldo restante após venda: R$ {storeCreditRestante.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   )}
+                  
+                  {/* Notificação WhatsApp */}
+                  <div className="flex items-center justify-between pt-2 mt-2 border-t border-success/20">
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-green-600" />
+                      <span className="text-xs">Notificar cliente via WhatsApp</span>
+                    </div>
+                    <Switch
+                      checked={notificarStoreCredit}
+                      onCheckedChange={setNotificarStoreCredit}
+                    />
+                  </div>
                 </div>
               )}
             </div>
