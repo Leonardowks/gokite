@@ -156,6 +156,7 @@ export const useVenderTradeIn = () => {
 
       const lucroTradeIn = valor_saida - (tradeIn?.valor_entrada || 0);
 
+      // lucro_trade_in é GENERATED ALWAYS - calculado automaticamente pelo PostgreSQL
       const { data, error } = await supabase
         .from("trade_ins")
         .update({
@@ -163,7 +164,6 @@ export const useVenderTradeIn = () => {
           comprador_id: comprador_id || null,
           data_saida: new Date().toISOString().split("T")[0],
           status: "vendido",
-          lucro_trade_in: lucroTradeIn,
         })
         .eq("id", id)
         .select()

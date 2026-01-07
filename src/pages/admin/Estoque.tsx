@@ -1,47 +1,54 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Package, MapPin, DollarSign, Calendar, AlertTriangle, Plus, Wrench, CheckCircle } from "lucide-react";
-import { localStorageService, type Equipamento, type Aluguel } from "@/lib/localStorage";
-import { useToast } from "@/hooks/use-toast";
+import { Package, MapPin, DollarSign, Calendar, AlertTriangle, Plus, Wrench, CheckCircle, RefreshCw, ArrowRight, Clock } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
 import { PremiumBadge } from "@/components/ui/premium-badge";
-import { OptimizedImage } from "@/components/ui/optimized-image";
+import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
+import { TradeInRapidoDrawer } from "@/components/TradeInRapidoDrawer";
+import { useEquipamentosListagem, useEquipamentosOcupacao } from "@/hooks/useSupabaseEquipamentos";
+import { useTradeIns, useTradeInsSummary } from "@/hooks/useTradeIns";
+import { useNavigate } from "react-router-dom";
 
 export default function Estoque() {
-  const { toast } = useToast();
-  const [equipamentos, setEquipamentos] = useState<Equipamento[]>([]);
-  const [alugueis, setAlugueis] = useState<Aluguel[]>([]);
-  const [filtroStatus, setFiltroStatus] = useState<'todos' | Equipamento['status']>('todos');
+  const navigate = useNavigate();
+  const [tradeInOpen, setTradeInOpen] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState<string>('todos');
 
-  useEffect(() => {
-    carregarDados();
-  }, []);
+  // Dados do Supabase
+  const { data: equipamentos = [], isLoading: loadingEquip } = useEquipamentosListagem({});
+  const { data: ocupacao, isLoading: loadingOcupacao } = useEquipamentosOcupacao();
+  const { data: tradeIns = [], isLoading: loadingTradeIns } = useTradeIns({ status: "em_estoque", limit: 5 });
+  const { data: tradeInsSummary, isLoading: loadingSummary } = useTradeInsSummary();
 
-  const carregarDados = () => {
-    setEquipamentos(localStorageService.listarEquipamentos());
-    setAlugueis(localStorageService.listarAlugueis());
-  };
+  // Estatísticas de equipamentos
+  const totalEquipamentos = equipamentos.length;
+  const disponiveis = equipamentos.filter(e => e.status === 'disponivel').length;
+  const alugados = equipamentos.filter(e => e.status === 'alugado').length;
+  const manutencao = equipamentos.filter(e => e.status === 'manutencao').length;
+
+  // Trade-ins: bombas (>60 dias)
+  const bombasCount = tradeIns.filter(t => {
+    const dias = Math.floor((Date.now() - new Date(t.data_entrada).getTime()) / 86400000);
+    return dias > 60;
+  }).length;
 
   const equipamentosFiltrados = equipamentos.filter(eq => 
     filtroStatus === 'todos' || eq.status === filtroStatus
   );
 
-  const alugueisAtivos = alugueis.filter(a => a.status === 'ativo');
-
-  const getStatusBadge = (status: Equipamento['status']) => {
-    const configs = {
-      disponivel: { variant: 'success' as const, label: 'Disponível' },
-      alugado: { variant: 'warning' as const, label: 'Alugado' },
-      manutencao: { variant: 'urgent' as const, label: 'Manutenção' },
+  const getStatusBadge = (status: string) => {
+    const configs: Record<string, { variant: "success" | "warning" | "urgent"; label: string }> = {
+      disponivel: { variant: 'success', label: 'Disponível' },
+      alugado: { variant: 'warning', label: 'Alugado' },
+      manutencao: { variant: 'urgent', label: 'Manutenção' },
     };
-    return configs[status];
+    return configs[status] || { variant: 'neutral' as any, label: status };
   };
 
-  const getTipoLabel = (tipo: Equipamento['tipo']) => {
+  const getTipoLabel = (tipo: string) => {
     const labels: Record<string, string> = {
       kite: '🪁 Kite',
       wing: '🦅 Wing',
@@ -55,73 +62,62 @@ export default function Estoque() {
     return labels[tipo] || '📦 Outro';
   };
 
-  const getLocalizacaoLabel = (loc: string) => {
-    return loc === 'florianopolis' ? 'Florianópolis' : 'Taíba';
-  };
+  const isLoading = loadingEquip || loadingOcupacao || loadingTradeIns || loadingSummary;
 
-  const diasParaVencer = (dataFim: string) => {
-    const dias = Math.ceil((new Date(dataFim).getTime() - Date.now()) / 86400000);
-    return dias;
-  };
-
-  const finalizarAluguel = (aluguel: Aluguel) => {
-    localStorageService.finalizarAluguel(aluguel.id);
-    carregarDados();
-    
-    toast({
-      title: "Aluguel finalizado!",
-      description: `Equipamento ${aluguel.equipamento_id} liberado`,
-    });
-  };
-
-  const cobrarAtrasado = (aluguel: Aluguel) => {
-    const mensagem = `Olá ${aluguel.cliente_nome}! O aluguel do equipamento venceu. Por favor, retorne o equipamento.`;
-    window.open(`https://wa.me/${aluguel.cliente_whatsapp}?text=${encodeURIComponent(mensagem)}`, '_blank');
-    
-    toast({
-      title: "WhatsApp enviado!",
-      description: `Cobrança enviada para ${aluguel.cliente_nome}`,
-    });
-  };
-
-  // Estatísticas
-  const totalEquipamentos = equipamentos.length;
-  const disponiveis = equipamentos.filter(e => e.status === 'disponivel').length;
-  const alugados = equipamentos.filter(e => e.status === 'alugado').length;
-  const manutencao = equipamentos.filter(e => e.status === 'manutencao').length;
-  const ocupacaoFloripa = Math.round((equipamentos.filter(e => e.localizacao === 'florianopolis' && e.status === 'alugado').length / equipamentos.filter(e => e.localizacao === 'florianopolis').length) * 100) || 0;
-  const ocupacaoTaiba = Math.round((equipamentos.filter(e => e.localizacao === 'taiba' && e.status === 'alugado').length / equipamentos.filter(e => e.localizacao === 'taiba').length) * 100) || 0;
+  if (isLoading) {
+    return (
+      <div className="space-y-5 sm:space-y-6 animate-fade-in">
+        <div className="h-20 bg-muted/50 rounded-xl animate-pulse" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-32 bg-muted/50 rounded-xl animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in">
-      {/* Header Premium */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <PremiumBadge variant="default" size="sm" icon={Package}>
               {totalEquipamentos} equipamentos
             </PremiumBadge>
-            {alugueisAtivos.length > 0 && (
-              <PremiumBadge variant="warning" size="sm">
-                {alugueisAtivos.length} ativos
+            {tradeInsSummary?.qtdEmEstoque ? (
+              <PremiumBadge variant="warning" size="sm" icon={RefreshCw}>
+                {tradeInsSummary.qtdEmEstoque} trade-ins
               </PremiumBadge>
-            )}
+            ) : null}
           </div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-display font-bold text-foreground tracking-tight">
             Gestão de Estoque
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Controle de equipamentos e aluguéis em tempo real
+            Equipamentos, trade-ins e inventário da escola
           </p>
         </div>
         
-        <Button className="gap-2 min-h-[44px] w-full sm:w-auto">
-          <Plus className="h-4 w-4" />
-          Novo Equipamento
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button 
+            variant="outline" 
+            className="gap-2 min-h-[44px] flex-1 sm:flex-initial"
+            onClick={() => setTradeInOpen(true)}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Trade-in
+          </Button>
+          <Button className="gap-2 min-h-[44px] flex-1 sm:flex-initial">
+            <Plus className="h-4 w-4" />
+            Equipamento
+          </Button>
+        </div>
       </div>
 
-      {/* KPIs Premium */}
+      {/* Submenu */}
+      <EstoqueSubmenu />
+
+      {/* KPIs Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <PremiumCard hover>
           <CardContent className="p-4 sm:p-5">
@@ -154,7 +150,7 @@ export default function Estoque() {
                   value={disponiveis} 
                   className="text-2xl sm:text-3xl font-bold text-success"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Prontos para alugar</p>
+                <p className="text-xs text-muted-foreground mt-1">Prontos para uso</p>
               </div>
               <div className="icon-container bg-success/10 shrink-0">
                 <CheckCircle className="h-5 w-5 text-success" />
@@ -174,7 +170,7 @@ export default function Estoque() {
                   value={alugados} 
                   className="text-2xl sm:text-3xl font-bold text-warning"
                 />
-                <p className="text-xs text-muted-foreground mt-1">{alugueisAtivos.length} aluguéis ativos</p>
+                <p className="text-xs text-muted-foreground mt-1">Em uso agora</p>
               </div>
               <div className="icon-container bg-warning/10 shrink-0">
                 <Calendar className="h-5 w-5 text-warning" />
@@ -204,7 +200,116 @@ export default function Estoque() {
         </PremiumCard>
       </div>
 
-      {/* Ocupação por Localização Premium */}
+      {/* Trade-ins Destaque */}
+      <PremiumCard className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader className="p-4 sm:p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <RefreshCw className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-display">Trade-ins em Estoque</CardTitle>
+                <p className="text-sm text-muted-foreground">Equipamentos usados para revenda</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {bombasCount > 0 && (
+                <PremiumBadge variant="urgent" size="sm" icon={AlertTriangle} pulse>
+                  {bombasCount} bomba{bombasCount > 1 ? 's' : ''}
+                </PremiumBadge>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="gap-2"
+                onClick={() => navigate('/estoque/trade-ins')}
+              >
+                Ver todos
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-5 pt-0">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <div className="text-center p-3 rounded-xl bg-muted/50">
+              <p className="text-2xl font-bold text-foreground">{tradeInsSummary?.qtdEmEstoque || 0}</p>
+              <p className="text-xs text-muted-foreground">Em estoque</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-muted/50">
+              <p className="text-2xl font-bold text-success">{tradeInsSummary?.qtdVendidos || 0}</p>
+              <p className="text-xs text-muted-foreground">Vendidos</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-muted/50">
+              <p className="text-2xl font-bold text-primary">
+                R$ {((tradeInsSummary?.valorEmEstoque || 0) / 1000).toFixed(1)}k
+              </p>
+              <p className="text-xs text-muted-foreground">Valor em estoque</p>
+            </div>
+            <div className="text-center p-3 rounded-xl bg-muted/50">
+              <p className="text-2xl font-bold text-success">
+                R$ {((tradeInsSummary?.lucroTotal || 0) / 1000).toFixed(1)}k
+              </p>
+              <p className="text-xs text-muted-foreground">Lucro total</p>
+            </div>
+          </div>
+
+          {/* Lista rápida de trade-ins */}
+          {tradeIns.length > 0 ? (
+            <div className="space-y-2">
+              {tradeIns.slice(0, 3).map(item => {
+                const dias = Math.floor((Date.now() - new Date(item.data_entrada).getTime()) / 86400000);
+                const isBomba = dias > 60;
+                return (
+                  <div 
+                    key={item.id} 
+                    className={`flex items-center justify-between p-3 rounded-xl transition-colors ${
+                      isBomba ? 'bg-destructive/10 border border-destructive/20' : 'bg-muted/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        isBomba ? 'bg-destructive/20' : 'bg-primary/10'
+                      }`}>
+                        <Package className={`h-4 w-4 ${isBomba ? 'text-destructive' : 'text-primary'}`} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{item.equipamento_recebido}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {dias} dias em estoque
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-sm">R$ {item.valor_entrada.toLocaleString('pt-BR')}</p>
+                      {isBomba && (
+                        <PremiumBadge variant="urgent" size="sm">Bomba</PremiumBadge>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <RefreshCw className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Nenhum trade-in em estoque</p>
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="mt-2"
+                onClick={() => setTradeInOpen(true)}
+              >
+                Registrar primeiro trade-in
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </PremiumCard>
+
+      {/* Ocupação por Localização */}
       <div className="grid gap-4 md:grid-cols-2">
         <PremiumCard>
           <CardHeader className="p-4 sm:p-5">
@@ -216,20 +321,30 @@ export default function Estoque() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-5 pt-0">
-            <div className="flex items-center gap-4">
-              <AnimatedNumber 
-                value={ocupacaoFloripa} 
-                suffix="%"
-                className="text-3xl sm:text-4xl font-bold text-primary"
-              />
-              <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-500 rounded-full" 
-                  style={{ width: `${ocupacaoFloripa}%` }}
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Taxa de ocupação</p>
+            {(() => {
+              const loc = ocupacao?.['florianopolis'] || ocupacao?.['Florianópolis'];
+              const taxa = loc ? Math.round((loc.alugados / loc.total) * 100) || 0 : 0;
+              return (
+                <>
+                  <div className="flex items-center gap-4">
+                    <AnimatedNumber 
+                      value={taxa} 
+                      suffix="%"
+                      className="text-3xl sm:text-4xl font-bold text-primary"
+                    />
+                    <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary transition-all duration-500 rounded-full" 
+                        style={{ width: `${taxa}%` }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {loc?.alugados || 0} de {loc?.total || 0} alugados
+                  </p>
+                </>
+              );
+            })()}
           </CardContent>
         </PremiumCard>
 
@@ -243,268 +358,133 @@ export default function Estoque() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 sm:p-5 pt-0">
-            <div className="flex items-center gap-4">
-              <AnimatedNumber 
-                value={ocupacaoTaiba} 
-                suffix="%"
-                className="text-3xl sm:text-4xl font-bold text-accent"
-              />
-              <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-accent transition-all duration-500 rounded-full" 
-                  style={{ width: `${ocupacaoTaiba}%` }}
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Taxa de ocupação</p>
+            {(() => {
+              const loc = ocupacao?.['taiba'] || ocupacao?.['Taíba'];
+              const taxa = loc ? Math.round((loc.alugados / loc.total) * 100) || 0 : 0;
+              return (
+                <>
+                  <div className="flex items-center gap-4">
+                    <AnimatedNumber 
+                      value={taxa} 
+                      suffix="%"
+                      className="text-3xl sm:text-4xl font-bold text-accent"
+                    />
+                    <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-accent transition-all duration-500 rounded-full" 
+                        style={{ width: `${taxa}%` }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {loc?.alugados || 0} de {loc?.total || 0} alugados
+                  </p>
+                </>
+              );
+            })()}
           </CardContent>
         </PremiumCard>
       </div>
 
-      {/* Filtros Premium */}
+      {/* Filtros de Equipamentos */}
       <PremiumCard>
         <CardHeader className="p-4 sm:p-5">
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              variant={filtroStatus === 'todos' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFiltroStatus('todos')}
-              className="min-h-[40px]"
-            >
-              Todos ({totalEquipamentos})
-            </Button>
-            <Button
-              variant={filtroStatus === 'disponivel' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFiltroStatus('disponivel')}
-              className="min-h-[40px]"
-            >
-              Disponíveis ({disponiveis})
-            </Button>
-            <Button
-              variant={filtroStatus === 'alugado' ? 'secondary' : 'outline'}
-              size="sm"
-              onClick={() => setFiltroStatus('alugado')}
-              className="min-h-[40px]"
-            >
-              Alugados ({alugados})
-            </Button>
-            <Button
-              variant={filtroStatus === 'manutencao' ? 'destructive' : 'outline'}
-              size="sm"
-              onClick={() => setFiltroStatus('manutencao')}
-              className="min-h-[40px]"
-            >
-              Manutenção ({manutencao})
-            </Button>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <CardTitle className="text-base sm:text-lg font-display">Equipamentos da Escola</CardTitle>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant={filtroStatus === 'todos' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFiltroStatus('todos')}
+                className="min-h-[40px]"
+              >
+                Todos ({totalEquipamentos})
+              </Button>
+              <Button
+                variant={filtroStatus === 'disponivel' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFiltroStatus('disponivel')}
+                className="min-h-[40px]"
+              >
+                Disponíveis ({disponiveis})
+              </Button>
+              <Button
+                variant={filtroStatus === 'alugado' ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => setFiltroStatus('alugado')}
+                className="min-h-[40px]"
+              >
+                Alugados ({alugados})
+              </Button>
+              <Button
+                variant={filtroStatus === 'manutencao' ? 'destructive' : 'outline'}
+                size="sm"
+                onClick={() => setFiltroStatus('manutencao')}
+                className="min-h-[40px]"
+              >
+                Manutenção ({manutencao})
+              </Button>
+            </div>
           </div>
         </CardHeader>
       </PremiumCard>
 
-      {/* Grid de Equipamentos Premium */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {equipamentosFiltrados.map((eq) => {
-          const statusBadge = getStatusBadge(eq.status);
-          return (
-            <PremiumCard key={eq.id} hover className="overflow-hidden">
-              {/* Equipment Image */}
-              {eq.foto_url && (
-                <div className="relative h-40 overflow-hidden">
-                  <OptimizedImage
-                    src={eq.foto_url}
-                    alt={eq.nome}
-                    aspectRatio="4/3"
-                    className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                  />
-                  <div className="absolute top-2 right-2">
+      {/* Grid de Equipamentos */}
+      {equipamentosFiltrados.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {equipamentosFiltrados.map((eq) => {
+            const statusBadge = getStatusBadge(eq.status || 'disponivel');
+            return (
+              <PremiumCard key={eq.id} hover className="overflow-hidden">
+                <CardHeader className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1 flex-1">
+                      <CardTitle className="text-lg font-display">{eq.nome}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {getTipoLabel(eq.tipo || 'outro')} • {eq.tamanho || 'N/A'}
+                      </p>
+                    </div>
                     <PremiumBadge variant={statusBadge.variant} size="sm">
                       {statusBadge.label}
                     </PremiumBadge>
                   </div>
-                </div>
-              )}
-              <CardHeader className={`p-4 sm:p-5 ${eq.foto_url ? 'pt-3' : ''}`}>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1 flex-1">
-                    <CardTitle className="text-lg font-display">{eq.nome}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{getTipoLabel(eq.tipo)} • {eq.tamanho}</p>
+                </CardHeader>
+                <CardContent className="p-4 sm:p-5 pt-0 space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      {eq.localizacao === 'florianopolis' ? 'Florianópolis' : eq.localizacao === 'taiba' ? 'Taíba' : eq.localizacao || 'N/A'}
+                    </span>
+                    <span className="flex items-center gap-1 font-bold text-primary">
+                      <DollarSign className="h-4 w-4" />
+                      R$ {eq.preco_aluguel_dia || 0}/dia
+                    </span>
                   </div>
-                  {!eq.foto_url && (
-                    <PremiumBadge variant={statusBadge.variant} size="sm">
-                      {statusBadge.label}
-                    </PremiumBadge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-5 pt-0 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    {getLocalizacaoLabel(eq.localizacao)}
-                  </span>
-                  <span className="flex items-center gap-1 font-bold text-primary">
-                    <DollarSign className="h-4 w-4" />
-                    R$ {eq.preco_dia}/dia
-                  </span>
-                </div>
-                
-                {eq.ultimo_aluguel && (
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    Último aluguel: {new Date(eq.ultimo_aluguel).toLocaleDateString('pt-BR')}
-                  </p>
-                )}
-              </CardContent>
-            </PremiumCard>
-          );
-        })}
-      </div>
-
-      {/* Aluguéis Ativos Premium */}
-      {alugueisAtivos.length > 0 && (
+                </CardContent>
+              </PremiumCard>
+            );
+          })}
+        </div>
+      ) : (
         <PremiumCard>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg font-display flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                <Calendar className="h-4 w-4 text-warning" />
-              </div>
-              Aluguéis Ativos
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">Equipamentos atualmente alugados - acompanhe devoluções</p>
-          </CardHeader>
-          <CardContent className="p-4 sm:p-6 pt-0">
-            {/* Cards Mobile */}
-            <div className="md:hidden space-y-3">
-              {alugueisAtivos.map((aluguel) => {
-                const equipamento = equipamentos.find(e => e.id === aluguel.equipamento_id);
-                const dias = diasParaVencer(aluguel.data_fim);
-                const atrasado = dias < 0;
-                
-                return (
-                  <div 
-                    key={aluguel.id} 
-                    className={`p-4 border rounded-xl transition-all ${
-                      atrasado ? 'border-destructive/50 bg-destructive/5' : 'border-border/50 bg-muted/20'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <p className="font-semibold">{equipamento?.nome || aluguel.equipamento_id}</p>
-                        <p className="text-sm text-muted-foreground">{aluguel.cliente_nome}</p>
-                      </div>
-                      {atrasado ? (
-                        <PremiumBadge variant="urgent" size="sm" icon={AlertTriangle} pulse>
-                          {Math.abs(dias)}d atrasado
-                        </PremiumBadge>
-                      ) : dias === 0 ? (
-                        <PremiumBadge variant="urgent" size="sm">Hoje</PremiumBadge>
-                      ) : dias === 1 ? (
-                        <PremiumBadge variant="warning" size="sm">Amanhã</PremiumBadge>
-                      ) : (
-                        <PremiumBadge variant="neutral" size="sm">{dias}d</PremiumBadge>
-                      )}
-                    </div>
-                    <div className="space-y-1 text-sm mb-3 pb-3 border-b border-border/50">
-                      <p><span className="text-muted-foreground">Período:</span> {new Date(aluguel.data_inicio).toLocaleDateString('pt-BR')} até {new Date(aluguel.data_fim).toLocaleDateString('pt-BR')}</p>
-                      <p><span className="text-muted-foreground">Valor:</span> <span className="font-medium text-primary">R$ {aluguel.valor_total}</span></p>
-                    </div>
-                    <div className="flex gap-2">
-                      {atrasado && (
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          className="flex-1 min-h-[44px]"
-                          onClick={() => cobrarAtrasado(aluguel)}
-                        >
-                          Cobrar
-                        </Button>
-                      )}
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="flex-1 min-h-[44px]"
-                        onClick={() => finalizarAluguel(aluguel)}
-                      >
-                        Finalizar
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Tabela Desktop */}
-            <div className="hidden md:block rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-border/50">
-                    <TableHead className="text-muted-foreground font-medium">Equipamento</TableHead>
-                    <TableHead className="text-muted-foreground font-medium">Cliente</TableHead>
-                    <TableHead className="text-muted-foreground font-medium">Período</TableHead>
-                    <TableHead className="text-muted-foreground font-medium">Valor</TableHead>
-                    <TableHead className="text-muted-foreground font-medium">Status</TableHead>
-                    <TableHead className="text-muted-foreground font-medium text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {alugueisAtivos.map((aluguel) => {
-                    const equipamento = equipamentos.find(e => e.id === aluguel.equipamento_id);
-                    const dias = diasParaVencer(aluguel.data_fim);
-                    const atrasado = dias < 0;
-                    
-                    return (
-                      <TableRow key={aluguel.id} className="border-border/50 hover:bg-muted/30">
-                        <TableCell className="font-medium">{equipamento?.nome || aluguel.equipamento_id}</TableCell>
-                        <TableCell>{aluguel.cliente_nome}</TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <p className="text-sm">{new Date(aluguel.data_inicio).toLocaleDateString('pt-BR')}</p>
-                            <p className="text-sm text-muted-foreground">até {new Date(aluguel.data_fim).toLocaleDateString('pt-BR')}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-bold text-primary">R$ {aluguel.valor_total}</TableCell>
-                        <TableCell>
-                          {atrasado ? (
-                            <PremiumBadge variant="urgent" size="sm" icon={AlertTriangle} pulse>
-                              {Math.abs(dias)}d atrasado
-                            </PremiumBadge>
-                          ) : dias === 0 ? (
-                            <PremiumBadge variant="urgent" size="sm">Vence HOJE</PremiumBadge>
-                          ) : dias === 1 ? (
-                            <PremiumBadge variant="warning" size="sm">Vence amanhã</PremiumBadge>
-                          ) : (
-                            <PremiumBadge variant="neutral" size="sm">Vence em {dias}d</PremiumBadge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-2 justify-end">
-                            {atrasado && (
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                onClick={() => cobrarAtrasado(aluguel)}
-                              >
-                                Cobrar
-                              </Button>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => finalizarAluguel(aluguel)}
-                            >
-                              Finalizar
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+          <CardContent className="p-8 text-center">
+            <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
+            <h3 className="font-medium text-lg mb-2">Nenhum equipamento encontrado</h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              {filtroStatus !== 'todos' 
+                ? 'Não há equipamentos com este status' 
+                : 'Adicione equipamentos ao estoque da escola'}
+            </p>
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Adicionar Equipamento
+            </Button>
           </CardContent>
         </PremiumCard>
       )}
+
+      {/* Trade-in Drawer */}
+      <TradeInRapidoDrawer open={tradeInOpen} onOpenChange={setTradeInOpen} />
     </div>
   );
 }
