@@ -1,42 +1,190 @@
 # GoKite CRM - Base de Conhecimento
 
-> Sistema de gestão operacional completo para escola de kitesurf, consolidando todas as operações em uma única plataforma.
+> Plataforma de gestão comercial inteligente para escolas de kitesurf, centralizando operações com automações financeiras e inteligência de negócios.
+
+**Última atualização:** Janeiro 2026
 
 ---
 
-## 📋 Visão Geral do Projeto
+## 📋 Propósito
 
-### Propósito
-O GoKite CRM foi desenvolvido para resolver três problemas críticos do negócio:
+O GoKite CRM é uma **plataforma de gestão comercial inteligente** que:
 
-1. **Agendamento Automático** - Eliminar 1000+ mensagens diárias no WhatsApp permitindo que clientes agendem aulas online
-2. **Filtro de Vendas** - Identificar e priorizar leads através de pontuação automática de urgência
-3. **Gestão de Estoque** - Rastreamento de equipamentos em tempo real com alertas de devolução
+1. **Centraliza Operações** - Aulas, vendas, aluguel, trade-ins e e-commerce em um só lugar
+2. **Automatiza o Financeiro** - Cálculo automático de taxas, impostos e margens reais
+3. **Integra Canais** - WhatsApp, Nuvemshop e fornecedores trabalhando juntos
+4. **Gera Inteligência** - Análise de leads, scoring automático e insights de vendas
 
-### Arquitetura
-- **Frontend**: React + Vite + TypeScript + Tailwind CSS
-- **Backend**: Lovable Cloud (Supabase) - autenticação, banco de dados, edge functions
-- **Armazenamento**: Supabase (PostgreSQL) + localStorage para dados de sessão
-- **Estilo**: Design system premium com shadcn/ui customizado
+### A Dinâmica Comercial
+O sistema segue uma lógica central: **toda ação comercial** (aula, venda, aluguel, trade-in) **gera automaticamente uma transação financeira** com taxas e impostos calculados, atualizando em tempo real o DRE e as métricas de saúde do negócio.
 
-### Estrutura de URLs
+---
+
+## 💰 Dinâmica Comercial
+
+### Como o Dinheiro Flui no Sistema
+
+#### Venda de Aula
 ```
-/login              → Autenticação
-/                   → Dashboard (redireciona para login se não autenticado)
-/clientes           → Gestão de clientes
-/aulas              → Agendamento e confirmação de aulas
-/vendas             → ERP comercial unificado
-/estoque            → Inventário de equipamentos
-/aluguel            → Gestão de aluguéis
-/ecommerce          → Integração Nuvemshop
-/financeiro         → Dashboard financeiro
-/financeiro/dre     → Relatório DRE mensal
-/financeiro/contas  → Contas a pagar
-/financeiro/configuracoes → Taxas e configurações
-/relatorios         → Relatórios gerais
-/configuracoes      → Configurações do sistema
-/assistente         → Assistente de voz Jarvis
-/agendar-aula       → Página pública de agendamento
+Cliente agenda (site/WhatsApp) → Admin confirma no sistema
+                                        ↓
+                              ╔═══════════════════════╗
+                              ║    AUTOMÁTICO         ║
+                              ╠═══════════════════════╣
+                              ║ • Transação criada    ║
+                              ║ • Lead → Aluno        ║
+                              ║ • Taxas calculadas    ║
+                              ║ • Impostos provisionados ║
+                              ║ • WhatsApp confirmação ║
+                              ╚═══════════════════════╝
+                                        ↓
+                              Lucro líquido no DRE
+```
+
+#### Venda de Produto (Loja ou E-commerce)
+1. Venda registrada em `/vendas` (ou via webhook Nuvemshop)
+2. Custo do produto informado
+3. **AUTOMÁTICO:** Margem bruta calculada
+4. **AUTOMÁTICO:** Taxa de cartão provisionada
+5. **AUTOMÁTICO:** Imposto provisionado (Simples Nacional)
+6. Lucro real visível no DRE
+
+#### Trade-in (Equipamento Usado)
+1. Cliente traz equipamento para troca
+2. Admin registra valor do crédito oferecido
+3. **AUTOMÁTICO:** Store Credit adicionado ao cadastro do cliente
+4. Cliente usa crédito em próximas compras
+5. **AUTOMÁTICO:** Desconto aplicado automaticamente
+6. Ao vender o trade-in: lucro registrado
+
+#### Aluguel de Equipamento
+1. Aluguel registrado com cliente e equipamento
+2. **AUTOMÁTICO:** Estado do equipamento → "alugado"
+3. **AUTOMÁTICO:** Alertas de devolução gerados
+4. Na devolução: transação de receita criada
+
+---
+
+## ⚡ Automações do Sistema
+
+O sistema executa as seguintes ações **automaticamente**:
+
+| Automação | Quando dispara | O que faz | Resultado |
+|-----------|----------------|-----------|-----------|
+| **Taxas de Cartão** | Ao registrar receita | Aplica % por forma de pagamento | Taxa descontada do lucro |
+| **Impostos** | Ao registrar receita | Provisiona % do Simples Nacional | Valor separado no DRE |
+| **Lead → Aluno** | Aula confirmada/venda | Atualiza status do cliente | CRM organizado |
+| **Store Credit** | Trade-in registrado | Cria crédito na ficha do cliente | Desconto futuro |
+| **WhatsApp** | Aula confirmada | Envia mensagem via Evolution API | Cliente notificado |
+| **Sync E-commerce** | Pedido pago na Nuvemshop | Cria transação automática | Venda integrada |
+| **Análise IA** | Nova conversa/foto | Classifica urgência e extrai dados | Insights automáticos |
+| **Cálculo de Margem** | Ao salvar transação | Calcula lucro líquido real | DRE atualizado |
+
+### Configuração das Automações
+- **Taxas de cartão:** `/financeiro/configuracoes`
+- **Impostos por categoria:** `/financeiro/configuracoes` → Regras Fiscais
+- **WhatsApp:** `/configuracoes` → WhatsApp
+- **Nuvemshop:** `/configuracoes` → Integrações
+
+---
+
+## 🔗 Integrações
+
+### WhatsApp (Evolution API)
+- **Função:** Hub de comunicação bidirecional
+- **Capacidades:**
+  - Sincronizar histórico de conversas
+  - Enviar mensagens e confirmações
+  - Publicar trade-ins no Status
+  - Análise de leads com IA
+- **Configuração:** `/configuracoes` → WhatsApp
+- **Edge Functions:** `evolution-webhook`, `send-message`, `fetch-recent-chats`
+
+### Nuvemshop
+- **Função:** Integração com loja online
+- **Capacidades:**
+  - Sincronização automática de pedidos
+  - Criação de transações via webhook
+  - Identificação de origem (estoque loja vs fornecedor)
+- **Configuração:** `/configuracoes` → Integrações
+- **Edge Functions:** `nuvemshop-sync`, `nuvemshop-webhook`
+
+### IA (Lovable AI / Gemini)
+- **Função:** Inteligência artificial nativa
+- **Capacidades:**
+  - Analisar fotos de equipamentos (trade-in)
+  - Classificar leads por temperatura
+  - Extrair dados de notas fiscais (OCR)
+  - Processar comandos de voz (Jarvis)
+- **Configuração:** Automático (não requer API key)
+- **Edge Functions:** `voice-assistant`, `analyze-equipment`, `extract-receipt`, `analyze-conversation`
+
+### Duotone (Fornecedor Virtual)
+- **Função:** Estoque híbrido físico + virtual
+- **Capacidades:**
+  - Importar catálogo de fornecedor via Google Sheets
+  - Vender sob demanda (cross-docking)
+  - Cálculo automático de margem 40%
+  - Badge "Sob Encomenda" vs "Pronta Entrega"
+- **Configuração:** `/estoque/duotone`
+- **Edge Function:** `sync-supplier`
+
+---
+
+## ❓ Central de Ajuda
+
+O sistema possui uma Central de Ajuda interativa acessível pelo botão "?" no header:
+
+### Tours Guiados (react-joyride)
+- Ativados automaticamente na primeira visita a cada página
+- Guiam o usuário pelos elementos principais
+- Progresso salvo no localStorage
+- Podem ser resetados a qualquer momento
+
+### Central de Ajuda Lógica (HelpCenterSheet)
+Explica de forma interativa:
+- **Dinâmica Comercial** - Fluxos de cada tipo de venda com diagramas
+- **Automações** - O que o sistema faz sozinho
+- **Integrações** - Conexões externas e configuração
+- **Onde Encontrar** - Mapa navegável do sistema
+- **FAQ** - Perguntas frequentes com busca
+
+### Arquivos Relacionados
+```
+src/lib/tourConfig.ts       # Configuração de tours por rota
+src/lib/helpContent.ts      # Conteúdo estruturado da Central
+src/components/help/        # Componentes da Central de Ajuda
+src/hooks/useTour.ts        # Hook de gerenciamento de tours
+```
+
+---
+
+## 🗺️ Estrutura de URLs
+
+```
+/login                      → Autenticação
+/                           → Dashboard (redireciona se não autenticado)
+/clientes                   → Gestão de clientes e leads
+/aulas                      → Agendamento e confirmação de aulas
+/vendas                     → ERP comercial unificado
+/estoque                    → Inventário de equipamentos
+/estoque/trade-ins          → Gestão de trade-ins
+/estoque/inventario         → Inventário e contagem
+/estoque/duotone            → Sincronizador de fornecedor virtual
+/aluguel                    → Gestão de aluguéis
+/pedidos                    → Pedidos Nuvemshop
+/conversas                  → Hub WhatsApp com análise IA
+/inteligencia               → Painel de inteligência de leads
+/financeiro                 → Dashboard financeiro
+/financeiro/dre             → Relatório DRE mensal
+/financeiro/contas          → Contas a pagar
+/financeiro/impostos        → Provisão de impostos
+/financeiro/configuracoes   → Taxas e regras fiscais
+/relatorios                 → Relatórios gerais
+/configuracoes              → Configurações do sistema
+/assistente                 → Assistente de voz Jarvis
+/agendar-aula               → Página pública de agendamento
+/catalogo                   → Catálogo público de trade-ins
 ```
 
 ---
@@ -44,26 +192,19 @@ O GoKite CRM foi desenvolvido para resolver três problemas críticos do negóci
 ## 🎨 Design System
 
 ### Identidade Visual
-- **Cor Primária**: Teal (`--primary`)
-- **Cor de Destaque**: Premium Gold (`--accent`)
-- **Fontes**: Inter (body), Plus Jakarta Sans (display)
-- **Bordas**: `rounded-xl` para cards, `rounded-lg` para botões
-- **Sombras**: Escala de `shadow-sm` a `shadow-xl`
+- **Cor Primária:** Teal (`--primary`)
+- **Cor de Destaque:** Premium Gold (`--accent`)
+- **Fontes:** Inter (body), Plus Jakarta Sans (display)
+- **Bordas:** `rounded-xl` para cards, `rounded-lg` para botões
+- **Sombras:** Escala de `shadow-sm` a `shadow-xl`
 
 ### Componentes Premium
 - `PremiumCard` - Cards com gradientes, brilho e estados featured
-- `PremiumBadge` - Badges com variantes (success, warning, urgent, info, neutral) e efeito pulse
+- `PremiumBadge` - Badges com variantes (success, warning, urgent, info) e efeito pulse
 - `AnimatedNumber` - Números animados com formatação (currency, percentage)
 - `SkeletonPremium` - Estados de loading com shimmer
 
-### Animações
-- `fadeInUp` - Entrada suave de baixo para cima
-- `slideInRight` - Entrada lateral
-- `shimmer` - Efeito de brilho
-- `pulse-soft` - Pulsação suave para alertas
-- `float` - Flutuação para ícones de destaque
-
-### Tokens de Cor (usar sempre variáveis semânticas)
+### Tokens de Cor (usar SEMPRE variáveis semânticas)
 ```css
 --background, --foreground
 --primary, --primary-foreground
@@ -74,176 +215,80 @@ O GoKite CRM foi desenvolvido para resolver três problemas críticos do negóci
 --chart-1 até --chart-5
 ```
 
+**REGRA:** Nunca usar cores diretas (text-white, bg-black) - sempre tokens
+
 ---
 
-## 🗄️ Esquema do Banco de Dados
+## 🗄️ Banco de Dados
 
 ### Tabelas Principais
 
 #### `clientes`
-```sql
-id UUID PRIMARY KEY
-nome TEXT NOT NULL
-email TEXT
-telefone TEXT
-tipo TEXT -- 'lead' | 'cliente'
-origem TEXT -- 'website' | 'whatsapp' | 'indicacao'
-nivel_experiencia TEXT
-data_cadastro TIMESTAMP
-ultima_interacao TIMESTAMP
-observacoes TEXT
-```
-
-#### `aulas`
-```sql
-id UUID PRIMARY KEY
-cliente_id UUID REFERENCES clientes
-instrutor TEXT
-tipo_aula TEXT -- 'iniciante' | 'intermediario' | 'avancado'
-data DATE
-horario TIME
-duracao INTEGER -- em minutos
-valor DECIMAL
-status TEXT -- 'pendente' | 'confirmada' | 'concluida' | 'cancelada'
-localizacao TEXT
-created_at TIMESTAMP
-```
-
-#### `equipamentos`
-```sql
-id UUID PRIMARY KEY
-nome TEXT NOT NULL
-tipo TEXT -- 'kite' | 'prancha' | 'trapezio' | 'wetsuit'
-tamanho TEXT
-estado TEXT -- 'disponivel' | 'alugado' | 'manutencao'
-localizacao TEXT -- 'Floripa' | 'Taíba'
-valor_diaria DECIMAL
-data_aquisicao DATE
-ultima_manutencao DATE
-```
-
-#### `aluguel`
-```sql
-id UUID PRIMARY KEY
-cliente_id UUID REFERENCES clientes
-equipamento_id UUID REFERENCES equipamentos
-data_inicio DATE
-data_fim DATE
-valor_total DECIMAL
-status TEXT -- 'ativo' | 'concluido' | 'atrasado'
-created_at TIMESTAMP
-```
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | UUID | Primary key |
+| nome | TEXT | Nome do cliente |
+| email | TEXT | E-mail |
+| telefone | TEXT | Telefone/WhatsApp |
+| status | TEXT | 'lead', 'aluno', 'cliente' |
+| store_credit | DECIMAL | Crédito de trade-in disponível |
+| tags | TEXT[] | Tags de categorização |
 
 #### `transacoes`
-```sql
-id UUID PRIMARY KEY
-tipo TEXT -- 'receita' | 'despesa'
-origem TEXT -- 'aula' | 'aluguel' | 'venda_produto' | 'trade_in' | 'pacote' | 'ecommerce'
-descricao TEXT
-valor_bruto DECIMAL
-custo_produto DECIMAL
-taxa_cartao_estimada DECIMAL
-imposto_provisionado DECIMAL
-lucro_liquido DECIMAL -- calculado automaticamente
-centro_de_custo TEXT -- 'Escola' | 'Loja' | 'Administrativo' | 'Pousada'
-forma_pagamento TEXT -- 'pix' | 'cartao_credito' | 'cartao_debito' | 'dinheiro' | 'trade_in'
-parcelas INTEGER
-equipamento_id UUID
-cliente_id UUID
-referencia_id UUID
-data_transacao DATE
-created_at TIMESTAMP
-```
-
-#### `contas_a_pagar`
-```sql
-id UUID PRIMARY KEY
-descricao TEXT NOT NULL
-valor DECIMAL NOT NULL
-data_vencimento DATE NOT NULL
-categoria TEXT -- 'fornecedor' | 'aluguel' | 'salario' | 'imposto' | 'outros'
-status TEXT -- 'pendente' | 'pago' | 'vencido'
-data_pagamento DATE
-observacoes TEXT
-created_at TIMESTAMP
-```
-
-#### `config_financeiro`
-```sql
-id UUID PRIMARY KEY
-taxa_cartao_credito DECIMAL DEFAULT 3.5
-taxa_cartao_debito DECIMAL DEFAULT 2.0
-taxa_pix DECIMAL DEFAULT 0.0
-taxa_imposto_padrao DECIMAL DEFAULT 6.0
-meta_mensal DECIMAL DEFAULT 15000
-```
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | UUID | Primary key |
+| tipo | TEXT | 'receita' ou 'despesa' |
+| origem | TEXT | 'aula', 'aluguel', 'venda_produto', 'trade_in', 'ecommerce' |
+| valor_bruto | DECIMAL | Valor da venda |
+| custo_produto | DECIMAL | Custo (para cálculo de margem) |
+| taxa_cartao_estimada | DECIMAL | **Calculado automaticamente** |
+| imposto_provisionado | DECIMAL | **Calculado automaticamente** |
+| lucro_liquido | DECIMAL | **Calculado automaticamente** |
+| centro_de_custo | TEXT | 'Escola', 'Loja', 'Pousada' |
+| forma_pagamento | TEXT | 'pix', 'cartao_credito', 'cartao_debito' |
 
 #### `trade_ins`
-```sql
-id UUID PRIMARY KEY
-cliente_id UUID
-equipamento_recebido TEXT
-valor_entrada DECIMAL
-valor_saida DECIMAL
-lucro_trade_in DECIMAL
-status TEXT -- 'recebido' | 'vendido'
-created_at TIMESTAMP
-```
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| id | UUID | Primary key |
+| equipamento_recebido | TEXT | Descrição do equipamento |
+| valor_entrada | DECIMAL | Crédito dado ao cliente |
+| valor_saida | DECIMAL | Valor de venda (se vendido) |
+| lucro_trade_in | DECIMAL | Lucro da operação |
+| status | TEXT | 'recebido', 'a_venda', 'vendido' |
+| fotos | JSONB | Array de URLs de fotos |
 
-#### `despesas`
-```sql
-id UUID PRIMARY KEY
-descricao TEXT
-valor DECIMAL
-categoria TEXT
-data DATE
-observacoes TEXT
-created_at TIMESTAMP
-```
+#### `tax_rules`
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| category | TEXT | 'aulas', 'aluguel', 'produtos', 'pousada' |
+| estimated_tax_rate | DECIMAL | % de imposto por categoria |
+| card_fee_rate | DECIMAL | % de taxa de cartão |
+| label | TEXT | Nome amigável |
 
-#### `pacotes`
-```sql
-id UUID PRIMARY KEY
-nome TEXT
-tipo TEXT
-quantidade_aulas INTEGER
-valor DECIMAL
-validade_dias INTEGER
-created_at TIMESTAMP
-```
-
-#### `pedidos_ecommerce`
-```sql
-id UUID PRIMARY KEY
-pedido_externo_id TEXT
-plataforma TEXT -- 'nuvemshop'
-cliente_nome TEXT
-cliente_email TEXT
-valor_total DECIMAL
-status TEXT
-itens JSONB
-created_at TIMESTAMP
-synced_at TIMESTAMP
-```
+### Tabelas de Inteligência
+- `contatos_inteligencia` - Leads com scoring de IA
+- `conversas_whatsapp` - Histórico de mensagens
+- `insights_conversas` - Análises de IA por contato
 
 ---
 
 ## 📊 Módulo Financeiro
 
 ### KPIs Principais
-- **Receita Mês** - Total de receitas do período
+- **Receita Bruta** - Total de receitas do período
 - **Margem Bruta** - (Receita - Custos) / Receita × 100
 - **Margem Líquida** - Lucro Líquido / Receita × 100
 - **Lucro Líquido** - Receita - Custos - Taxas - Impostos
 - **Ticket Médio** - Receita / Quantidade de transações
-- **Contas a Pagar** - Total pendente com alertas de vencimento
 
-### Cálculos Automáticos
-Ao registrar uma transação de receita:
-```typescript
-taxa_cartao_estimada = valor_bruto × taxa_cartao (baseado na forma de pagamento)
-imposto_provisionado = valor_bruto × taxa_imposto_padrao
-lucro_liquido = valor_bruto - custo_produto - taxa_cartao_estimada - imposto_provisionado
+### Cálculo Automático (Trigger no Banco)
+```sql
+-- Ao inserir/atualizar transação:
+taxa_cartao_estimada = valor_bruto × taxa_forma_pagamento
+imposto_provisionado = valor_bruto × taxa_categoria
+lucro_liquido = valor_bruto - custo_produto - taxa_cartao - imposto
 ```
 
 ### Relatório DRE
@@ -253,16 +298,7 @@ lucro_liquido = valor_bruto - custo_produto - taxa_cartao_estimada - imposto_pro
 - (-) Taxas de cartão
 - (-) Impostos provisionados
 - (=) Lucro operacional
-- Breakdown por centro de custo e forma de pagamento
-- Comparativo mensal
-
-### Rentabilidade por Categoria
-Análise de margem por origem de receita:
-- Aulas (tipicamente alta margem: 70-85%)
-- Aluguel (margem média: 50-70%)
-- Loja/Produtos (margem variável: 20-40%)
-- E-commerce (similar à loja)
-- Trade-in (margem variável)
+- Breakdown por centro de custo, forma de pagamento, instrutor
 
 ---
 
@@ -273,180 +309,31 @@ Análise de margem por origem de receita:
 - Atalho: `Ctrl+J`
 - Página dedicada: `/assistente`
 
-### Tecnologias
-- ElevenLabs para síntese de voz
-- Lovable AI para processamento de linguagem natural
-- Tool calling para execução de ações
-
 ### Comandos Suportados
 ```
 "Gastei 200 de gasolina pro bote"
-→ registrar_despesa(valor: 200, categoria: "combustivel", descricao: "gasolina bote")
+→ registrar_despesa(valor: 200, categoria: "combustivel")
 
 "Cadastra cliente João, telefone 11999999999"
 → criar_cliente(nome: "João", telefone: "11999999999")
-
-"Agenda aula com Maria amanhã às 10"
-→ agendar_aula(cliente: "Maria", data: "amanhã", horario: "10:00")
 
 "Quanto faturei hoje?"
 → consultar_faturamento(periodo: "hoje")
 
 "Registra venda de 1500 reais, custo 800"
 → registrar_venda(valor: 1500, custo: 800)
-
-"Quais contas vencem essa semana?"
-→ consultar_contas_a_pagar(periodo: "semana")
 ```
-
-### Edge Functions
-- `voice-assistant` - Processamento principal com tool calling
-- `elevenlabs-stt` - Speech-to-text
-- `elevenlabs-tts` - Text-to-speech
-- `openai-stt` / `openai-tts` - Alternativas OpenAI
-
----
-
-## 📅 Workflow de Aulas
-
-### Fluxo Público (Agendamento)
-1. Cliente acessa `/agendar-aula`
-2. Preenche formulário (tipo, local, data, hora, dados pessoais)
-3. Validação com Zod schema
-4. Salva no Supabase com status `pendente`
-5. Email/WhatsApp automático para cliente
-6. Notificação para admin
-
-### Fluxo Admin (Confirmação)
-1. Aulas pendentes aparecem com badge 🟡
-2. Operador clica em "Confirmar"
-3. WhatsApp automático enviado ao aluno
-4. Status atualiza para `confirmada` 🟢
-5. Transação financeira criada automaticamente
-
-### Separação Visual
-- **Precisam de Atenção Agora** - Atrasadas/pendentes
-- **Confirmadas Próximas** - Confirmadas para os próximos dias
-- **Agendadas Futuras** - Agendadas para o futuro
-
----
-
-## 📦 Gestão de Equipamentos e Aluguel
-
-### Estados de Equipamento
-- `disponivel` 🟢 - Pronto para aluguel
-- `alugado` 🟡 - Em uso por cliente
-- `manutencao` 🔴 - Fora de operação
-
-### Alertas de Devolução
-- 🔴 Vermelho: Devolução vencida ou hoje
-- 🟠 Laranja: Devolução esta semana
-- Widget de ocupação por localização (Floripa/Taíba)
-
-### Ações Rápidas
-- "Cobrar Aluguel" → Dispara WhatsApp de cobrança
-- Sugestão de transferência entre locais baseada em demanda
-
----
-
-## 🛒 Integração E-commerce (Nuvemshop)
-
-### Configuração
-Página `/configuracoes` → Aba "Integrações"
-- User ID da loja
-- Access Token
-- Webhook URL
-
-### Sincronização
-- **Manual**: Botão "Sincronizar Agora"
-- **Automática**: Webhooks para novos pedidos
-
-### Edge Functions
-- `nuvemshop-sync` - Sincronização de produtos e pedidos
-- `nuvemshop-webhook` - Recebimento de webhooks
-
----
-
-## 📸 OCR de Notas Fiscais
-
-### Fluxo
-1. Upload ou captura de imagem da nota
-2. Edge function `extract-receipt` processa com Vision AI
-3. Extração automática: valor, descrição, categoria, data, fornecedor
-4. Usuário confirma/edita dados
-5. Despesa registrada no sistema
-
-### Componente
-`ReceiptScanner.tsx` - Interface de captura e confirmação
-
----
-
-## 🔔 Sistema de Notificações
-
-### NotificationCenter
-Ícone de sino no header com dropdown de alertas:
-- Aulas pendentes de confirmação
-- Aluguéis com devolução hoje/amanhã
-- Leads sem contato há 2+ dias
-- Contas vencidas ou vencendo
-
-### Indicadores Visuais
-- 🔴 Crítico - Ação imediata necessária
-- 🟠 Importante - Atenção em breve
-- 🟡 Atenção - Monitorar
-
----
-
-## 🚀 Funcionalidades Futuras (Planejadas)
-
-### Módulo Financeiro
-- [ ] Gráfico de evolução mensal de margens (6 meses)
-- [ ] Alertas automáticos de margem baixa (<15% líquida, <40% bruta)
-- [ ] Análise de margem por instrutor
-- [ ] Projeção de fluxo de caixa
-- [ ] Integração bancária via Open Finance
-- [ ] Conciliação automática de cartões
-
-### Módulo de Aulas
-- [ ] Drag-and-drop para reagendamento
-- [ ] Calendário visual de instrutores
-- [ ] Pacotes de aulas com controle de saldo
-- [ ] Rating de alunos pós-aula
-- [ ] Fotos/vídeos por aula
-
-### Módulo de Vendas
-- [ ] Pipeline de leads visual (Kanban)
-- [ ] Automação de follow-up
-- [ ] Score de leads com ML
-- [ ] Integração WhatsApp Business API
-
-### Módulo de Equipamentos
-- [ ] QR Code para rastreamento
-- [ ] Histórico de manutenção detalhado
-- [ ] Depreciação automática
-- [ ] Alertas de reposição de estoque
-
-### Mobile & PWA
-- [ ] App nativo (React Native)
-- [ ] Notificações push
-- [ ] Modo offline completo
-- [ ] Geolocalização de equipamentos
-
-### Relatórios & Analytics
-- [ ] Dashboard de BI customizável
-- [ ] Exportação para Excel/PDF
-- [ ] Métricas de NPS
-- [ ] Análise de sazonalidade
-
-### Integrações
-- [ ] Google Calendar sync
-- [ ] Mailchimp/Brevo para email marketing
-- [ ] Stripe/PagSeguro para pagamentos
-- [ ] Contabilidade (Omie, ContaAzul)
 
 ---
 
 ## 🛠️ Padrões Técnicos
+
+### Arquitetura
+- **Frontend:** React + Vite + TypeScript + Tailwind CSS
+- **Backend:** Lovable Cloud (Supabase)
+- **Banco:** PostgreSQL com RLS
+- **Edge Functions:** Deno (serverless)
+- **UI:** shadcn/ui customizado
 
 ### Hooks Customizados
 ```typescript
@@ -454,60 +341,56 @@ Página `/configuracoes` → Aba "Integrações"
 useTransacoes(filters?)
 useTransacoesSummary(periodo)
 useContasAPagar(filters?)
-useContasAPagarSummary()
 useSupabaseClientes()
-useSupabaseEquipamentos()
-useSupabaseAulas()
-useSupabaseAlugueis()
+useTradeIns()
 
 // Mutation hooks (escrita)
 useCreateTransacao()
-useUpdateTransacaoCusto()
-useDeleteTransacao()
+useTransacaoAutomatica() // Hook central de automação
 ```
 
-### Estrutura de Componentes
+### Estrutura de Arquivos
 ```
 src/
 ├── components/
-│   ├── ui/          # shadcn/ui customizado
-│   ├── clientes/    # Componentes específicos
-│   └── dre/         # Componentes do DRE
-├── hooks/           # React Query hooks
+│   ├── ui/              # shadcn/ui customizado
+│   ├── help/            # Central de Ajuda
+│   ├── clientes/        # Componentes de clientes
+│   └── dre/             # Componentes do DRE
+├── hooks/               # React Query hooks
 ├── pages/
-│   └── admin/       # Páginas administrativas
-├── lib/             # Utilitários
-└── integrations/    # Supabase client
+│   └── admin/           # Páginas administrativas
+├── lib/
+│   ├── helpContent.ts   # Conteúdo da Central de Ajuda
+│   └── tourConfig.ts    # Configuração de tours
+└── integrations/        # Supabase client
 ```
 
-### Convenções
-- Componentes em PascalCase
-- Hooks com prefixo `use`
-- Arquivos de página em PascalCase
-- Utilitários em camelCase
-- CSS classes via Tailwind + tokens do design system
-- Nunca usar cores diretas (text-white, bg-black) - sempre tokens
-
 ---
 
-## 📝 Notas de Implementação
+## 🚀 Funcionalidades Futuras
 
-### Criação de Transações Automáticas
-Sempre que uma aula é confirmada, aluguel finalizado ou trade-in vendido, uma transação é criada automaticamente no sistema financeiro com todos os cálculos de margem.
+### Módulo Financeiro
+- [ ] Projeção de fluxo de caixa
+- [ ] Integração bancária via Open Finance
+- [ ] Conciliação automática de cartões
 
-### RLS (Row Level Security)
-Todas as tabelas devem ter RLS habilitado com políticas apropriadas para o usuário autenticado.
+### Módulo de Aulas
+- [ ] Calendário visual com drag-and-drop
+- [ ] Pacotes de aulas com controle de saldo
+- [ ] Rating de alunos pós-aula
 
-### Validações
-- Formulários usam Zod schemas
-- Toast notifications para feedback
-- Estados de loading com Skeleton components
+### Módulo de Equipamentos
+- [ ] QR Code para rastreamento
+- [ ] Histórico de manutenção detalhado
+- [ ] Depreciação automática
 
-### Performance
-- React Query para cache e invalidação
-- Seleção específica de campos nas queries (não usar `select('*')` em listagens)
-- Índices no banco para campos de busca frequente
+### Mobile & PWA
+- [ ] Notificações push nativas
+- [ ] Modo offline completo
+- [ ] Geolocalização de equipamentos
 
----
-
-*Última atualização: Janeiro 2026*
+### Integrações
+- [ ] Google Calendar sync
+- [ ] Stripe/PagSeguro para pagamentos online
+- [ ] Contabilidade (Omie, ContaAzul)
