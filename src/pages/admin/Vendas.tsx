@@ -158,7 +158,7 @@ export default function Vendas() {
             Gerencie todas as transações comerciais da GoKite
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto">
+        <Button id="btn-nova-venda" onClick={() => setDialogOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Nova Venda
         </Button>
@@ -190,7 +190,7 @@ export default function Vendas() {
       </div>
 
       {/* KPIs Principais */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div id="kpis-vendas" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <PremiumCard hover glow>
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
@@ -352,7 +352,7 @@ export default function Vendas() {
       </div>
 
       {/* Filtros e Lista */}
-      <PremiumCard>
+      <PremiumCard id="filtros-vendas">
         <CardHeader className="p-4 sm:p-5">
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">

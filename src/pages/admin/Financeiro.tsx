@@ -359,10 +359,12 @@ export default function Financeiro() {
       </div>
 
       {/* Quick Financial Entry - Lançamento Rápido com IA */}
-      <QuickFinancialEntry onParsed={handleParsedTransaction} />
+      <div id="quick-entry">
+        <QuickFinancialEntry onParsed={handleParsedTransaction} />
+      </div>
 
       {/* KPIs Premium - Grid Responsivo */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
+      <div id="kpi-receita" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-6">
         {/* Receita do Mês - Destaque */}
         <PremiumCard featured gradient="primary" className="col-span-2 lg:col-span-1">
           <PremiumCardHeader className="flex flex-row items-center justify-between pb-2 p-4 sm:p-6">

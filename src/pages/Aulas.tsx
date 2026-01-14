@@ -114,7 +114,7 @@ export default function Aulas() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <Button onClick={() => setDialogOpen(true)} variant="outline" className="gap-2 min-h-[44px]">
+          <Button id="btn-nova-aula" onClick={() => setDialogOpen(true)} variant="outline" className="gap-2 min-h-[44px]">
             <Plus className="h-4 w-4" />
             Nova Aula
           </Button>
@@ -128,7 +128,7 @@ export default function Aulas() {
       </div>
 
       {/* KPIs Premium */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div id="kpis-aulas" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <PremiumCard hover>
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">
@@ -227,7 +227,7 @@ export default function Aulas() {
               />
             </div>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-full sm:w-[180px] min-h-[44px] bg-muted/30 border-border/50">
+              <SelectTrigger id="filtro-status-aulas" className="w-full sm:w-[180px] min-h-[44px] bg-muted/30 border-border/50">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
