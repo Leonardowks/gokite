@@ -24,6 +24,24 @@ const WEBHOOK_EVENTS = [
   "QRCODE_UPDATED",        // QR Code atualizado
 ];
 
+// Helper para fetch com timeout
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('API_TIMEOUT');
+    }
+    throw error;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -559,8 +577,23 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("[Evolution Connect] Erro:", error);
+    
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    
+    // Mensagem amigável para timeout/conexão
+    if (errorMessage === 'API_TIMEOUT' || errorMessage.includes('timed out') || errorMessage.includes('Connection')) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Evolution API indisponível", 
+          code: "API_UNAVAILABLE",
+          message: "O servidor da Evolution API está temporariamente inacessível. Verifique se o servidor EasyPanel está online.",
+        }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
