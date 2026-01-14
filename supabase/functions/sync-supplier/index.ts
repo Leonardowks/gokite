@@ -151,12 +151,20 @@ Deno.serve(async (req) => {
     // Converter URL do Google Sheets para formato CSV
     let csvUrl = sheetUrl;
     if (sheetUrl.includes("docs.google.com/spreadsheets")) {
+      // Caso comum: link publicado como HTML (termina com /pubhtml) → converter para CSV
+      // Ex: .../d/e/<ID>/pubhtml  => .../d/e/<ID>/pub?output=csv
+      if (sheetUrl.includes("/pubhtml")) {
+        csvUrl = sheetUrl.replace("/pubhtml", "/pub?output=csv");
+        if (gid && !csvUrl.includes("gid=")) {
+          csvUrl += (csvUrl.includes("?") ? "&" : "?") + `gid=${gid}`;
+        }
+      }
       // Verificar se já é uma URL de export (publicada)
-      if (sheetUrl.includes("/pub") || sheetUrl.includes("output=csv") || sheetUrl.includes("format=csv")) {
+      else if (sheetUrl.includes("/pub") || sheetUrl.includes("output=csv") || sheetUrl.includes("format=csv")) {
         // Garantir que tem output=csv e preservar gid
         if (!sheetUrl.includes("output=csv") && !sheetUrl.includes("format=csv")) {
-          csvUrl = sheetUrl.includes("?") 
-            ? `${sheetUrl}&output=csv` 
+          csvUrl = sheetUrl.includes("?")
+            ? `${sheetUrl}&output=csv`
             : `${sheetUrl}?output=csv`;
         } else {
           csvUrl = sheetUrl;
