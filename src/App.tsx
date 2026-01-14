@@ -19,6 +19,9 @@ const Relatorios = lazy(() => import("./pages/Relatorios"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Vendas = lazy(() => import("./pages/admin/Vendas"));
 const Estoque = lazy(() => import("./pages/admin/Estoque"));
+const MinhaLoja = lazy(() => import("./pages/admin/MinhaLoja"));
+const SobEncomenda = lazy(() => import("./pages/admin/DuotoneSync")); // Renomeado conceptualmente
+const Usados = lazy(() => import("./pages/admin/TradeIns")); // Renomeado conceptualmente
 const Financeiro = lazy(() => import("./pages/admin/Financeiro"));
 const ConfiguracoesFinanceiras = lazy(() => import("./pages/admin/ConfiguracoesFinanceiras"));
 const RelatorioDRE = lazy(() => import("./pages/admin/RelatorioDRE"));
@@ -27,8 +30,6 @@ const Assistente = lazy(() => import("./pages/Assistente"));
 const Inteligencia = lazy(() => import("./pages/admin/Inteligencia"));
 const Conversas = lazy(() => import("./pages/Conversas"));
 const ProvisaoImpostos = lazy(() => import("./pages/admin/ProvisaoImpostos"));
-const TradeIns = lazy(() => import("./pages/admin/TradeIns"));
-const DuotoneSync = lazy(() => import("./pages/admin/DuotoneSync"));
 const ReceberMercadoria = lazy(() => import("./pages/admin/ReceberMercadoria"));
 const PedidosNuvemshop = lazy(() => import("./pages/admin/PedidosNuvemshop"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
@@ -69,8 +70,9 @@ const App = () => {
             <Route path="/aulas" element={<Aulas />} />
             <Route path="/vendas" element={<Vendas />} />
             <Route path="/estoque" element={<Estoque />} />
-            <Route path="/estoque/trade-ins" element={<TradeIns />} />
-            <Route path="/estoque/duotone" element={<DuotoneSync />} />
+            <Route path="/estoque/loja" element={<MinhaLoja />} />
+            <Route path="/estoque/sob-encomenda" element={<SobEncomenda />} />
+            <Route path="/estoque/usados" element={<Usados />} />
             <Route path="/estoque/receber-mercadoria" element={<ReceberMercadoria />} />
             <Route path="/estoque/inventario" element={<Inventario />} />
             <Route path="/aluguel" element={<Aluguel />} />

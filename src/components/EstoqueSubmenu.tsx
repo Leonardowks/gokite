@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Package, RefreshCw, Cloud, ScanLine, Warehouse, Loader2 } from "lucide-react";
+import { Store, Cloud, Recycle, ScanLine, Warehouse } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEquipamentosListagem } from "@/hooks/useSupabaseEquipamentos";
 import { useTradeInsSummary } from "@/hooks/useTradeIns";
 import { useMovimentacoesRecentes } from "@/hooks/useReceberMercadoria";
+import { useSupplierStats } from "@/hooks/useSupplierCatalog";
 
 interface EstoqueSubmenuProps {
   className?: string;
@@ -18,6 +19,7 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
   const { data: equipamentos = [] } = useEquipamentosListagem({});
   const { data: tradeInsSummary } = useTradeInsSummary();
   const { data: movimentacoes = [] } = useMovimentacoesRecentes(100);
+  const { data: supplierStats } = useSupplierStats();
 
   // Calculate recent entries (last 24h)
   const recentEntries = movimentacoes.filter((m: any) => {
@@ -25,28 +27,38 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
     return hoursAgo < 24;
   }).length;
 
+  // Produtos próprios (excluindo virtuais do fornecedor)
+  const produtosProprios = equipamentos.filter(e => e.source_type !== 'virtual_supplier').length;
+  
+  // Produtos sob encomenda (catálogo do fornecedor)
+  const produtosSobEncomenda = supplierStats?.totalSupplier || 0;
+
   const menuItems = [
     { 
-      title: "Equipamentos", 
-      url: "/estoque", 
-      icon: Package, 
-      exact: true,
-      count: equipamentos.length,
+      title: "Minha Loja", 
+      url: "/estoque/loja", 
+      icon: Store, 
+      count: produtosProprios,
       showCount: true,
+      description: "Produtos físicos em estoque",
     },
     { 
-      title: "Trade-ins", 
-      url: "/estoque/trade-ins", 
-      icon: RefreshCw,
+      title: "Sob Encomenda", 
+      url: "/estoque/sob-encomenda", 
+      icon: Cloud,
+      count: produtosSobEncomenda,
+      showCount: produtosSobEncomenda > 0,
+      statusIcon: true,
+      description: "Catálogo Duotone para pedidos",
+    },
+    { 
+      title: "Usados", 
+      url: "/estoque/usados", 
+      icon: Recycle,
       count: tradeInsSummary?.qtdEmEstoque || 0,
       showCount: true,
       highlight: (tradeInsSummary?.qtdEmEstoque || 0) > 0,
-    },
-    { 
-      title: "Duotone", 
-      url: "/estoque/duotone", 
-      icon: Cloud,
-      statusIcon: true,
+      description: "Trade-ins para revenda",
     },
     { 
       title: "Receber", 
@@ -54,19 +66,27 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
       icon: ScanLine,
       pulse: true,
       recentCount: recentEntries,
+      description: "Entrada de mercadoria",
     },
     { 
       title: "Inventário", 
       url: "/estoque/inventario", 
       icon: Warehouse, 
       disabled: false,
+      description: "Contagem física",
     },
   ];
 
-  const isActive = (url: string, exact?: boolean) => {
-    if (exact) return location.pathname === url;
-    return location.pathname.startsWith(url);
+  const isActive = (url: string) => {
+    // Check if current path matches exactly or is the /estoque dashboard
+    if (location.pathname === "/estoque" && url === "/estoque/loja") {
+      return false; // Don't highlight "Minha Loja" when on dashboard
+    }
+    return location.pathname === url || location.pathname.startsWith(url + "/");
   };
+
+  // Check if we're on the main dashboard
+  const isOnDashboard = location.pathname === "/estoque";
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -75,7 +95,7 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
         className
       )}>
         {menuItems.map((item) => {
-          const active = isActive(item.url, item.exact);
+          const active = isActive(item.url);
           
           const content = (
             <NavLink
@@ -99,7 +119,7 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
                   item.pulse && !active && "animate-pulse"
                 )} />
                 
-                {/* Status indicator for Duotone sync */}
+                {/* Status indicator for cloud sync */}
                 {item.statusIcon && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-success animate-pulse" />
                 )}
@@ -142,21 +162,17 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
             </NavLink>
           );
 
-          // Wrap with tooltip if has tooltip text
-          if ('tooltip' in item && item.tooltip) {
-            return (
-              <Tooltip key={item.url}>
-                <TooltipTrigger asChild>
-                  {content}
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[200px]">
-                  <p className="text-xs">{String(item.tooltip)}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          }
-
-          return content;
+          // Wrap with tooltip
+          return (
+            <Tooltip key={item.url}>
+              <TooltipTrigger asChild>
+                {content}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[200px]">
+                <p className="text-xs">{item.description}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
         })}
       </div>
     </TooltipProvider>

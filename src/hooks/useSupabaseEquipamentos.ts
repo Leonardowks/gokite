@@ -16,8 +16,8 @@ export function useEquipamentosListagem(filters?: {
     queryFn: async () => {
       let query = supabase
         .from('equipamentos')
-        // ✅ Select específico - apenas campos necessários para cards/listagem
-        .select('id, nome, tipo, status, localizacao, preco_aluguel_dia, tamanho, ean')
+        // ✅ Select específico - campos necessários para cards/listagem + gestão de estoque
+        .select('id, nome, tipo, status, localizacao, preco_aluguel_dia, tamanho, ean, source_type, sale_price, cost_price')
         .order('nome', { ascending: true });
 
       // Filtros usando índices criados
