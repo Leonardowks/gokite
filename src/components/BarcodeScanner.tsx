@@ -3,6 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { X, Camera, Keyboard, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useScannerFeedback } from '@/hooks/useScannerFeedback';
 
 interface BarcodeScannerProps {
   onScan: (code: string) => void;
@@ -15,6 +16,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
   const isMountedRef = useRef(true);
   const hasStartedRef = useRef(false);
   const scannerIdRef = useRef(`scanner-${Date.now()}`);
+  const { feedback } = useScannerFeedback();
   
   const [status, setStatus] = useState<'initializing' | 'scanning' | 'error'>('initializing');
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +52,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
           },
           (decodedText) => {
             if (isMountedRef.current && decodedText) {
+              feedback('success');
               onScan(decodedText);
             }
           },
@@ -93,6 +96,7 @@ export function BarcodeScanner({ onScan, onClose, isSearching = false }: Barcode
     e.preventDefault();
     const code = manualCode.trim();
     if (code) {
+      feedback('success');
       onScan(code);
       setManualCode('');
     }
