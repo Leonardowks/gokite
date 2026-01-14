@@ -149,10 +149,38 @@ export function useImportSupplierProducts() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
       queryClient.invalidateQueries({ queryKey: ["supplier-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["equipamentos-virtual-supplier"] });
       toast.success(`${data.length} produto(s) importado(s) com sucesso!`);
     },
     onError: (error: Error) => {
       toast.error(`Erro ao importar: ${error.message}`);
+    },
+  });
+}
+
+// Hook para excluir produto virtual importado por engano
+export function useDeleteVirtualEquipamento() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("equipamentos")
+        .delete()
+        .eq("id", id)
+        .eq("source_type", "virtual_supplier");
+
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["equipamentos-virtual-supplier"] });
+      toast.success("Produto removido! Ele reaparecerá em Novidades na próxima sincronização.");
+    },
+    onError: (error: Error) => {
+      toast.error(`Erro ao excluir: ${error.message}`);
     },
   });
 }

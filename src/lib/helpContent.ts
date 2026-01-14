@@ -24,7 +24,9 @@ import {
   PackagePlus,
   RefreshCcw,
   Percent,
-  Recycle
+  Recycle,
+  ClipboardCheck,
+  AlertTriangle
 } from "lucide-react";
 
 export interface FlowStep {
@@ -210,6 +212,21 @@ export const commercialFlows: CommercialFlow[] = [
       { text: "Disponível para venda ou aluguel imediato" }
     ],
     automacoes: ["localizacao_fisica", "status_disponivel"]
+  },
+  {
+    id: "contagem_fisica",
+    nome: "Contagem Física (Inventário)",
+    icone: ClipboardCheck,
+    descricao: "Conferir estoque real com scanner",
+    passos: [
+      { text: "Clique em 'Iniciar Contagem'" },
+      { text: "Escaneie cada produto com o celular" },
+      { text: "Sistema registra quantidade contada", isAutomatic: true },
+      { text: "Divergências detectadas automaticamente", isAutomatic: true },
+      { text: "Aplique ajustes ou investigue a diferença" },
+      { text: "Histórico salvo para auditoria", isAutomatic: true }
+    ],
+    automacoes: ["deteccao_divergencia", "historico_movimentacao"]
   }
 ];
 
@@ -278,6 +295,14 @@ export const automations: Automation[] = [
     quando: "Ao importar produto do fornecedor",
     como: "Aplica margem configurável (padrão 40%)",
     resultado: "Preço de venda sugerido calculado"
+  },
+  {
+    id: "deteccao_divergencia",
+    nome: "Detecção de Divergência",
+    icone: AlertTriangle,
+    quando: "Durante contagem física",
+    como: "Compara quantidade escaneada vs sistema",
+    resultado: "Alerta visual e opção de ajuste automático"
   }
 ];
 
@@ -398,6 +423,13 @@ export const systemAreas: SystemArea[] = [
     icone: MessageCircle,
     oqueVoceVe: ["Mensagens", "Leads quentes", "Análise IA"],
     acaoRapida: "Responder e qualificar leads"
+  },
+  {
+    pagina: "/estoque/inventario",
+    nome: "Inventário",
+    icone: ClipboardCheck,
+    oqueVoceVe: ["Contagem física", "Divergências", "Cobertura EAN"],
+    acaoRapida: "Conferir estoque real vs sistema"
   }
 ];
 
@@ -467,6 +499,30 @@ export const faqItems: FAQItem[] = [
     id: "faq-11",
     pergunta: "O que é um trade-in 'bomba'?",
     resposta: "Um trade-in é considerado 'bomba' quando está parado há mais de 60 dias. O sistema alerta para você considerar baixar o preço ou fazer promoção para girar o estoque.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-12",
+    pergunta: "Como fazer inventário físico?",
+    resposta: "Vá em Estoque → Inventário e clique 'Iniciar Contagem'. Use a câmera do celular para escanear os códigos de barras. O sistema compara automaticamente com o estoque registrado e mostra divergências.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-13",
+    pergunta: "O que é cobertura EAN?",
+    resposta: "É a porcentagem de produtos que têm código de barras cadastrado. Quanto maior, mais fácil é a contagem física por scanner. Ideal: 100%.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-14",
+    pergunta: "O que fazer quando encontro divergência no inventário?",
+    resposta: "Após a contagem, o sistema mostra as diferenças. Você pode aplicar o ajuste (atualiza o sistema) ou investigar a causa (pode ser furto, erro de registro, etc).",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-15",
+    pergunta: "Importei produto errado do fornecedor, como desfazer?",
+    resposta: "Vá em Estoque → Sob Encomenda → Meus Virtuais e clique no botão 'Excluir' ao lado do produto. Ele reaparecerá em 'Novidades' na próxima sincronização.",
     categoria: "estoque"
   }
 ];
