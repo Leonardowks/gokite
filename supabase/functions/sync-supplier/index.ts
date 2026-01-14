@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
     const lines = csvText.split("\n").filter(line => line.trim());
     
     // Log das primeiras linhas para debug
-    console.log("[sync-supplier] Primeiras 3 linhas do CSV:", lines.slice(0, 3));
+    console.log("[sync-supplier] Primeiras 5 linhas do CSV:", lines.slice(0, 5));
     
     if (lines.length < 2) {
       return new Response(
@@ -243,11 +243,40 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Encontrar a linha de headers (primeira linha com conteúdo real, não vazia)
+    let headerLineIndex = 0;
+    for (let i = 0; i < Math.min(lines.length, 10); i++) {
+      const parsed = parseCSVLine(lines[i]);
+      // Verificar se tem pelo menos 2 colunas com conteúdo
+      const nonEmptyCols = parsed.filter(col => col.trim().length > 0);
+      if (nonEmptyCols.length >= 2) {
+        headerLineIndex = i;
+        console.log(`[sync-supplier] Linha de headers detectada no índice ${i}`);
+        break;
+      }
+    }
+
     // Parse headers
-    const headers = parseCSVLine(lines[0]);
+    const headers = parseCSVLine(lines[headerLineIndex]);
     let columnMap = detectColumns(headers);
     
     console.log("[sync-supplier] Colunas detectadas:", columnMap);
+    
+    // Fallback: se não detectou product_name, usar primeira coluna com texto
+    if (columnMap.product_name === undefined) {
+      console.log("[sync-supplier] Tentando fallback para product_name...");
+      const firstDataLine = parseCSVLine(lines[headerLineIndex + 1]);
+      
+      for (let i = 0; i < headers.length; i++) {
+        const value = firstDataLine[i];
+        // Se a coluna tem texto (não apenas números) e não é vazia
+        if (value && value.trim() && isNaN(parseFloat(value.replace(/[^\d.-]/g, '')))) {
+          columnMap.product_name = i;
+          console.log(`[sync-supplier] Fallback: usando coluna ${i} ("${headers[i]}") como product_name`);
+          break;
+        }
+      }
+    }
     
     // Fallback: se não detectou product_name, usar primeira coluna com texto
     if (columnMap.product_name === undefined) {
@@ -277,10 +306,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse products
+    // Parse products (começar após a linha de headers)
+    const dataStartIndex = headerLineIndex + 1;
     const products: SupplierProduct[] = [];
     
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = dataStartIndex; i < lines.length; i++) {
       const values = parseCSVLine(lines[i]);
       
       const productName = values[columnMap.product_name]?.trim();
