@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, ShoppingBag, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain, MessageCircle } from "lucide-react";
+import { LogOut, User, Home, Users, Calendar, Package, ShoppingCart, ShoppingBag, BarChart3, Settings, TrendingUp, DollarSign, Waves, MoreHorizontal, Mic, Sparkles, Brain, MessageCircle, Menu, X } from "lucide-react";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -72,6 +72,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [voiceSheetOpen, setVoiceSheetOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Badge de mensagens não lidas
   const { data: mensagensNaoLidas = 0 } = useMensagensNaoLidas();
@@ -110,10 +111,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <TourProvider>
     <div className="min-h-screen flex bg-ocean-pattern">
-      {/* Desktop Sidebar - Hidden on mobile */}
-      <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-sidebar border-r border-sidebar-border/30">
+      {/* Desktop Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 hidden md:block transition-opacity duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Desktop Sidebar - Collapsible */}
+      <aside className={`
+        hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-64 z-50
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        bg-sidebar border-r border-sidebar-border/30
+      `}>
         {/* Sidebar Header */}
-        <div className="p-5 border-b border-sidebar-border/30">
+        <div className="p-5 border-b border-sidebar-border/30 flex items-center justify-between">
           <div className="flex items-center gap-3 relative">
             <div className="absolute inset-0 bg-cyan/20 blur-xl rounded-full opacity-60" />
             <img 
@@ -122,6 +136,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               className="h-10 w-auto relative drop-shadow-lg"
             />
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(false)}
+            className="text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
         
         {/* Sidebar Navigation */}
@@ -208,7 +230,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col md:ml-64">
+      <div className="flex-1 flex flex-col">
         {/* Mobile Header */}
         <header className="sticky top-0 z-40 glass-premium border-b border-primary/10 md:hidden">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -230,6 +252,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Desktop Header */}
         <header className="sticky top-0 z-40 glass-premium border-b border-primary/10 hidden md:block">
           <div className="px-6 py-3 flex items-center gap-4">
+            {/* Hamburger Menu Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(true)}
+              className="mr-2 hover:bg-primary/10"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+
             {/* Voice Assistant Bar */}
             <VoiceAssistantBar />
             
