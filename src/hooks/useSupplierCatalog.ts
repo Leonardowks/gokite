@@ -96,7 +96,14 @@ export function useSyncSupplier() {
       });
 
       if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      
+      // Tratar erros específicos retornados pela edge function
+      if (data.error) {
+        const errorWithCode = new Error(data.message || data.error);
+        (errorWithCode as any).code = data.code;
+        (errorWithCode as any).helpUrl = data.helpUrl;
+        throw errorWithCode;
+      }
 
       return data as SyncResult;
     },
@@ -105,7 +112,21 @@ export function useSyncSupplier() {
       queryClient.invalidateQueries({ queryKey: ["supplier-stats"] });
     },
     onError: (error: Error) => {
-      toast.error(`Erro na sincronização: ${error.message}`);
+      // Mensagens mais descritivas baseadas no código de erro
+      const errorCode = (error as any).code;
+      let message = error.message;
+      
+      if (errorCode === "SHEET_NOT_PUBLIC") {
+        message = "Planilha não publicada. Vá em Arquivo → Compartilhar → Publicar na Web → CSV";
+      } else if (errorCode === "COLUMN_NOT_FOUND") {
+        message = "Colunas não detectadas. Verifique se a planilha tem 'Modelo' ou 'Produto'.";
+      } else if (errorCode === "EMPTY_SHEET") {
+        message = "Planilha vazia ou sem dados válidos.";
+      } else if (message.includes("non-2xx") || message.includes("Edge Function")) {
+        message = "Erro ao conectar com a planilha. Verifique a URL e publicação.";
+      }
+      
+      toast.error(message);
     },
   });
 }

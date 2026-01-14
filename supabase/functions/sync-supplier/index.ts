@@ -24,16 +24,40 @@ function detectColumns(headers: string[]): Record<string, number> {
   const columnMap: Record<string, number> = {};
   const lowerHeaders = headers.map(h => h.toLowerCase().trim());
   
-  // Padrões para detectar colunas
+  console.log("[sync-supplier] Headers encontrados:", headers);
+  
+  // Padrões expandidos para detectar colunas (Duotone real)
   const patterns: Record<string, RegExp[]> = {
-    product_name: [/modelo/i, /produto/i, /nome/i, /product/i, /name/i, /descri/i],
-    size: [/tamanho/i, /size/i, /tam/i, /medida/i],
-    color: [/cor/i, /color/i, /colour/i],
-    cost_price: [/pre[cç]o/i, /price/i, /valor/i, /custo/i, /cost/i, /atacado/i],
-    supplier_stock_qty: [/quantidade/i, /estoque/i, /qty/i, /stock/i, /quant/i, /disp/i],
-    category: [/categoria/i, /category/i, /tipo/i, /type/i],
-    brand: [/marca/i, /brand/i, /fabricante/i],
-    ean: [/ean/i, /barcode/i, /c[oó]digo.?barra/i, /gtin/i, /upc/i, /cod\.?\s*barra/i],
+    product_name: [
+      /modelo/i, /produto/i, /nome/i, /product/i, /name/i, /descri/i,
+      /item/i, /artigo/i, /^art\.?$/i, /^desc$/i, /designa/i
+    ],
+    size: [
+      /tamanho/i, /size/i, /tam/i, /medida/i,
+      /m2/i, /^m$/i, /metros/i, /^t$/i, /^sz$/i
+    ],
+    color: [/cor/i, /color/i, /colour/i, /^c$/i],
+    cost_price: [
+      /pre[cç]o/i, /price/i, /valor/i, /custo/i, /cost/i, /atacado/i,
+      /^pv$/i, /^pc$/i, /^p\.v\.$/i, /^p\.c\.$/i, /dealer/i, /pvp/i,
+      /tabela/i, /unit[aá]rio/i, /^val$/i
+    ],
+    supplier_stock_qty: [
+      /quantidade/i, /estoque/i, /qty/i, /stock/i, /quant/i, /disp/i,
+      /^qtd/i, /^qt/i, /dispo/i, /unid/i, /^un$/i, /saldo/i
+    ],
+    category: [
+      /categoria/i, /category/i, /tipo/i, /type/i,
+      /linha/i, /family/i, /familia/i, /grupo/i
+    ],
+    brand: [
+      /marca/i, /brand/i, /fabricante/i,
+      /^fab$/i, /manufacturer/i
+    ],
+    ean: [
+      /ean/i, /barcode/i, /c[oó]digo.?barra/i, /gtin/i, /upc/i,
+      /cod\.?\s*barra/i, /^cod$/i, /^c[oó]digo$/i
+    ],
   };
   
   for (const [field, regexList] of Object.entries(patterns)) {
@@ -41,6 +65,7 @@ function detectColumns(headers: string[]): Record<string, number> {
       for (const regex of regexList) {
         if (regex.test(lowerHeaders[i])) {
           columnMap[field] = i;
+          console.log(`[sync-supplier] Coluna '${field}' detectada no índice ${i}: "${headers[i]}"`);
           break;
         }
       }
@@ -116,12 +141,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    console.log("[sync-supplier] URL original:", sheetUrl);
+
+    // Extrair gid da URL original (para pegar aba específica)
+    const gidMatch = sheetUrl.match(/[?#&]gid=(\d+)/);
+    const gid = gidMatch ? gidMatch[1] : null;
+    console.log("[sync-supplier] gid detectado:", gid);
+
     // Converter URL do Google Sheets para formato CSV
     let csvUrl = sheetUrl;
     if (sheetUrl.includes("docs.google.com/spreadsheets")) {
       // Verificar se já é uma URL de export (publicada)
       if (sheetUrl.includes("/pub") || sheetUrl.includes("output=csv") || sheetUrl.includes("format=csv")) {
-        // Garantir que tem output=csv
+        // Garantir que tem output=csv e preservar gid
         if (!sheetUrl.includes("output=csv") && !sheetUrl.includes("format=csv")) {
           csvUrl = sheetUrl.includes("?") 
             ? `${sheetUrl}&output=csv` 
@@ -129,53 +161,109 @@ Deno.serve(async (req) => {
         } else {
           csvUrl = sheetUrl;
         }
+        // Adicionar gid se não tiver e foi detectado
+        if (gid && !csvUrl.includes("gid=")) {
+          csvUrl += `&gid=${gid}`;
+        }
       } else if (sheetUrl.includes("/d/e/")) {
         // URL de planilha publicada: extrair ID após /d/e/
         const match = sheetUrl.match(/\/d\/e\/([a-zA-Z0-9-_]+)/);
         if (match) {
           csvUrl = `https://docs.google.com/spreadsheets/d/e/${match[1]}/pub?output=csv`;
+          if (gid) {
+            csvUrl += `&gid=${gid}`;
+          }
         }
       } else {
         // URL normal: extrair ID após /d/
         const match = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
         if (match) {
           csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+          if (gid) {
+            csvUrl += `&gid=${gid}`;
+          }
         }
       }
     }
 
-    console.log("Fetching CSV from:", csvUrl);
+    console.log("[sync-supplier] CSV URL final:", csvUrl);
     
     // Buscar CSV
     const csvResponse = await fetch(csvUrl);
     if (!csvResponse.ok) {
       return new Response(
-        JSON.stringify({ error: "Não foi possível acessar a planilha. Verifique se está publicada." }),
+        JSON.stringify({ 
+          error: "Não foi possível acessar a planilha", 
+          code: "FETCH_ERROR",
+          message: "Verifique se a planilha está publicada na web como CSV. Vá em Arquivo → Compartilhar → Publicar na Web → CSV.",
+          helpUrl: "https://support.google.com/docs/answer/183965"
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
     const csvText = await csvResponse.text();
+    
+    // Detectar HTML de erro do Google (planilha não publicada ou não existe)
+    if (csvText.includes("<!DOCTYPE html") || 
+        csvText.includes("file you have requested does not exist") ||
+        csvText.includes("Google Sheets") && csvText.includes("<html")) {
+      console.log("[sync-supplier] Planilha retornou HTML de erro ao invés de CSV");
+      return new Response(
+        JSON.stringify({ 
+          error: "Planilha inacessível", 
+          code: "SHEET_NOT_PUBLIC",
+          message: "A planilha não está publicada na web ou não existe. Vá em Arquivo → Compartilhar → Publicar na Web → CSV.",
+          helpUrl: "https://support.google.com/docs/answer/183965"
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     const lines = csvText.split("\n").filter(line => line.trim());
+    
+    // Log das primeiras linhas para debug
+    console.log("[sync-supplier] Primeiras 3 linhas do CSV:", lines.slice(0, 3));
     
     if (lines.length < 2) {
       return new Response(
-        JSON.stringify({ error: "Planilha vazia ou sem dados" }),
+        JSON.stringify({ 
+          error: "Planilha vazia ou sem dados",
+          code: "EMPTY_SHEET"
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Parse headers
     const headers = parseCSVLine(lines[0]);
-    const columnMap = detectColumns(headers);
+    let columnMap = detectColumns(headers);
     
-    console.log("Detected columns:", columnMap);
+    console.log("[sync-supplier] Colunas detectadas:", columnMap);
+    
+    // Fallback: se não detectou product_name, usar primeira coluna com texto
+    if (columnMap.product_name === undefined) {
+      console.log("[sync-supplier] Tentando fallback para product_name...");
+      const firstDataLine = parseCSVLine(lines[1]);
+      
+      for (let i = 0; i < headers.length; i++) {
+        const value = firstDataLine[i];
+        // Se a coluna tem texto (não apenas números) e não é vazia
+        if (value && value.trim() && isNaN(parseFloat(value.replace(/[^\d.-]/g, '')))) {
+          columnMap.product_name = i;
+          console.log(`[sync-supplier] Fallback: usando coluna ${i} ("${headers[i]}") como product_name`);
+          break;
+        }
+      }
+    }
     
     if (columnMap.product_name === undefined) {
       return new Response(
         JSON.stringify({ 
           error: "Não foi possível detectar a coluna de nome/modelo do produto",
-          headers: headers 
+          code: "COLUMN_NOT_FOUND",
+          headers: headers,
+          message: "Nenhuma coluna de nome/modelo foi detectada. Verifique se a planilha tem colunas como 'Modelo', 'Produto' ou 'Nome'."
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -226,13 +314,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Parsed ${products.length} products`);
+    console.log(`[sync-supplier] Produtos parseados: ${products.length}`);
 
     // Deduplicate by SKU (keep last occurrence)
     const uniqueProducts = Array.from(
       products.reduce((map, product) => map.set(product.sku, product), new Map()).values()
     );
-    console.log(`After deduplication: ${uniqueProducts.length} unique products`);
+    console.log(`[sync-supplier] Após deduplicação: ${uniqueProducts.length} produtos únicos`);
 
     // Conectar ao Supabase
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -251,7 +339,7 @@ Deno.serve(async (req) => {
       );
 
     if (upsertError) {
-      console.error("Upsert error:", upsertError);
+      console.error("[sync-supplier] Upsert error:", upsertError);
       return new Response(
         JSON.stringify({ error: "Erro ao salvar produtos", details: upsertError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -264,7 +352,7 @@ Deno.serve(async (req) => {
     let eansUpdated = 0;
     
     if (productsWithEan.length > 0) {
-      console.log(`Syncing ${productsWithEan.length} EANs to equipamentos...`);
+      console.log(`[sync-supplier] Sincronizando ${productsWithEan.length} EANs...`);
       
       for (const product of productsWithEan) {
         // Atualizar equipamento pelo supplier_sku onde EAN é null
@@ -277,11 +365,11 @@ Deno.serve(async (req) => {
         
         if (!updateError && updated && updated.length > 0) {
           eansUpdated += updated.length;
-          console.log(`Updated EAN for equipment with SKU ${product.sku}: ${product.ean}`);
+          console.log(`[sync-supplier] EAN atualizado para SKU ${product.sku}: ${product.ean}`);
         }
       }
       
-      console.log(`Total EANs synchronized: ${eansUpdated}`);
+      console.log(`[sync-supplier] Total EANs sincronizados: ${eansUpdated}`);
     }
 
     // Buscar equipamentos existentes para comparação
@@ -347,16 +435,27 @@ Deno.serve(async (req) => {
       last_synced_at: new Date().toISOString(),
     };
 
+    console.log("[sync-supplier] Resultado final:", {
+      total: result.stats.total_parsed,
+      novos: result.stats.new_products,
+      reposicao: result.stats.restock_needed,
+      importados: result.stats.already_imported
+    });
+
     return new Response(
       JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error: unknown) {
-    console.error("Sync error:", error);
+    console.error("[sync-supplier] Erro:", error);
     const message = error instanceof Error ? error.message : "Erro desconhecido";
     return new Response(
-      JSON.stringify({ error: "Erro interno", details: message }),
+      JSON.stringify({ 
+        error: "Erro interno", 
+        code: "INTERNAL_ERROR",
+        details: message 
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
