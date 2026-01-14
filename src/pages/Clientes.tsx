@@ -173,14 +173,14 @@ export default function Clientes() {
             Gerencie clientes e prospectos
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto">
+        <Button id="btn-novo-cliente" onClick={() => setDialogOpen(true)} className="gap-2 min-h-[44px] w-full sm:w-auto">
           <UserPlus className="h-4 w-4" />
           Novo Cliente
         </Button>
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs id="tabs-clientes" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
           <TabsTrigger value="clientes" className="gap-2">
             <Users className="h-4 w-4" />

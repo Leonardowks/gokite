@@ -166,6 +166,7 @@ export default function TradeIns() {
         </div>
         
         <Button 
+          id="btn-novo-tradein"
           className="gap-2 min-h-[44px] w-full sm:w-auto"
           onClick={() => setTradeInDrawerOpen(true)}
         >
@@ -281,7 +282,7 @@ export default function TradeIns() {
 
         <TabsContent value="estoque" className="mt-4 space-y-4">
           {/* Filtros */}
-      <PremiumCard>
+      <PremiumCard id="filtros-tradein">
         <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-3">
             {/* Busca */}
@@ -411,7 +412,7 @@ export default function TradeIns() {
       )}
         </TabsContent>
 
-        <TabsContent value="insights" className="mt-4">
+        <TabsContent value="insights" className="mt-4" id="insights-tradein">
           <TradeInsInsights tradeIns={tradeIns || []} />
         </TabsContent>
       </Tabs>

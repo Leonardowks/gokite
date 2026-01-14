@@ -115,6 +115,7 @@ export default function Estoque() {
             Trade-in
           </Button>
           <Button 
+            id="btn-add-equipamento"
             className="gap-2 min-h-[44px] flex-1 sm:flex-initial"
             onClick={() => setEquipamentoDialogOpen(true)}
           >
@@ -125,10 +126,12 @@ export default function Estoque() {
       </div>
 
       {/* Submenu */}
-      <EstoqueSubmenu />
+      <div id="submenu-estoque">
+        <EstoqueSubmenu />
+      </div>
 
       {/* KPIs Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div id="kpis-estoque" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <PremiumCard hover>
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-start justify-between gap-2">

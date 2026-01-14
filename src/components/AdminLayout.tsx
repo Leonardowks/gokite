@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { useMensagensNaoLidas, useConversasRealtime } from "@/hooks/useConversasPage";
 import { toast } from "sonner";
 import gokiteLogo from "@/assets/gokite-logo.png";
+import { TourProvider } from "@/components/TourProvider";
+import { HelpButton } from "@/components/HelpButton";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -106,6 +108,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const isActive = (url: string) => currentPath === url || (url !== '/' && currentPath.startsWith(url));
 
   return (
+    <TourProvider>
     <div className="min-h-screen flex bg-ocean-pattern">
       {/* Desktop Sidebar - Hidden on mobile */}
       <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-sidebar border-r border-sidebar-border/30">
@@ -232,6 +235,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             
             <div className="flex items-center gap-3">
               <QuickStats />
+              <HelpButton />
               <ThemeToggle />
               <NotificationCenter />
               <div className="pl-3 border-l border-primary/20">
@@ -367,5 +371,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Voice Assistant Sheet for Mobile */}
       <VoiceAssistantSheet open={voiceSheetOpen} onOpenChange={setVoiceSheetOpen} />
     </div>
+    </TourProvider>
   );
 }
