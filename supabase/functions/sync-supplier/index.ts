@@ -228,6 +228,12 @@ Deno.serve(async (req) => {
 
     console.log(`Parsed ${products.length} products`);
 
+    // Deduplicate by SKU (keep last occurrence)
+    const uniqueProducts = Array.from(
+      products.reduce((map, product) => map.set(product.sku, product), new Map()).values()
+    );
+    console.log(`After deduplication: ${uniqueProducts.length} unique products`);
+
     // Conectar ao Supabase
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -237,7 +243,7 @@ Deno.serve(async (req) => {
     const { error: upsertError } = await supabase
       .from("supplier_catalogs")
       .upsert(
-        products.map(p => ({
+        uniqueProducts.map(p => ({
           ...p,
           last_synced_at: new Date().toISOString(),
         })),
