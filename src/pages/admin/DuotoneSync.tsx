@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
 import { PremiumCard } from "@/components/ui/premium-card";
@@ -36,6 +36,7 @@ import {
   ArrowRight,
   PlayCircle,
   AlertTriangle,
+  X,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -70,7 +71,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function DuotoneSync() {
-  const [sheetUrl, setSheetUrl] = useState("");
+  const [sheetUrl, setSheetUrl] = useState<string | null>(null);
+  const [urlInitialized, setUrlInitialized] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [selectedSkus, setSelectedSkus] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("novidades");
@@ -115,8 +117,16 @@ export default function DuotoneSync() {
     }
   };
 
-  // Usar URL salva se disponível
-  const currentUrl = sheetUrl || savedUrl || "";
+  // Inicializar URL com valor salvo apenas uma vez
+  useEffect(() => {
+    if (savedUrl && !urlInitialized) {
+      setSheetUrl(savedUrl);
+      setUrlInitialized(true);
+    }
+  }, [savedUrl, urlInitialized]);
+
+  // URL atual para sincronização
+  const currentUrl = sheetUrl || "";
 
   const handleSync = async () => {
     if (!currentUrl) {
@@ -333,12 +343,25 @@ export default function DuotoneSync() {
             </div>
 
             <div className="flex gap-3">
-              <Input
-                placeholder="Cole o link da planilha do Google Sheets..."
-                value={currentUrl}
-                onChange={(e) => setSheetUrl(e.target.value)}
-                className="flex-1"
-              />
+              <div className="relative flex-1">
+                <Input
+                  placeholder="Cole o link da planilha do Google Sheets..."
+                  value={sheetUrl || ""}
+                  onChange={(e) => setSheetUrl(e.target.value)}
+                  className="pr-10"
+                />
+                {sheetUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0 hover:bg-destructive/10"
+                    onClick={() => setSheetUrl("")}
+                  >
+                    <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                  </Button>
+                )}
+              </div>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
