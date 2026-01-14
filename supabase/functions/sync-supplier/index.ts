@@ -119,10 +119,28 @@ Deno.serve(async (req) => {
     // Converter URL do Google Sheets para formato CSV
     let csvUrl = sheetUrl;
     if (sheetUrl.includes("docs.google.com/spreadsheets")) {
-      // Extrair ID da planilha
-      const match = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-      if (match) {
-        csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+      // Verificar se já é uma URL de export (publicada)
+      if (sheetUrl.includes("/pub") || sheetUrl.includes("output=csv") || sheetUrl.includes("format=csv")) {
+        // Garantir que tem output=csv
+        if (!sheetUrl.includes("output=csv") && !sheetUrl.includes("format=csv")) {
+          csvUrl = sheetUrl.includes("?") 
+            ? `${sheetUrl}&output=csv` 
+            : `${sheetUrl}?output=csv`;
+        } else {
+          csvUrl = sheetUrl;
+        }
+      } else if (sheetUrl.includes("/d/e/")) {
+        // URL de planilha publicada: extrair ID após /d/e/
+        const match = sheetUrl.match(/\/d\/e\/([a-zA-Z0-9-_]+)/);
+        if (match) {
+          csvUrl = `https://docs.google.com/spreadsheets/d/e/${match[1]}/pub?output=csv`;
+        }
+      } else {
+        // URL normal: extrair ID após /d/
+        const match = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (match) {
+          csvUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+        }
       }
     }
 
