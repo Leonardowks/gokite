@@ -249,6 +249,7 @@ export default function DuotoneSync() {
   };
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       <PageHeader
         title="Sincronizador Duotone"
@@ -334,8 +335,7 @@ export default function DuotoneSync() {
       </div>
 
       {/* Sync Configuration */}
-      <TooltipProvider>
-        <PremiumCard className="p-6">
+      <PremiumCard className="p-6">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Cloud className="h-5 w-5 text-primary" />
@@ -422,9 +422,8 @@ export default function DuotoneSync() {
                 </div>
               </div>
             )}
-          </div>
-        </PremiumCard>
-      </TooltipProvider>
+        </div>
+      </PremiumCard>
 
       {/* Results Tabs */}
       {syncResult && (
@@ -988,5 +987,6 @@ export default function DuotoneSync() {
         equipamento={selectedEquipamento}
       />
     </div>
+    </TooltipProvider>
   );
 }
