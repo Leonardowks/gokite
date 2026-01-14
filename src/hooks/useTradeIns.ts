@@ -96,12 +96,20 @@ export const useTradeInsSummary = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trade_ins")
-        .select("valor_entrada, valor_saida, lucro_trade_in, status");
+        .select("valor_entrada, valor_saida, lucro_trade_in, status, data_entrada");
 
       if (error) throw error;
 
       const emEstoque = (data || []).filter(t => t.status === "em_estoque");
       const vendidos = (data || []).filter(t => t.status === "vendido");
+
+      // Calcular bombas (>60 dias em estoque)
+      const hoje = new Date();
+      const bomba = emEstoque.filter(t => {
+        const dataEntrada = new Date(t.data_entrada);
+        const dias = Math.floor((hoje.getTime() - dataEntrada.getTime()) / 86400000);
+        return dias > 60;
+      });
 
       const valorEmEstoque = emEstoque.reduce((sum, t) => sum + t.valor_entrada, 0);
       const lucroTotal = vendidos.reduce((sum, t) => sum + (t.lucro_trade_in || 0), 0);
@@ -110,6 +118,7 @@ export const useTradeInsSummary = () => {
       return {
         qtdEmEstoque: emEstoque.length,
         qtdVendidos: vendidos.length,
+        qtdBomba: bomba.length,
         valorEmEstoque,
         lucroTotal,
         receitaVendas,
