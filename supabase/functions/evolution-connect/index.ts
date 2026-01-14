@@ -24,7 +24,35 @@ const WEBHOOK_EVENTS = [
   "QRCODE_UPDATED",        // QR Code atualizado
 ];
 
-// Helper para fetch com timeout
+// Helper para detectar erro de rede/DNS
+function isNetworkError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return msg.includes('dns error') || 
+           msg.includes('failed to lookup') ||
+           msg.includes('network') ||
+           msg.includes('enotfound') ||
+           msg.includes('econnrefused') ||
+           msg.includes('etimedout') ||
+           msg.includes('connection timed out') ||
+           msg.includes('client error (connect)');
+  }
+  return false;
+}
+
+// Resposta padronizada para API indisponível
+function apiUnavailableResponse() {
+  return new Response(
+    JSON.stringify({ 
+      error: "Evolution API indisponível", 
+      code: "API_UNAVAILABLE",
+      message: "Não foi possível conectar à Evolution API. Verifique se o servidor está online e a URL está correta."
+    }),
+    { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// Helper para fetch com timeout e tratamento de erros de rede
 async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -38,6 +66,7 @@ async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = 1
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('API_TIMEOUT');
     }
+    // Propagar erro de rede para tratamento adequado
     throw error;
   }
 }
@@ -335,14 +364,22 @@ serve(async (req) => {
           },
         };
 
-        const webhookResponse = await fetch(`${config.api_url}/webhook/set/${config.instance_name}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": config.api_key,
-          },
-          body: JSON.stringify(webhookPayload),
-        });
+        let webhookResponse: Response;
+        try {
+          webhookResponse = await fetchWithTimeout(`${config.api_url}/webhook/set/${config.instance_name}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": config.api_key,
+            },
+            body: JSON.stringify(webhookPayload),
+          });
+        } catch (fetchError) {
+          if (isNetworkError(fetchError)) {
+            return apiUnavailableResponse();
+          }
+          throw fetchError;
+        }
 
         const webhookResult = await webhookResponse.json();
         console.log("[Evolution Connect] Webhook reconfigured:", webhookResult);
@@ -578,18 +615,16 @@ serve(async (req) => {
   } catch (error) {
     console.error("[Evolution Connect] Erro:", error);
     
+    // Tratar erros de rede/DNS
+    if (isNetworkError(error)) {
+      return apiUnavailableResponse();
+    }
+    
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     
     // Mensagem amigável para timeout/conexão
     if (errorMessage === 'API_TIMEOUT' || errorMessage.includes('timed out') || errorMessage.includes('Connection')) {
-      return new Response(
-        JSON.stringify({ 
-          error: "Evolution API indisponível", 
-          code: "API_UNAVAILABLE",
-          message: "O servidor da Evolution API está temporariamente inacessível. Verifique se o servidor EasyPanel está online.",
-        }),
-        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return apiUnavailableResponse();
     }
     
     return new Response(
