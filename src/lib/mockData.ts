@@ -15,7 +15,7 @@ const tags = ["Iniciante", "Intermediário", "Avançado", "VIP", "Kitesurf", "Wi
 const instrutores = ["Rafa", "Léo", "Bruno", "Thiago", "Pedro"];
 const locais = ["Florianópolis", "Taíba"];
 const tiposAula = ["kitesurf", "wing_foil", "foil", "downwind"];
-const statusAula = ["agendada", "confirmada", "realizada", "cancelada"];
+const statusAula = ["agendada", "concluida", "cancelada"];
 const formasPagamento = ["pix", "cartao_credito", "cartao_debito", "dinheiro", "trade_in"];
 const centrosCusto = ["Escola", "Loja", "Pousada", "Administrativo"];
 const origensReceita = ["aula", "venda_produto", "aluguel", "trade_in", "ecommerce", "pacote"];
@@ -30,7 +30,10 @@ const randomItem = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length
 const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 const randomDate = (start: Date, end: Date) => new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
 const generatePhone = () => `48${randomInt(900000000, 999999999)}`;
-const generateEmail = (nome: string) => `${nome.toLowerCase().replace(/ /g, '.')}@${randomItem(['gmail.com', 'hotmail.com', 'outlook.com'])}`;
+const generateEmail = (nome: string) => {
+  const suffix = Date.now().toString(36) + randomInt(100, 999);
+  return `${nome.toLowerCase().replace(/ /g, '.')}.${suffix}@${randomItem(['gmail.com', 'hotmail.com', 'outlook.com'])}`;
+};
 
 // Geradores de dados
 export const generateClientes = (count: number = 20) => {
@@ -48,7 +51,7 @@ export const generateAulas = (clienteIds: string[], count: number = 40) => {
   const aulas = [];
   for (let i = 0; i < count; i++) {
     const data = randomDate(subDays(today, 30), addDays(today, 7));
-    const status = data > today ? randomItem(["agendada", "confirmada"]) : randomItem(statusAula);
+    const status = data > today ? "agendada" : randomItem(["concluida", "cancelada"]);
     aulas.push({
       cliente_id: randomItem(clienteIds),
       data: format(data, "yyyy-MM-dd"),
