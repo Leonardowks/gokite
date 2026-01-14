@@ -35,7 +35,9 @@ import {
   Info,
   ArrowRight,
   PlayCircle,
+  AlertTriangle,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   useSyncSupplier,
   useImportSupplierProducts,
@@ -363,10 +365,25 @@ export default function DuotoneSync() {
               </Tooltip>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              💡 Dica: A planilha precisa estar publicada na web. Vá em Arquivo →
-              Compartilhar → Publicar na Web → CSV
-            </p>
+            <Alert className="bg-amber-500/10 border-amber-500/20">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
+                <strong>Importante:</strong> A planilha precisa estar{" "}
+                <strong>publicada na web como CSV</strong>. Vá em{" "}
+                <span className="font-mono text-xs bg-muted px-1 rounded">
+                  Arquivo → Compartilhar → Publicar na Web
+                </span>{" "}
+                → selecione a aba correta → escolha CSV.{" "}
+                <a 
+                  href="https://support.google.com/docs/answer/183965" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="underline hover:no-underline"
+                >
+                  Ver tutorial
+                </a>
+              </AlertDescription>
+            </Alert>
 
             {syncResult && (
               <div className="flex items-center gap-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20">
