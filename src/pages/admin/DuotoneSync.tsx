@@ -29,17 +29,21 @@ import {
   ExternalLink,
   ShoppingCart,
   Percent,
+  Store,
+  CloudOff,
 } from "lucide-react";
 import {
   useSyncSupplier,
   useImportSupplierProducts,
   useSupplierStats,
   useSupplierSheetUrl,
+  useVirtualSupplierEquipamentos,
   SyncResult,
 } from "@/hooks/useSupplierCatalog";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { TrazerParaLojaDialog } from "@/components/TrazerParaLojaDialog";
 
 export default function DuotoneSync() {
   const [sheetUrl, setSheetUrl] = useState("");
@@ -48,9 +52,17 @@ export default function DuotoneSync() {
   const [activeTab, setActiveTab] = useState("novidades");
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
   const [globalMargin, setGlobalMargin] = useState<number>(40);
+  const [trazerDialogOpen, setTrazerDialogOpen] = useState(false);
+  const [selectedEquipamento, setSelectedEquipamento] = useState<{
+    id: string;
+    nome: string;
+    cost_price?: number | null;
+    sale_price?: number | null;
+  } | null>(null);
 
   const { data: savedUrl } = useSupplierSheetUrl();
   const { data: stats, isLoading: statsLoading } = useSupplierStats();
+  const { data: virtualEquipamentos, isLoading: virtualLoading } = useVirtualSupplierEquipamentos();
   const syncMutation = useSyncSupplier();
   const importMutation = useImportSupplierProducts();
 
@@ -342,6 +354,15 @@ export default function DuotoneSync() {
                     </Badge>
                   )}
                 </TabsTrigger>
+                <TabsTrigger value="meus-virtuais" className="gap-2">
+                  <CloudOff className="h-4 w-4" />
+                  Meus Virtuais
+                  {(virtualEquipamentos?.length || 0) > 0 && (
+                    <Badge variant="outline" className="ml-1 bg-blue-500/10 text-blue-600">
+                      {virtualEquipamentos?.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
                 <TabsTrigger value="importados" className="gap-2">
                   <Package className="h-4 w-4" />
                   Já Importados
@@ -613,6 +634,103 @@ export default function DuotoneSync() {
                 </div>
               )}
             </TabsContent>
+
+            {/* Tab: Meus Virtuais (Sob Encomenda) */}
+            <TabsContent value="meus-virtuais">
+              {virtualLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <SkeletonPremium key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (virtualEquipamentos?.length || 0) === 0 ? (
+                <div className="text-center py-12">
+                  <Cloud className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="font-semibold text-lg">Nenhum produto virtual</h3>
+                  <p className="text-muted-foreground">
+                    Importe produtos na aba "Novidades" para criar pedidos sob encomenda.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <p className="text-sm">
+                      ☁️ <strong>Produtos Virtuais:</strong> Estes produtos estão no seu catálogo mas ainda não chegaram do fornecedor. 
+                      Quando receber o pedido, clique em <strong>"Trazer para Loja"</strong> para mover para o estoque físico.
+                    </p>
+                  </div>
+
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produto</TableHead>
+                          <TableHead>SKU Fornecedor</TableHead>
+                          <TableHead className="text-right">Custo</TableHead>
+                          <TableHead className="text-right">Venda</TableHead>
+                          <TableHead className="text-right">Margem</TableHead>
+                          <TableHead className="text-right">Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {virtualEquipamentos?.map((eq) => {
+                          const margin = eq.cost_price && eq.sale_price 
+                            ? Math.round(((eq.sale_price - eq.cost_price) / eq.cost_price) * 100)
+                            : 0;
+                          
+                          return (
+                            <TableRow key={eq.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Cloud className="h-4 w-4 text-blue-500" />
+                                  <div>
+                                    <p className="font-medium">{eq.nome}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {eq.tipo} {eq.tamanho && `• ${eq.tamanho}`}
+                                    </p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-muted-foreground font-mono text-sm">
+                                {eq.supplier_sku || "—"}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-muted-foreground">
+                                {formatPrice(eq.cost_price || 0)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-semibold">
+                                {formatPrice(eq.sale_price || 0)}
+                              </TableCell>
+                              <TableCell className={`text-right font-mono font-semibold ${getMarginColor(margin)}`}>
+                                {margin}%
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2"
+                                  onClick={() => {
+                                    setSelectedEquipamento({
+                                      id: eq.id,
+                                      nome: eq.nome,
+                                      cost_price: eq.cost_price,
+                                      sale_price: eq.sale_price,
+                                    });
+                                    setTrazerDialogOpen(true);
+                                  }}
+                                >
+                                  <Store className="h-3 w-3" />
+                                  Trazer p/ Loja
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
         </PremiumCard>
       )}
@@ -644,6 +762,13 @@ export default function DuotoneSync() {
           </div>
         </PremiumCard>
       )}
+
+      {/* Dialog Trazer para Loja */}
+      <TrazerParaLojaDialog
+        open={trazerDialogOpen}
+        onOpenChange={setTrazerDialogOpen}
+        equipamento={selectedEquipamento}
+      />
     </div>
   );
 }

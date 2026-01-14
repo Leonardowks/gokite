@@ -207,3 +207,21 @@ export function useSupplierSheetUrl() {
     },
   });
 }
+
+// Hook para listar equipamentos virtuais (sob encomenda) que ainda não foram convertidos
+export function useVirtualSupplierEquipamentos() {
+  return useQuery({
+    queryKey: ["equipamentos-virtual-supplier"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("equipamentos")
+        .select("id, nome, tipo, tamanho, status, localizacao, cost_price, sale_price, supplier_sku, created_at")
+        .eq("source_type", "virtual_supplier")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
