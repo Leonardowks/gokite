@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,12 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Settings, Bell, Mail, Phone, MapPin, DollarSign, Building2, Globe, Award, Ship, Plug } from "lucide-react";
+import { Settings, Bell, Mail, Phone, MapPin, DollarSign, Building2, Globe, Award, Ship, Plug, FlaskConical, Database, Trash2, Rocket, Loader2, Users, GraduationCap, Receipt, Package, RefreshCcw, FileText, AlertTriangle } from "lucide-react";
 import { PremiumCard, PremiumCardContent, PremiumCardHeader, PremiumCardTitle, PremiumCardDescription } from "@/components/ui/premium-card";
 import { PremiumBadge } from "@/components/ui/premium-badge";
 import { NuvemshopIntegration } from "@/components/NuvemshopIntegration";
+import { usePopulateDatabase } from "@/hooks/usePopulateDatabase";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export default function Configuracoes() {
   const { toast } = useToast();
@@ -112,7 +114,7 @@ export default function Configuracoes() {
       </div>
 
       <Tabs defaultValue="geral" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:w-[400px]">
+        <TabsList className="grid w-full grid-cols-3 lg:w-[500px]">
           <TabsTrigger value="geral" className="gap-2">
             <Settings className="h-4 w-4" />
             Geral
@@ -120,6 +122,10 @@ export default function Configuracoes() {
           <TabsTrigger value="integracoes" className="gap-2">
             <Plug className="h-4 w-4" />
             Integrações
+          </TabsTrigger>
+          <TabsTrigger value="desenvolvedor" className="gap-2">
+            <FlaskConical className="h-4 w-4" />
+            Dev
           </TabsTrigger>
         </TabsList>
 
@@ -481,7 +487,214 @@ export default function Configuracoes() {
         <TabsContent value="integracoes" className="space-y-4 sm:space-y-6 mt-6">
           <NuvemshopIntegration />
         </TabsContent>
+
+        <TabsContent value="desenvolvedor" className="space-y-4 sm:space-y-6 mt-6">
+          <DeveloperSection />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Componente da seção Desenvolvedor
+function DeveloperSection() {
+  const { stats, isPopulating, isClearing, fetchStats, populateDatabase, clearDatabase } = usePopulateDatabase();
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const statItems = [
+    { label: "Clientes", value: stats?.clientes ?? 0, icon: Users, color: "text-blue-500" },
+    { label: "Aulas", value: stats?.aulas ?? 0, icon: GraduationCap, color: "text-green-500" },
+    { label: "Transações", value: stats?.transacoes ?? 0, icon: Receipt, color: "text-purple-500" },
+    { label: "Equipamentos", value: stats?.equipamentos ?? 0, icon: Package, color: "text-orange-500" },
+    { label: "Trade-ins", value: stats?.trade_ins ?? 0, icon: RefreshCcw, color: "text-cyan-500" },
+    { label: "Contas", value: stats?.contas_a_pagar ?? 0, icon: FileText, color: "text-red-500" },
+  ];
+
+  return (
+    <>
+      {/* Status do Banco */}
+      <PremiumCard>
+        <PremiumCardHeader>
+          <PremiumCardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            Status do Banco de Dados
+          </PremiumCardTitle>
+          <PremiumCardDescription>
+            Quantidade atual de registros em cada tabela
+          </PremiumCardDescription>
+        </PremiumCardHeader>
+        <PremiumCardContent>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+            {statItems.map((item) => (
+              <div key={item.label} className="text-center p-3 rounded-lg bg-muted/50">
+                <item.icon className={`h-5 w-5 mx-auto mb-1 ${item.color}`} />
+                <div className="text-2xl font-bold">{item.value}</div>
+                <div className="text-xs text-muted-foreground">{item.label}</div>
+              </div>
+            ))}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => fetchStats()}
+            className="mt-4"
+          >
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
+        </PremiumCardContent>
+      </PremiumCard>
+
+      {/* Alerta */}
+      <div className="flex items-center gap-3 p-4 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
+        <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+        <p className="text-sm text-yellow-600 dark:text-yellow-400">
+          <strong>Atenção:</strong> Essas ações afetam o banco de dados real. Use apenas em ambiente de desenvolvimento/testes.
+        </p>
+      </div>
+
+      {/* Popular Banco */}
+      <PremiumCard>
+        <PremiumCardHeader>
+          <PremiumCardTitle className="flex items-center gap-2">
+            <Rocket className="h-5 w-5 text-green-500" />
+            Popular Dados de Teste
+          </PremiumCardTitle>
+          <PremiumCardDescription>
+            Criar dados fictícios realistas para testar todas as funcionalidades
+          </PremiumCardDescription>
+        </PremiumCardHeader>
+        <PremiumCardContent className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <span>20 clientes</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              <span>40 aulas</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-muted-foreground" />
+              <span>60 transações</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-muted-foreground" />
+              <span>25 equipamentos</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4 text-muted-foreground" />
+              <span>10 trade-ins</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <span>20 contas a pagar</span>
+            </div>
+          </div>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button disabled={isPopulating} className="w-full sm:w-auto">
+                {isPopulating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Populando...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4 mr-2" />
+                    Popular Banco de Dados
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Popular banco de dados?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Isso irá adicionar dados fictícios ao banco para testes:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>20 clientes com perfis variados</li>
+                    <li>40 aulas (últimos 30 dias + próximos 7)</li>
+                    <li>60 transações com taxas calculadas</li>
+                    <li>25 equipamentos Duotone/North</li>
+                    <li>10 trade-ins com status variados</li>
+                    <li>20 contas a pagar</li>
+                  </ul>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={populateDatabase}>
+                  Confirmar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </PremiumCardContent>
+      </PremiumCard>
+
+      {/* Limpar Banco */}
+      <PremiumCard className="border-destructive/30">
+        <PremiumCardHeader>
+          <PremiumCardTitle className="flex items-center gap-2">
+            <Trash2 className="h-5 w-5 text-destructive" />
+            Limpar Dados de Teste
+          </PremiumCardTitle>
+          <PremiumCardDescription>
+            Remove TODOS os dados do banco de dados. Esta ação é irreversível!
+          </PremiumCardDescription>
+        </PremiumCardHeader>
+        <PremiumCardContent>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={isClearing} className="w-full sm:w-auto">
+                {isClearing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Limpando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Limpar Tudo
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-destructive">⚠️ Limpar todos os dados?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação irá <strong>DELETAR PERMANENTEMENTE</strong> todos os dados do banco de dados:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Todos os clientes</li>
+                    <li>Todas as aulas</li>
+                    <li>Todas as transações</li>
+                    <li>Todos os equipamentos</li>
+                    <li>Todos os trade-ins</li>
+                    <li>Todas as contas a pagar</li>
+                    <li>Todas as conversas e contatos</li>
+                  </ul>
+                  <p className="mt-3 font-semibold text-destructive">Esta ação NÃO pode ser desfeita!</p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={clearDatabase}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Sim, limpar tudo
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </PremiumCardContent>
+      </PremiumCard>
+    </>
   );
 }
