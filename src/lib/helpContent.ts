@@ -18,7 +18,13 @@ import {
   TrendingUp,
   Users,
   Package,
-  MessageCircle
+  MessageCircle,
+  Cloud,
+  CloudCog,
+  PackagePlus,
+  RefreshCcw,
+  Percent,
+  Recycle
 } from "lucide-react";
 
 export interface FlowStep {
@@ -174,6 +180,36 @@ export const commercialFlows: CommercialFlow[] = [
       { text: "Na devolução: transação criada", isAutomatic: true }
     ],
     automacoes: ["status_equipamento", "alerta_devolucao"]
+  },
+  {
+    id: "sob_encomenda",
+    nome: "Venda Sob Encomenda",
+    icone: Cloud,
+    descricao: "Vender produto do fornecedor sem ter em estoque",
+    passos: [
+      { text: "Cliente escolhe produto do catálogo Duotone" },
+      { text: "Você registra venda com prazo de entrega" },
+      { text: "Margem calculada automaticamente", isAutomatic: true },
+      { text: "Pedido feito ao fornecedor" },
+      { text: "Produto chega e vai direto ao cliente" },
+      { text: "Taxas e impostos calculados", isAutomatic: true }
+    ],
+    automacoes: ["margem", "taxa_cartao", "imposto", "sync_fornecedor"]
+  },
+  {
+    id: "trazer_loja",
+    nome: "Trazer para Loja",
+    icone: PackagePlus,
+    descricao: "Converter produto virtual em estoque físico",
+    passos: [
+      { text: "Você faz pedido ao fornecedor Duotone" },
+      { text: "Seleciona produto em Sob Encomenda → Meus Virtuais" },
+      { text: "Clica 'Trazer para Loja'" },
+      { text: "Escolhe localização física (Floripa/Taíba)" },
+      { text: "Produto aparece em Minha Loja", isAutomatic: true },
+      { text: "Disponível para venda ou aluguel imediato" }
+    ],
+    automacoes: ["localizacao_fisica", "status_disponivel"]
   }
 ];
 
@@ -226,6 +262,22 @@ export const automations: Automation[] = [
     quando: "Pedido pago na Nuvemshop",
     como: "Webhook recebe e cria transação",
     resultado: "Venda online aparece no financeiro"
+  },
+  {
+    id: "sync_fornecedor",
+    nome: "Sincronização de Fornecedor",
+    icone: RefreshCcw,
+    quando: "Ao clicar 'Sincronizar' em Sob Encomenda",
+    como: "Baixa planilha Duotone e atualiza catálogo",
+    resultado: "Produtos disponíveis para venda sob encomenda"
+  },
+  {
+    id: "margem_automatica",
+    nome: "Margem Automática",
+    icone: Percent,
+    quando: "Ao importar produto do fornecedor",
+    como: "Aplica margem configurável (padrão 40%)",
+    resultado: "Preço de venda sugerido calculado"
   }
 ];
 
@@ -271,6 +323,21 @@ export const integrations: Integration[] = [
       "Processar comandos de voz"
     ],
     status: "ativo"
+  },
+  {
+    id: "duotone",
+    nome: "Duotone (Fornecedor Virtual)",
+    icone: CloudCog,
+    funcao: "Sincronizar catálogo de fornecedor",
+    configuracao: "/estoque/sob-encomenda → Sincronizar",
+    funcionalidades: [
+      "Importar catálogo via Google Sheets",
+      "Calcular margem de 40% automaticamente",
+      "Estoque virtual sem investimento",
+      "Trazer produtos para loja física",
+      "Venda sob encomenda com prazo"
+    ],
+    status: "ativo"
   }
 ];
 
@@ -305,11 +372,25 @@ export const systemAreas: SystemArea[] = [
     acaoRapida: "Gerenciar clientes e leads"
   },
   {
-    pagina: "/estoque/trade-ins",
-    nome: "Trade-ins",
-    icone: RefreshCw,
-    oqueVoceVe: ["Equipamentos usados", "Valor investido", "Tempo parado"],
-    acaoRapida: "Registrar e vender usados"
+    pagina: "/estoque/loja",
+    nome: "Minha Loja",
+    icone: Store,
+    oqueVoceVe: ["Produtos físicos", "Pronta entrega", "Aluguel disponível"],
+    acaoRapida: "Gerenciar estoque próprio da loja"
+  },
+  {
+    pagina: "/estoque/sob-encomenda",
+    nome: "Sob Encomenda",
+    icone: Cloud,
+    oqueVoceVe: ["Catálogo Duotone", "Prazo de entrega", "Margem automática"],
+    acaoRapida: "Vender produtos do fornecedor sem ter em estoque"
+  },
+  {
+    pagina: "/estoque/usados",
+    nome: "Usados (Trade-ins)",
+    icone: Recycle,
+    oqueVoceVe: ["Equipamentos usados", "Alertas de bomba", "Store credit"],
+    acaoRapida: "Gerenciar equipamentos usados para revenda"
   },
   {
     pagina: "/conversas",
@@ -369,6 +450,24 @@ export const faqItems: FAQItem[] = [
     pergunta: "Como a IA analisa os leads?",
     resposta: "O sistema analisa o histórico de conversas para identificar: interesse (alto/médio/baixo), objeções, gatilhos de compra e sugere a próxima ação.",
     categoria: "vendas"
+  },
+  {
+    id: "faq-9",
+    pergunta: "Qual a diferença entre Minha Loja e Sob Encomenda?",
+    resposta: "Minha Loja são produtos que você tem fisicamente na loja (pronta entrega). Sob Encomenda são produtos do catálogo Duotone que você pode vender mesmo sem ter em estoque - o fornecedor entrega em 3-7 dias.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-10",
+    pergunta: "O que significa 'Trazer para Loja'?",
+    resposta: "Quando você faz um pedido ao fornecedor Duotone e o produto chega, use 'Trazer para Loja' para movê-lo de Sob Encomenda para Minha Loja. Assim ele fica disponível para venda imediata ou aluguel.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-11",
+    pergunta: "O que é um trade-in 'bomba'?",
+    resposta: "Um trade-in é considerado 'bomba' quando está parado há mais de 60 dias. O sistema alerta para você considerar baixar o preço ou fazer promoção para girar o estoque.",
+    categoria: "estoque"
   }
 ];
 
