@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-id',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-id, x-webhook-secret',
 };
 
 interface NuvemshopProduct {
@@ -65,17 +65,38 @@ Deno.serve(async (req) => {
 
     console.log('Nuvemshop webhook received:', event, 'Order:', orderId);
 
-    // 1. SALVAR JSON BRUTO ANTES DE PROCESSAR (para auditoria)
+    // 1. SALVAR JSON BRUTO ANTES DE PROCESSAR (para auditoria) - usar upsert para evitar duplicatas
     try {
-      await supabase.from('nuvemshop_orders_raw').insert({
+      await supabase.from('nuvemshop_orders_raw').upsert({
         nuvemshop_order_id: orderId,
         event_type: event || 'unknown',
         payload: body,
         processed: false,
+      }, { 
+        onConflict: 'nuvemshop_order_id',
+        ignoreDuplicates: false 
       });
       console.log('Raw order saved for audit');
     } catch (rawError) {
       console.error('Failed to save raw order (continuing):', rawError);
+    }
+
+    // 2. VALIDAR WEBHOOK SECRET (segurança)
+    const { data: integration } = await supabase
+      .from('integrations_nuvemshop')
+      .select('webhook_secret')
+      .limit(1)
+      .single();
+
+    if (integration?.webhook_secret) {
+      const receivedSecret = req.headers.get('x-webhook-secret');
+      if (receivedSecret !== integration.webhook_secret) {
+        console.warn('Invalid webhook secret received');
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // 2. Processar evento
@@ -152,6 +173,16 @@ async function handleOrderEvent(supabase: any, orderData: NuvemshopOrder, event:
   for (const product of orderData.products || []) {
     const itemProcessado = await processarItemPedido(supabase, product);
     itensProcessados.push(itemProcessado);
+    
+    // CORREÇÃO: Calcular custo total acumulando o custo de cada item
+    if (itemProcessado.equipamento_id) {
+      const { data: equip } = await supabase
+        .from('equipamentos')
+        .select('cost_price')
+        .eq('id', itemProcessado.equipamento_id)
+        .single();
+      custoTotal += (equip?.cost_price || 0) * itemProcessado.quantity;
+    }
     
     if (itemProcessado.origem === 'fornecedor_virtual') {
       temItemFornecedor = true;
@@ -240,15 +271,18 @@ async function processarItemPedido(supabase: any, product: NuvemshopProduct): Pr
     equipamento = data;
   }
 
-  // If still not found, try by SKU
+  // If still not found, try by SKU (sanitizado para evitar SQL injection)
   if (!equipamento && product.sku) {
-    const { data } = await supabase
-      .from('equipamentos')
-      .select('id, nome, quantidade_fisica, quantidade_virtual_safe, source_type, supplier_sku, cost_price')
-      .or(`supplier_sku.eq.${product.sku},ean.eq.${product.sku}`)
-      .limit(1)
-      .single();
-    equipamento = data;
+    const sanitizedSku = product.sku.replace(/[^a-zA-Z0-9\-_\.]/g, '');
+    if (sanitizedSku) {
+      const { data } = await supabase
+        .from('equipamentos')
+        .select('id, nome, quantidade_fisica, quantidade_virtual_safe, source_type, supplier_sku, cost_price')
+        .or(`supplier_sku.eq.${sanitizedSku},ean.eq.${sanitizedSku}`)
+        .limit(1)
+        .single();
+      equipamento = data;
+    }
   }
 
   // Try by name similarity as last resort

@@ -112,10 +112,21 @@ export function useDisconnectNuvemshop() {
 
   return useMutation({
     mutationFn: async () => {
+      // Buscar o ID existente primeiro
+      const { data: existing } = await supabase
+        .from("integrations_nuvemshop")
+        .select("id")
+        .limit(1)
+        .single();
+
+      if (!existing) {
+        throw new Error("Nenhuma integração encontrada");
+      }
+
       const { error } = await supabase
         .from("integrations_nuvemshop")
         .update({ status: "disconnected" })
-        .neq("id", "00000000-0000-0000-0000-000000000000"); // Update all
+        .eq("id", existing.id);
 
       if (error) throw error;
     },
