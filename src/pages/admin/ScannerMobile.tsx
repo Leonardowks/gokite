@@ -1,13 +1,14 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Keyboard, History, Package, Plus, Minus, Check, X, Smartphone, Volume2 } from "lucide-react";
+import { ArrowLeft, Keyboard, History, Package, Plus, Minus, Check, X, Smartphone, Volume2, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
-import { CadastroRapidoDialog } from "@/components/CadastroRapidoDialog";
+import { CadastroRapidoDialog, SupplierProductData } from "@/components/CadastroRapidoDialog";
 import { useScannerFeedback } from "@/hooks/useScannerFeedback";
+import { useSearchByEan } from "@/hooks/useReceberMercadoria";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ interface HistoryEntry {
   ean: string;
   quantidade: number;
   timestamp: Date;
+  fromSupplier?: boolean;
 }
 
 export default function ScannerMobile() {
@@ -35,7 +37,7 @@ export default function ScannerMobile() {
   const [isScanning, setIsScanning] = useState(true);
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualEan, setManualEan] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
+  const [currentEan, setCurrentEan] = useState<string | null>(null);
   
   const [foundProduct, setFoundProduct] = useState<ScannedProduct | null>(null);
   const [quantidadeEntrada, setQuantidadeEntrada] = useState(1);
@@ -43,57 +45,88 @@ export default function ScannerMobile() {
   
   const [showCadastro, setShowCadastro] = useState(false);
   const [unknownEan, setUnknownEan] = useState<string | null>(null);
+  const [supplierData, setSupplierData] = useState<SupplierProductData | null>(null);
   
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Search product by EAN
-  const searchProduct = useCallback(async (ean: string) => {
-    setIsSearching(true);
-    
-    try {
-      const { data, error } = await supabase
-        .from("equipamentos")
-        .select("id, nome, ean, quantidade_fisica, tipo, tamanho")
-        .or(`ean.eq.${ean},supplier_sku.eq.${ean}`)
-        .limit(1)
-        .single();
+  // Use the hook for searching
+  const { data: searchResult, isLoading: isSearching } = useSearchByEan(currentEan);
 
-      if (error || !data) {
-        // Product not found
-        if (soundEnabled) feedback('error');
-        setUnknownEan(ean);
-        setShowCadastro(true);
-        setIsScanning(false);
-        return;
-      }
+  // Process search result
+  const processSearchResult = useCallback((ean: string) => {
+    if (!searchResult) return;
 
-      // Product found
+    if (searchResult.found && searchResult.source === "equipamento" && searchResult.equipamento) {
+      // Product found in local inventory
       if (soundEnabled) feedback('success');
-      setFoundProduct(data);
+      setFoundProduct({
+        id: searchResult.equipamento.id,
+        nome: searchResult.equipamento.nome,
+        ean: searchResult.equipamento.ean || "",
+        quantidade_fisica: searchResult.equipamento.quantidade_fisica || 0,
+        tipo: searchResult.equipamento.tipo,
+        tamanho: searchResult.equipamento.tamanho || undefined,
+      });
       setQuantidadeEntrada(1);
       setIsScanning(false);
-      
-    } catch (err) {
-      console.error("Erro ao buscar produto:", err);
+    } else if (searchResult.found && searchResult.source === "supplier" && searchResult.supplierProduct) {
+      // Found in Duotone catalog - pre-fill registration
+      if (soundEnabled) feedback('success');
+      const sp = searchResult.supplierProduct;
+      setSupplierData({
+        product_name: sp.product_name,
+        category: sp.category,
+        brand: sp.brand,
+        size: sp.size,
+        cost_price: sp.cost_price,
+        sku: sp.sku,
+      });
+      setUnknownEan(ean);
+      setShowCadastro(true);
+      setIsScanning(false);
+      toast.info("Produto encontrado no catálogo Duotone", {
+        description: "Dados pré-preenchidos para cadastro rápido",
+      });
+    } else {
+      // Not found anywhere
       if (soundEnabled) feedback('error');
-      toast.error("Erro ao buscar produto");
-    } finally {
-      setIsSearching(false);
+      setSupplierData(null);
+      setUnknownEan(ean);
+      setShowCadastro(true);
+      setIsScanning(false);
     }
-  }, [feedback, soundEnabled]);
+  }, [searchResult, soundEnabled, feedback]);
+
+  // Search product by EAN
+  const searchProduct = useCallback((ean: string) => {
+    setCurrentEan(ean);
+  }, []);
+
+  // Effect to process search results when they arrive
+  const handleSearchComplete = useCallback(() => {
+    if (currentEan && searchResult !== undefined && !isSearching) {
+      processSearchResult(currentEan);
+      setCurrentEan(null);
+    }
+  }, [currentEan, searchResult, isSearching, processSearchResult]);
+
+  // Trigger processing when search completes
+  if (currentEan && searchResult !== undefined && !isSearching) {
+    handleSearchComplete();
+  }
 
   // Handle barcode scan
   const handleScan = useCallback((code: string) => {
-    if (!code || isSearching) return;
+    if (!code || isSearching || currentEan) return;
     searchProduct(code);
-  }, [searchProduct, isSearching]);
+  }, [searchProduct, isSearching, currentEan]);
 
   // Handle manual EAN submit
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (manualEan.trim()) {
+    if (manualEan.trim() && !isSearching) {
       searchProduct(manualEan.trim());
       setManualEan("");
       setShowManualInput(false);
@@ -157,14 +190,29 @@ export default function ScannerMobile() {
     setFoundProduct(null);
     setUnknownEan(null);
     setShowCadastro(false);
+    setSupplierData(null);
     setQuantidadeEntrada(1);
     setIsScanning(true);
+    setCurrentEan(null);
   };
 
   // Handle successful product registration
   const handleCadastroSuccess = () => {
+    // Add to history with supplier indicator
+    if (unknownEan) {
+      setHistory(prev => [{
+        id: `new-${Date.now()}`,
+        nome: supplierData?.product_name || "Novo produto",
+        ean: unknownEan,
+        quantidade: 1,
+        timestamp: new Date(),
+        fromSupplier: !!supplierData,
+      }, ...prev].slice(0, 10));
+    }
+    
     setShowCadastro(false);
     setUnknownEan(null);
+    setSupplierData(null);
     if (soundEnabled) feedback('confirm');
     toast.success("Produto cadastrado e entrada registrada!");
     setIsScanning(true);
@@ -223,7 +271,12 @@ export default function ScannerMobile() {
             <p className="text-xs text-muted-foreground font-medium">Últimas entradas</p>
             {history.map((entry, idx) => (
               <div key={`${entry.id}-${idx}`} className="flex items-center justify-between text-sm">
-                <span className="truncate flex-1">{entry.nome}</span>
+                <div className="flex items-center gap-2 truncate flex-1">
+                  {entry.fromSupplier && (
+                    <Truck className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                  )}
+                  <span className="truncate">{entry.nome}</span>
+                </div>
                 <Badge variant="secondary" className="ml-2">+{entry.quantidade}</Badge>
               </div>
             ))}
@@ -323,8 +376,8 @@ export default function ScannerMobile() {
                 className="flex-1 h-12 text-lg bg-white/10 border-white/20 text-white placeholder:text-white/50"
                 autoFocus
               />
-              <Button type="submit" className="h-12 px-6">
-                Buscar
+              <Button type="submit" className="h-12 px-6" disabled={isSearching}>
+                {isSearching ? "..." : "Buscar"}
               </Button>
               <Button
                 type="button"
@@ -348,12 +401,13 @@ export default function ScannerMobile() {
         </div>
       )}
 
-      {/* Cadastro Dialog */}
+      {/* Cadastro Dialog with Supplier Data */}
       <CadastroRapidoDialog
         open={showCadastro}
         onOpenChange={setShowCadastro}
         ean={unknownEan || ""}
         onSuccess={handleCadastroSuccess}
+        supplierData={supplierData}
       />
     </div>
   );
