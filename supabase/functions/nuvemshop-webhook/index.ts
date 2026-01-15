@@ -54,32 +54,60 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     const body = await req.json();
-    console.log('Nuvemshop webhook received:', JSON.stringify(body, null, 2));
-
     const event = body.event || body.type;
+    const orderId = body.id ? String(body.id) : 'unknown';
+
+    console.log('Nuvemshop webhook received:', event, 'Order:', orderId);
+
+    // 1. SALVAR JSON BRUTO ANTES DE PROCESSAR (para auditoria)
+    try {
+      await supabase.from('nuvemshop_orders_raw').insert({
+        nuvemshop_order_id: orderId,
+        event_type: event || 'unknown',
+        payload: body,
+        processed: false,
+      });
+      console.log('Raw order saved for audit');
+    } catch (rawError) {
+      console.error('Failed to save raw order (continuing):', rawError);
+    }
+
+    // 2. Processar evento
+    let processResult = { success: true, message: 'Event handled' };
 
     switch (event) {
       case 'order/created':
       case 'order/paid':
-        await handleOrderEvent(supabase, body, event);
+        processResult = await handleOrderEvent(supabase, body, event);
         break;
       
       case 'order/cancelled':
-        await handleOrderCancelled(supabase, body);
+        processResult = await handleOrderCancelled(supabase, body);
         break;
 
       default:
         console.log('Unhandled event type:', event);
+        processResult = { success: true, message: `Unhandled event: ${event}` };
     }
 
+    // 3. Marcar como processado
+    await supabase
+      .from('nuvemshop_orders_raw')
+      .update({ 
+        processed: true, 
+        processed_at: new Date().toISOString(),
+        error_message: processResult.success ? null : processResult.message,
+      })
+      .eq('nuvemshop_order_id', orderId);
+
     return new Response(
-      JSON.stringify({ success: true, event }),
+      JSON.stringify({ event, ...processResult }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
@@ -95,13 +123,13 @@ Deno.serve(async (req) => {
   }
 });
 
-async function handleOrderEvent(supabase: any, orderData: NuvemshopOrder, event: string) {
+async function handleOrderEvent(supabase: any, orderData: NuvemshopOrder, event: string): Promise<{ success: boolean; message: string }> {
   console.log(`Processing ${event} for order ${orderData.id}`);
 
   // Only process paid orders
   if (event !== 'order/paid' && orderData.payment_status !== 'paid') {
     console.log('Order not paid yet, skipping');
-    return;
+    return { success: true, message: 'Order not paid, skipped' };
   }
 
   // Check if order already exists in pedidos_nuvemshop
@@ -113,7 +141,7 @@ async function handleOrderEvent(supabase: any, orderData: NuvemshopOrder, event:
 
   if (existingPedido) {
     console.log('Order already processed:', orderData.id);
-    return;
+    return { success: true, message: 'Order already processed' };
   }
 
   // Process each product to determine origin
@@ -163,14 +191,17 @@ async function handleOrderEvent(supabase: any, orderData: NuvemshopOrder, event:
 
   console.log('Pedido created:', pedido.id, 'with', itensProcessados.length, 'items');
 
-  // Deduct stock for physical items
+  // Deduct stock for physical items OR create purchase alerts for virtual items
   for (const item of itensProcessados) {
     if (item.origem === 'estoque_loja' && item.equipamento_id) {
       await deductStock(supabase, item.equipamento_id, item.quantity, pedido.id);
+    } else if (item.origem === 'fornecedor_virtual') {
+      // NOVO: Criar alerta de compra para itens virtuais
+      await createAlertaCompra(supabase, item, pedido.id);
     }
   }
 
-  // Create transaction
+  // Create transaction using tax_rules
   await createTransaction(supabase, orderData, itensProcessados, custoTotal);
 
   // Sync inventory with Nuvemshop
@@ -180,6 +211,8 @@ async function handleOrderEvent(supabase: any, orderData: NuvemshopOrder, event:
   } catch (e) {
     console.error('Failed to trigger inventory sync:', e);
   }
+
+  return { success: true, message: `Order processed with ${itensProcessados.length} items` };
 }
 
 async function processarItemPedido(supabase: any, product: NuvemshopProduct): Promise<ItemPedido> {
@@ -207,7 +240,18 @@ async function processarItemPedido(supabase: any, product: NuvemshopProduct): Pr
     equipamento = data;
   }
 
-  // If still not found, try by name similarity
+  // If still not found, try by SKU
+  if (!equipamento && product.sku) {
+    const { data } = await supabase
+      .from('equipamentos')
+      .select('id, nome, quantidade_fisica, quantidade_virtual_safe, source_type, supplier_sku, cost_price')
+      .or(`supplier_sku.eq.${product.sku},ean.eq.${product.sku}`)
+      .limit(1)
+      .single();
+    equipamento = data;
+  }
+
+  // Try by name similarity as last resort
   if (!equipamento) {
     const { data } = await supabase
       .from('equipamentos')
@@ -294,6 +338,26 @@ async function deductStock(supabase: any, equipamentoId: string, quantity: numbe
   console.log(`Stock deducted: ${equip.nome} -${quantity} (new: ${newQty})`);
 }
 
+// NOVO: Criar alerta de compra para itens virtuais
+async function createAlertaCompra(supabase: any, item: ItemPedido, pedidoId: string) {
+  const { error } = await supabase
+    .from('alertas_compra')
+    .insert({
+      equipamento_id: item.equipamento_id || null,
+      pedido_nuvemshop_id: pedidoId,
+      quantidade_necessaria: item.quantity,
+      supplier_sku: item.supplier_sku || item.sku,
+      status: 'pendente',
+      notas: `Pedido Nuvemshop - ${item.product_name} (${item.quantity}x)`,
+    });
+
+  if (error) {
+    console.error('Error creating alerta_compra:', error);
+  } else {
+    console.log(`Purchase alert created: ${item.product_name} x${item.quantity}`);
+  }
+}
+
 async function createTransaction(supabase: any, orderData: NuvemshopOrder, itens: ItemPedido[], custoTotal: number) {
   // Check if transaction already exists
   const { data: existing } = await supabase
@@ -308,17 +372,31 @@ async function createTransaction(supabase: any, orderData: NuvemshopOrder, itens
     return;
   }
 
-  // Get config for tax calculations
-  const { data: config } = await supabase
-    .from('config_financeiro')
-    .select('*')
-    .limit(1)
+  // NOVO: Buscar tax_rules para categoria 'ecommerce'
+  const { data: taxRule } = await supabase
+    .from('tax_rules')
+    .select('estimated_tax_rate, card_fee_rate')
+    .eq('category', 'ecommerce')
+    .eq('is_active', true)
     .single();
 
+  // Fallback to config_financeiro if no tax_rule found
+  let taxaImposto = taxRule?.estimated_tax_rate || 6;
+  let taxaCartao = taxRule?.card_fee_rate || 3.5;
+
+  if (!taxRule) {
+    const { data: config } = await supabase
+      .from('config_financeiro')
+      .select('taxa_imposto_padrao')
+      .limit(1)
+      .single();
+    taxaImposto = config?.taxa_imposto_padrao || 6;
+  }
+
   const valorBruto = parseFloat(orderData.total);
-  const taxaImposto = config?.taxa_imposto_padrao || 6;
+  const taxaCartaoValor = (valorBruto * taxaCartao) / 100;
   const impostoProvisionado = (valorBruto * taxaImposto) / 100;
-  const lucroLiquido = valorBruto - custoTotal - impostoProvisionado;
+  const lucroLiquido = valorBruto - custoTotal - taxaCartaoValor - impostoProvisionado;
 
   const productNames = itens.map(p => p.product_name).join(', ');
   const customerName = orderData.customer?.name || 'Cliente';
@@ -331,11 +409,11 @@ async function createTransaction(supabase: any, orderData: NuvemshopOrder, itens
       descricao: `Pedido #${orderData.number || orderData.id} - ${customerName} - ${productNames}`,
       valor_bruto: valorBruto,
       custo_produto: custoTotal,
-      taxa_cartao_estimada: 0,
+      taxa_cartao_estimada: taxaCartaoValor,
       imposto_provisionado: impostoProvisionado,
       lucro_liquido: lucroLiquido,
       centro_de_custo: 'Loja',
-      forma_pagamento: 'pix',
+      forma_pagamento: 'cartao_credito',
       referencia_id: String(orderData.id),
       data_transacao: orderData.created_at?.split('T')[0] || new Date().toISOString().split('T')[0],
     });
@@ -343,11 +421,11 @@ async function createTransaction(supabase: any, orderData: NuvemshopOrder, itens
   if (error) {
     console.error('Error creating transaction:', error);
   } else {
-    console.log('Transaction created for order:', orderData.id);
+    console.log('Transaction created for order:', orderData.id, `(tax: ${taxaImposto}%, card: ${taxaCartao}%)`);
   }
 }
 
-async function handleOrderCancelled(supabase: any, orderData: any) {
+async function handleOrderCancelled(supabase: any, orderData: any): Promise<{ success: boolean; message: string }> {
   const orderId = String(orderData.id);
   console.log('Processing order cancellation:', orderId);
 
@@ -360,7 +438,7 @@ async function handleOrderCancelled(supabase: any, orderData: any) {
 
   if (!pedido) {
     console.log('Order not found for cancellation:', orderId);
-    return;
+    return { success: true, message: 'Order not found for cancellation' };
   }
 
   // Restore stock for physical items that were deducted
@@ -397,6 +475,12 @@ async function handleOrderCancelled(supabase: any, orderData: any) {
     }
   }
 
+  // Cancel purchase alerts for virtual items
+  await supabase
+    .from('alertas_compra')
+    .update({ status: 'cancelado' })
+    .eq('pedido_nuvemshop_id', pedido.id);
+
   // Update order status
   await supabase
     .from('pedidos_nuvemshop')
@@ -404,4 +488,5 @@ async function handleOrderCancelled(supabase: any, orderData: any) {
     .eq('id', pedido.id);
 
   console.log('Order cancelled:', orderId);
+  return { success: true, message: 'Order cancelled and stock restored' };
 }

@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      alertas_compra: {
+        Row: {
+          created_at: string | null
+          equipamento_id: string | null
+          id: string
+          notas: string | null
+          pedido_nuvemshop_id: string | null
+          quantidade_necessaria: number
+          status: string | null
+          supplier_sku: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          equipamento_id?: string | null
+          id?: string
+          notas?: string | null
+          pedido_nuvemshop_id?: string | null
+          quantidade_necessaria: number
+          status?: string | null
+          supplier_sku?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          equipamento_id?: string | null
+          id?: string
+          notas?: string | null
+          pedido_nuvemshop_id?: string | null
+          quantidade_necessaria?: number
+          status?: string | null
+          supplier_sku?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alertas_compra_equipamento_id_fkey"
+            columns: ["equipamento_id"]
+            isOneToOne: false
+            referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alertas_compra_pedido_nuvemshop_id_fkey"
+            columns: ["pedido_nuvemshop_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_nuvemshop"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       aluguel: {
         Row: {
           cliente_id: string
@@ -837,6 +888,48 @@ export type Database = {
           },
         ]
       }
+      integrations_nuvemshop: {
+        Row: {
+          access_token: string
+          auto_create_transactions: boolean | null
+          auto_sync_products: boolean | null
+          created_at: string | null
+          id: string
+          last_sync: string | null
+          status: string | null
+          store_id: string
+          store_name: string | null
+          updated_at: string | null
+          webhook_secret: string | null
+        }
+        Insert: {
+          access_token: string
+          auto_create_transactions?: boolean | null
+          auto_sync_products?: boolean | null
+          created_at?: string | null
+          id?: string
+          last_sync?: string | null
+          status?: string | null
+          store_id: string
+          store_name?: string | null
+          updated_at?: string | null
+          webhook_secret?: string | null
+        }
+        Update: {
+          access_token?: string
+          auto_create_transactions?: boolean | null
+          auto_sync_products?: boolean | null
+          created_at?: string | null
+          id?: string
+          last_sync?: string | null
+          status?: string | null
+          store_id?: string
+          store_name?: string | null
+          updated_at?: string | null
+          webhook_secret?: string | null
+        }
+        Relationships: []
+      }
       movimentacoes_estoque: {
         Row: {
           created_at: string | null
@@ -887,6 +980,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      nuvemshop_orders_raw: {
+        Row: {
+          error_message: string | null
+          event_type: string
+          id: string
+          nuvemshop_order_id: string
+          payload: Json
+          processed: boolean | null
+          processed_at: string | null
+          received_at: string | null
+        }
+        Insert: {
+          error_message?: string | null
+          event_type: string
+          id?: string
+          nuvemshop_order_id: string
+          payload: Json
+          processed?: boolean | null
+          processed_at?: string | null
+          received_at?: string | null
+        }
+        Update: {
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          nuvemshop_order_id?: string
+          payload?: Json
+          processed?: boolean | null
+          processed_at?: string | null
+          received_at?: string | null
+        }
+        Relationships: []
       }
       pacotes: {
         Row: {
