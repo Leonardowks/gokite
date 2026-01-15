@@ -92,6 +92,7 @@ export function VendaRapidaDialog({
         parcelas: 1,
         centro_de_custo: 'Loja',
         cliente_id: clienteId || undefined,
+        equipamento_id: equipamento.id,
       });
 
       toast.success(
