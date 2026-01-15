@@ -61,18 +61,12 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
       description: "Trade-ins para revenda",
     },
     { 
-      title: "Receber", 
-      url: "/estoque/receber-mercadoria", 
+      title: "Entrada", 
+      url: "/estoque/entrada", 
       icon: ScanLine,
       pulse: true,
       recentCount: recentEntries,
-      description: "Entrada de mercadoria",
-    },
-    { 
-      title: "Scanner", 
-      url: "/estoque/scanner", 
-      icon: Smartphone, 
-      description: "Entrada rápida via câmera",
+      description: "Entrada de mercadoria via câmera ou código",
     },
     { 
       title: "Importar NF-e", 
