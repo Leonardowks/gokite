@@ -26,7 +26,9 @@ import {
   Percent,
   Recycle,
   ClipboardCheck,
-  AlertTriangle
+  AlertTriangle,
+  Shield,
+  ShoppingBag
 } from "lucide-react";
 
 export interface FlowStep {
@@ -227,6 +229,21 @@ export const commercialFlows: CommercialFlow[] = [
       { text: "Histórico salvo para auditoria", isAutomatic: true }
     ],
     automacoes: ["deteccao_divergencia", "historico_movimentacao"]
+  },
+  {
+    id: "sync_nuvemshop",
+    nome: "Sincronização de Estoque Nuvemshop",
+    icone: RefreshCw,
+    descricao: "Lovable é a fonte da verdade para o estoque",
+    passos: [
+      { text: "Você recebe mercadoria ou faz venda" },
+      { text: "Estoque físico atualizado no sistema" },
+      { text: "Buffer de segurança calculado", isAutomatic: true },
+      { text: "Estoque enviado para Nuvemshop", isAutomatic: true },
+      { text: "Se estoque = 0, produto indisponível no site", isAutomatic: true },
+      { text: "Prazo de entrega ajustado (3 ou 8 dias)", isAutomatic: true }
+    ],
+    automacoes: ["buffer_seguranca", "sync_estoque", "prazo_entrega"]
   }
 ];
 
@@ -303,6 +320,30 @@ export const automations: Automation[] = [
     quando: "Durante contagem física",
     como: "Compara quantidade escaneada vs sistema",
     resultado: "Alerta visual e opção de ajuste automático"
+  },
+  {
+    id: "buffer_seguranca",
+    nome: "Buffer de Segurança (Regra de Ouro)",
+    icone: Shield,
+    quando: "Ao sincronizar estoque com Nuvemshop",
+    como: "Se fornecedor tem 1 unidade → buffer = 0. Se tem mais → buffer = quantidade - 1",
+    resultado: "Site nunca vende última peça do fornecedor"
+  },
+  {
+    id: "alerta_compra",
+    nome: "Alerta de Compra ao Fornecedor",
+    icone: ShoppingBag,
+    quando: "Pedido Nuvemshop contém item do catálogo virtual",
+    como: "Sistema detecta produto vinculado a supplier_catalog",
+    resultado: "Alerta criado em Estoque → Alertas de Compra"
+  },
+  {
+    id: "sync_estoque",
+    nome: "Sincronização Automática de Estoque",
+    icone: RefreshCcw,
+    quando: "Entrada, saída ou ajuste de estoque",
+    como: "Calcula Estoque Site = Físico + Virtual Seguro",
+    resultado: "Nuvemshop atualizada em tempo real"
   }
 ];
 
@@ -326,12 +367,15 @@ export const integrations: Integration[] = [
     id: "nuvemshop",
     nome: "Nuvemshop",
     icone: Store,
-    funcao: "Integrar loja online",
+    funcao: "Integrar loja online com estoque unificado",
     configuracao: "/configuracoes → Integrações",
     funcionalidades: [
-      "Sincronizar pedidos",
-      "Atualizar estoque",
-      "Criar transações automáticas"
+      "Sincronizar pedidos automaticamente",
+      "Atualizar estoque com buffer de segurança",
+      "Criar transações automáticas",
+      "Calcular lucro líquido por pedido",
+      "Alertas de compra ao fornecedor",
+      "Webhook protegido com secret"
     ],
     status: "opcional"
   },
@@ -400,8 +444,8 @@ export const systemAreas: SystemArea[] = [
     pagina: "/estoque/loja",
     nome: "Minha Loja",
     icone: Store,
-    oqueVoceVe: ["Produtos físicos", "Pronta entrega", "Aluguel disponível"],
-    acaoRapida: "Gerenciar estoque próprio da loja"
+    oqueVoceVe: ["Produtos físicos", "Pronta entrega", "Estoque Nuvemshop sincronizado", "Status de sincronização"],
+    acaoRapida: "Gerenciar estoque próprio e sincronizar com site"
   },
   {
     pagina: "/estoque/sob-encomenda",
@@ -523,6 +567,36 @@ export const faqItems: FAQItem[] = [
     id: "faq-15",
     pergunta: "Importei produto errado do fornecedor, como desfazer?",
     resposta: "Vá em Estoque → Sob Encomenda → Meus Virtuais e clique no botão 'Excluir' ao lado do produto. Ele reaparecerá em 'Novidades' na próxima sincronização.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-16",
+    pergunta: "O que é o buffer de segurança do estoque?",
+    resposta: "É uma proteção automática. Se o fornecedor tem apenas 1 unidade, o site mostra 0 (só seu estoque físico). Se tem mais, reservamos 1 unidade como segurança. Assim, o site nunca vende a última peça do fornecedor.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-17",
+    pergunta: "Como funciona a sincronização de estoque com Nuvemshop?",
+    resposta: "O Lovable é a fonte da verdade. A cada entrada ou saída de estoque, calculamos: Estoque Site = Físico + Virtual Seguro (com buffer). Esse valor é enviado automaticamente para a Nuvemshop.",
+    categoria: "integracoes"
+  },
+  {
+    id: "faq-18",
+    pergunta: "O que significa 'Estoque Nuvemshop' no card do produto?",
+    resposta: "Mostra a quantidade disponível no seu site. É composto por: estoque físico (na sua loja) + estoque virtual seguro (do fornecedor com buffer). Também mostra quando foi a última sincronização.",
+    categoria: "estoque"
+  },
+  {
+    id: "faq-19",
+    pergunta: "Como sincronizar manualmente o estoque com Nuvemshop?",
+    resposta: "Em Minha Loja, cada produto vinculado tem um botão 'Sync'. Para sincronizar todos de uma vez, clique no botão 'Sincronizar Nuvemshop' no topo da página.",
+    categoria: "integracoes"
+  },
+  {
+    id: "faq-20",
+    pergunta: "Por que o prazo de entrega muda entre 3 e 8 dias?",
+    resposta: "Se você tem o produto em estoque físico, o prazo é 3 dias. Se o estoque é apenas virtual (do fornecedor), o prazo é 8 dias (3 + 5 do fornecedor).",
     categoria: "estoque"
   }
 ];
