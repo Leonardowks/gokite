@@ -10,7 +10,7 @@ const NUVEMSHOP_API_BASE = "https://api.nuvemshop.com.br/v1";
 interface SyncRequest {
   action: "sync_single" | "sync_all";
   equipamento_id?: string;
-  trigger: "entrada" | "venda" | "ajuste" | "manual" | "supplier_update";
+  trigger?: "entrada" | "venda" | "saida" | "ajuste" | "manual" | "supplier_update" | "verificacao_fisica";
 }
 
 interface Equipamento {

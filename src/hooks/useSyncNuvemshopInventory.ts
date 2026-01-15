@@ -5,7 +5,7 @@ import { toast } from "sonner";
 interface SyncParams {
   action: "sync_single" | "sync_all";
   equipamentoId?: string;
-  trigger?: "entrada" | "venda" | "ajuste" | "manual" | "supplier_update";
+  trigger?: "entrada" | "venda" | "saida" | "ajuste" | "manual" | "supplier_update" | "verificacao_fisica";
 }
 
 interface SyncResult {
@@ -43,7 +43,8 @@ export function useSyncNuvemshopInventory() {
       return data as SyncResult;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["equipamentos-listagem"] });
+      queryClient.invalidateQueries({ queryKey: ["equipamento-detalhes"] });
       
       if (data.api_called_count > 0) {
         if (data.error_count > 0) {
