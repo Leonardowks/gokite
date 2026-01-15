@@ -9,10 +9,10 @@ import {
   Search,
   CheckCircle,
   Calendar,
-  Wrench,
   Store,
   ScanLine,
-  DollarSign,
+  RefreshCw,
+  Clock,
 } from "lucide-react";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { AnimatedNumber } from "@/components/ui/animated-number";
@@ -29,6 +29,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SkeletonPremium } from "@/components/ui/skeleton-premium";
+import { useSyncSingleInventory, useSyncAllInventory } from "@/hooks/useSyncNuvemshopInventory";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function MinhaLoja() {
   const [equipamentoDialogOpen, setEquipamentoDialogOpen] = useState(false);
@@ -40,6 +43,10 @@ export default function MinhaLoja() {
   // Buscar apenas produtos próprios (owned) - exclui virtual_supplier
   const { data: todosEquipamentos = [], isLoading } = useEquipamentosListagem({});
   const { data: ocupacao } = useEquipamentosOcupacao();
+  
+  // Hooks de sincronização
+  const { syncSingle, isPending: isSyncingSingle } = useSyncSingleInventory();
+  const { syncAll, isPending: isSyncingAll } = useSyncAllInventory();
 
   // Filtrar apenas produtos próprios (não virtuais do fornecedor)
   const equipamentosProprios = todosEquipamentos.filter(
@@ -457,6 +464,62 @@ export default function MinhaLoja() {
                           </div>
                         )}
                       </div>
+                      
+                      {/* Barra de Estoque Nuvemshop */}
+                      {eq.nuvemshop_product_id && (
+                        <div className="mt-3 p-2 rounded-lg bg-muted/50 border">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <Store className="h-4 w-4 text-primary" />
+                              <span className="text-xs font-medium">Estoque Site:</span>
+                              <span className="text-sm font-bold text-primary">
+                                {eq.estoque_nuvemshop ?? (eq.quantidade_fisica || 0)}
+                              </span>
+                            </div>
+                            
+                            {/* Breakdown do estoque */}
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-600 border-green-200">
+                                {eq.quantidade_fisica || 0} físico
+                              </Badge>
+                              {(eq.quantidade_virtual_safe || 0) > 0 && (
+                                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-200">
+                                  +{eq.quantidade_virtual_safe} virtual
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Status de sync */}
+                          <div className="flex items-center justify-between mt-1.5">
+                            {eq.ultima_sync_nuvemshop ? (
+                              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <CheckCircle className="h-3 w-3 text-success" />
+                                Sincronizado {formatDistanceToNow(new Date(eq.ultima_sync_nuvemshop), { addSuffix: true, locale: ptBR })}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                Aguardando sync
+                              </div>
+                            )}
+                            
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs"
+                              disabled={isSyncingSingle}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                syncSingle(eq.id, "manual");
+                              }}
+                            >
+                              <RefreshCw className={`h-3 w-3 mr-1 ${isSyncingSingle ? 'animate-spin' : ''}`} />
+                              Sync
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {eq.ean && (
