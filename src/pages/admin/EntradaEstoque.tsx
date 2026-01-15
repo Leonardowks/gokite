@@ -5,6 +5,7 @@ import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
 import { BarcodeScanner } from "@/components/BarcodeScanner";
 import { CadastroRapidoDialog, SupplierProductData } from "@/components/CadastroRapidoDialog";
 import { VincularEanDialog } from "@/components/VincularEanDialog";
+import { VendaRapidaDialog } from "@/components/VendaRapidaDialog";
 import { PremiumCard } from "@/components/ui/premium-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ import {
   Truck,
   Smartphone,
   PackageMinus,
+  ShoppingCart,
 } from "lucide-react";
 import { 
   useSearchByEan, 
@@ -114,6 +116,15 @@ export default function EntradaEstoque() {
   // Dialog states
   const [cadastroDialogOpen, setCadastroDialogOpen] = useState(false);
   const [vincularDialogOpen, setVincularDialogOpen] = useState(false);
+  const [vendaRapidaDialogOpen, setVendaRapidaDialogOpen] = useState(false);
+  const [vendaRapidaEquipamento, setVendaRapidaEquipamento] = useState<{
+    id: string;
+    nome: string;
+    sale_price?: number | null;
+    cost_price?: number | null;
+    tamanho?: string | null;
+  } | null>(null);
+  const [vendaRapidaQuantidade, setVendaRapidaQuantidade] = useState(1);
   const [supplierData, setSupplierData] = useState<SupplierProductData | null>(null);
   
   // History (session-based)
@@ -249,13 +260,41 @@ export default function EntradaEstoque() {
       onSuccess: () => {
         if (soundEnabled) feedback('confirm');
         addToHistory(equipamentoSaida.nome, activeCode || "", false, "saida");
-        toast.success(`-${quantidade} saída registrada`);
-        resetState();
+        
+        // Se motivo for "venda", abrir dialog para registrar transação financeira
+        if (motivoSaida === "venda") {
+          setVendaRapidaEquipamento({
+            id: equipamentoSaida.id,
+            nome: equipamentoSaida.nome,
+            sale_price: equipamentoSaida.sale_price,
+            cost_price: equipamentoSaida.cost_price,
+            tamanho: equipamentoSaida.tamanho,
+          });
+          setVendaRapidaQuantidade(quantidade);
+          setVendaRapidaDialogOpen(true);
+          
+          toast.success(
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              <span>Saída registrada! Complete a venda...</span>
+            </div>
+          );
+        } else {
+          toast.success(`-${quantidade} saída registrada`);
+          resetState();
+        }
       },
       onError: () => {
         if (soundEnabled) feedback('error');
       },
     });
+  };
+
+  // Callback após venda rápida
+  const handleVendaRapidaComplete = () => {
+    setVendaRapidaDialogOpen(false);
+    setVendaRapidaEquipamento(null);
+    resetState();
   };
 
   const addToHistory = (nome: string, ean: string, fromSupplier: boolean, tipo: OperationType) => {
@@ -877,6 +916,21 @@ export default function EntradaEstoque() {
           setVincularDialogOpen(false);
           toast.success("EAN vinculado com sucesso!");
         }}
+      />
+
+      {/* Venda Rápida Dialog - Abre quando saída tem motivo "venda" */}
+      <VendaRapidaDialog
+        open={vendaRapidaDialogOpen}
+        onOpenChange={(open) => {
+          setVendaRapidaDialogOpen(open);
+          if (!open) {
+            // Se fechou sem completar, ainda assim resetar
+            resetState();
+          }
+        }}
+        equipamento={vendaRapidaEquipamento}
+        quantidade={vendaRapidaQuantidade}
+        onSuccess={handleVendaRapidaComplete}
       />
     </>
   );
