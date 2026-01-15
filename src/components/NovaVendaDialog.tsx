@@ -27,13 +27,17 @@ import {
   ShoppingCart,
   UserPlus,
   Wallet,
-  MessageCircle
+  MessageCircle,
+  Box,
+  AlertTriangle
 } from "lucide-react";
 import { useTransacaoAutomatica, getCentroCustoPorOrigem } from "@/hooks/useTransacaoAutomatica";
 import { useClientesListagem } from "@/hooks/useSupabaseClientes";
 import { useHapticFeedback } from "@/hooks/useHapticFeedback";
 import { useTaxRulesMap, getTaxRateFromMap } from "@/hooks/useTaxRulesByCategory";
 import { useConfigFinanceiro, getTaxaCartao } from "@/hooks/useTransacoes";
+import { useProdutosComEstoque, useDeduzirEstoqueVenda } from "@/hooks/useProdutosComEstoque";
+import { toast } from "sonner";
 
 interface NovaVendaDialogProps {
   open: boolean;
@@ -55,6 +59,10 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
   const [clienteId, setClienteId] = useState('');
   const [centroCusto, setCentroCusto] = useState<CentroCusto>('Escola');
   
+  // Seleção de equipamento para venda de produtos
+  const [equipamentoId, setEquipamentoId] = useState('');
+  const [quantidadeVenda, setQuantidadeVenda] = useState('1');
+  
   // Store Credit
   const [usarStoreCredit, setUsarStoreCredit] = useState(false);
   const [notificarStoreCredit, setNotificarStoreCredit] = useState(true);
@@ -70,6 +78,10 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
   const { data: taxRulesMap } = useTaxRulesMap();
   const { data: config } = useConfigFinanceiro();
   const haptic = useHapticFeedback();
+  
+  // Produtos com estoque
+  const { data: produtosEstoque = [] } = useProdutosComEstoque();
+  const { mutateAsync: deduzirEstoque, isPending: isDeduzindo } = useDeduzirEstoqueVenda();
 
   // Cliente selecionado com crédito
   const clienteSelecionado = useMemo(() => {
@@ -79,6 +91,32 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
 
   const storeCreditDisponivel = clienteSelecionado?.store_credit || 0;
   
+  // Equipamento selecionado para venda de produto
+  const equipamentoSelecionado = useMemo(() => {
+    if (!equipamentoId || equipamentoId === '_none') return null;
+    return produtosEstoque.find(p => p.id === equipamentoId) || null;
+  }, [equipamentoId, produtosEstoque]);
+  
+  // Quantidade disponível do equipamento selecionado
+  const estoqueDisponivel = equipamentoSelecionado?.quantidade_fisica || 0;
+  const qtdVenda = parseInt(quantidadeVenda) || 1;
+  const estoqueInsuficiente = equipamentoSelecionado && qtdVenda > estoqueDisponivel;
+
+  // Auto-preencher custo e valor quando selecionar equipamento
+  useEffect(() => {
+    if (equipamentoSelecionado) {
+      if (equipamentoSelecionado.cost_price) {
+        setCustoProduto(String(equipamentoSelecionado.cost_price * qtdVenda));
+      }
+      if (equipamentoSelecionado.sale_price && !valorBruto) {
+        setValorBruto(String(equipamentoSelecionado.sale_price * qtdVenda));
+      }
+      if (!descricao) {
+        setDescricao(`Venda: ${equipamentoSelecionado.nome}${equipamentoSelecionado.tamanho ? ` (${equipamentoSelecionado.tamanho})` : ''}`);
+      }
+    }
+  }, [equipamentoSelecionado, qtdVenda]);
+
   // Reset usar store credit quando mudar cliente
   useEffect(() => {
     if (!clienteSelecionado || storeCreditDisponivel <= 0) {
@@ -119,6 +157,20 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validar estoque se equipamento selecionado
+    if (tipoVenda === 'venda_produto' && equipamentoSelecionado) {
+      if (estoqueInsuficiente) {
+        toast.error(`Estoque insuficiente! Disponível: ${estoqueDisponivel}`);
+        return;
+      }
+    }
+
+    // Nome do cliente para log de movimentação
+    const nomeCliente = criarNovoCliente 
+      ? novoClienteNome 
+      : clienteSelecionado?.nome || 'cliente avulso';
+
+    // 1. Criar transação financeira
     await criarTransacaoCompleta({
       tipo: 'receita',
       origem: tipoVenda === 'manual' ? 'manual' : tipoVenda as any,
@@ -143,6 +195,25 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
       notificar_store_credit: notificarStoreCredit && storeCreditAplicado > 0,
     });
     
+    // 2. Deduzir estoque se equipamento selecionado
+    if (tipoVenda === 'venda_produto' && equipamentoSelecionado) {
+      try {
+        const resultado = await deduzirEstoque({
+          equipamentoId: equipamentoSelecionado.id,
+          quantidade: qtdVenda,
+          clienteNome: nomeCliente,
+        });
+        
+        toast.success(
+          `Estoque atualizado: ${resultado.nomeEquipamento} → ${resultado.estoqueRestante} un.`,
+          { duration: 4000 }
+        );
+      } catch (error: any) {
+        toast.error(`Erro ao deduzir estoque: ${error.message}`);
+        // Não bloqueia a transação, já foi registrada
+      }
+    }
+    
     haptic.success();
     
     // Reset form
@@ -160,6 +231,8 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
     setNovoClienteTelefone('');
     setUsarStoreCredit(false);
     setNotificarStoreCredit(true);
+    setEquipamentoId('');
+    setQuantidadeVenda('1');
 
     onOpenChange(false);
     onSuccess?.();
@@ -238,7 +311,95 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
             />
           </div>
 
-          {/* Valor e Custo */}
+          {/* Seleção de Equipamento (para venda de produto) */}
+          {tipoVenda === 'venda_produto' && (
+            <div className="space-y-3 p-3 rounded-lg border border-dashed border-purple-300 bg-purple-50/50 dark:border-purple-700 dark:bg-purple-950/20">
+              <div className="flex items-center gap-2 text-sm font-medium text-purple-700 dark:text-purple-300">
+                <Box className="h-4 w-4" />
+                <span>Vincular ao Estoque (Baixa Automática)</span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 space-y-2">
+                  <Label>Produto</Label>
+                  <Select 
+                    value={equipamentoId} 
+                    onValueChange={(v) => {
+                      setEquipamentoId(v === '_none' ? '' : v);
+                      if (v === '_none') {
+                        // Limpar campos auto-preenchidos
+                        setCustoProduto('');
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="min-h-[44px]">
+                      <SelectValue placeholder="Selecionar produto do estoque" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">Sem baixa de estoque</SelectItem>
+                      {produtosEstoque.map((produto) => (
+                        <SelectItem key={produto.id} value={produto.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{produto.nome}</span>
+                            {produto.tamanho && (
+                              <span className="text-xs text-muted-foreground">({produto.tamanho})</span>
+                            )}
+                            <span className={`text-xs ml-auto ${produto.quantidade_fisica <= 2 ? 'text-destructive' : 'text-success'}`}>
+                              {produto.quantidade_fisica} un.
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Quantidade</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max={estoqueDisponivel || 999}
+                    value={quantidadeVenda}
+                    onChange={(e) => setQuantidadeVenda(e.target.value)}
+                    className="min-h-[44px]"
+                    disabled={!equipamentoSelecionado}
+                  />
+                </div>
+              </div>
+              
+              {/* Alerta de estoque */}
+              {equipamentoSelecionado && (
+                <div className="flex items-center gap-2 text-sm">
+                  {estoqueInsuficiente ? (
+                    <div className="flex items-center gap-1.5 text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>Estoque insuficiente! Disponível: {estoqueDisponivel}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-success">
+                      <Package className="h-4 w-4" />
+                      <span>
+                        Após venda: {estoqueDisponivel - qtdVenda} un. restantes
+                        {equipamentoSelecionado.sale_price && (
+                          <span className="text-muted-foreground ml-2">
+                            • Preço sugerido: R$ {(equipamentoSelecionado.sale_price * qtdVenda).toLocaleString('pt-BR')}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {!equipamentoSelecionado && (
+                <p className="text-xs text-muted-foreground">
+                  Selecione um produto para deduzir automaticamente do estoque ao registrar a venda
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="valor">Valor (R$)</Label>
@@ -493,15 +654,26 @@ export function NovaVendaDialog({ open, onOpenChange, onSuccess }: NovaVendaDial
             </Button>
             <Button
               type="submit"
-              disabled={isPending || !valorBruto || (criarNovoCliente && (!novoClienteNome || !novoClienteEmail))}
+              disabled={
+                isPending || 
+                isDeduzindo || 
+                !valorBruto || 
+                (criarNovoCliente && (!novoClienteNome || !novoClienteEmail)) ||
+                (tipoVenda === 'venda_produto' && equipamentoSelecionado && estoqueInsuficiente)
+              }
               className="flex-1 gap-2 min-h-[48px]"
             >
-              {isPending ? (
+              {isPending || isDeduzindo ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ShoppingCart className="h-4 w-4" />
               )}
-              {storeCreditAplicado > 0 ? `Registrar (R$ ${valorFinal.toFixed(2)})` : 'Registrar Venda'}
+              {storeCreditAplicado > 0 
+                ? `Registrar (R$ ${valorFinal.toFixed(2)})` 
+                : equipamentoSelecionado 
+                  ? 'Registrar + Baixar Estoque'
+                  : 'Registrar Venda'
+              }
             </Button>
           </div>
         </form>
