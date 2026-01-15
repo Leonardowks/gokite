@@ -643,6 +643,7 @@ export type Database = {
           created_at: string | null
           data_proxima_manutencao: string | null
           ean: string | null
+          estoque_nuvemshop: number | null
           fiscal_category: string | null
           id: string
           localizacao: string | null
@@ -657,8 +658,10 @@ export type Database = {
           source_type: string | null
           status: string | null
           supplier_sku: string | null
+          sync_status: string | null
           tamanho: string | null
           tipo: string
+          ultima_sync_nuvemshop: string | null
           updated_at: string | null
         }
         Insert: {
@@ -666,6 +669,7 @@ export type Database = {
           created_at?: string | null
           data_proxima_manutencao?: string | null
           ean?: string | null
+          estoque_nuvemshop?: number | null
           fiscal_category?: string | null
           id?: string
           localizacao?: string | null
@@ -680,8 +684,10 @@ export type Database = {
           source_type?: string | null
           status?: string | null
           supplier_sku?: string | null
+          sync_status?: string | null
           tamanho?: string | null
           tipo: string
+          ultima_sync_nuvemshop?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -689,6 +695,7 @@ export type Database = {
           created_at?: string | null
           data_proxima_manutencao?: string | null
           ean?: string | null
+          estoque_nuvemshop?: number | null
           fiscal_category?: string | null
           id?: string
           localizacao?: string | null
@@ -703,8 +710,10 @@ export type Database = {
           source_type?: string | null
           status?: string | null
           supplier_sku?: string | null
+          sync_status?: string | null
           tamanho?: string | null
           tipo?: string
+          ultima_sync_nuvemshop?: string | null
           updated_at?: string | null
         }
         Relationships: []
