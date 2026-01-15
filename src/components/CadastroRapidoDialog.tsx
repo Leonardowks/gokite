@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,14 +17,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, Loader2 } from "lucide-react";
+import { Package, Loader2, Truck } from "lucide-react";
 import { useCadastrarProduto } from "@/hooks/useReceberMercadoria";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+export interface SupplierProductData {
+  product_name: string;
+  category: string | null;
+  brand: string | null;
+  size: string | null;
+  cost_price: number;
+  sku: string;
+}
 
 interface CadastroRapidoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   ean: string;
   onSuccess: () => void;
+  supplierData?: SupplierProductData | null;
 }
 
 const TIPOS_PRODUTO = [
@@ -38,11 +50,39 @@ const TIPOS_PRODUTO = [
   { value: "outro", label: "Outro" },
 ];
 
+// Map supplier category to system type
+function mapSupplierCategory(category: string | null): string {
+  if (!category) return "acessorio";
+  
+  const map: Record<string, string> = {
+    "kites": "kite",
+    "kite": "kite",
+    "boards": "prancha",
+    "board": "prancha",
+    "prancha": "prancha",
+    "bars": "barra",
+    "bar": "barra",
+    "barra": "barra",
+    "harnesses": "trapezio",
+    "harness": "trapezio",
+    "trapezio": "trapezio",
+    "wetsuits": "wetsuit",
+    "wetsuit": "wetsuit",
+    "accessories": "acessorio",
+    "acessorio": "acessorio",
+    "apparel": "vestuario",
+    "vestuario": "vestuario",
+  };
+  
+  return map[category.toLowerCase()] || "acessorio";
+}
+
 export function CadastroRapidoDialog({
   open,
   onOpenChange,
   ean,
   onSuccess,
+  supplierData,
 }: CadastroRapidoDialogProps) {
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState("acessorio");
@@ -52,6 +92,20 @@ export function CadastroRapidoDialog({
   const [quantidade, setQuantidade] = useState("1");
 
   const { mutate: cadastrar, isPending } = useCadastrarProduto();
+  
+  const isFromSupplier = !!supplierData;
+
+  // Pre-fill form when supplier data is provided
+  useEffect(() => {
+    if (supplierData && open) {
+      setNome(supplierData.product_name);
+      setTipo(mapSupplierCategory(supplierData.category));
+      setTamanho(supplierData.size || "");
+      setCustPrice(supplierData.cost_price.toString());
+      setSalePrice(Math.round(supplierData.cost_price * 1.4).toString());
+      setQuantidade("1");
+    }
+  }, [supplierData, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,17 +155,40 @@ export function CadastroRapidoDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Package className="h-5 w-5 text-primary" />
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center",
+              isFromSupplier ? "bg-blue-500/10" : "bg-primary/10"
+            )}>
+              {isFromSupplier ? (
+                <Truck className="h-5 w-5 text-blue-500" />
+              ) : (
+                <Package className="h-5 w-5 text-primary" />
+              )}
             </div>
-            <div>
-              <DialogTitle>Cadastrar Novo Produto</DialogTitle>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <DialogTitle>Cadastrar Novo Produto</DialogTitle>
+                {isFromSupplier && (
+                  <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                    Duotone
+                  </Badge>
+                )}
+              </div>
               <DialogDescription>
                 EAN: <span className="font-mono font-medium">{ean}</span>
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
+
+        {isFromSupplier && (
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">
+            <p className="font-medium">Dados importados do catálogo Duotone</p>
+            <p className="text-xs mt-1 opacity-80">
+              Revise e ajuste os campos se necessário
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -122,8 +199,16 @@ export function CadastroRapidoDialog({
               onChange={(e) => setNome(e.target.value)}
               placeholder="Ex: Core XR7 12m"
               required
+              className={cn(isFromSupplier && nome && "border-blue-300 dark:border-blue-700")}
             />
           </div>
+
+          {isFromSupplier && supplierData?.brand && (
+            <div>
+              <Label className="text-muted-foreground">Marca</Label>
+              <p className="text-sm font-medium mt-1">{supplierData.brand}</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -162,10 +247,14 @@ export function CadastroRapidoDialog({
                 value={custPrice}
                 onChange={(e) => handleCostChange(e.target.value)}
                 placeholder="0,00"
+                className={cn(isFromSupplier && custPrice && "border-blue-300 dark:border-blue-700")}
               />
             </div>
             <div>
-              <Label htmlFor="venda">Preço de Venda (R$)</Label>
+              <Label htmlFor="venda">
+                Preço de Venda (R$)
+                {isFromSupplier && <span className="text-xs text-muted-foreground ml-1">(+40%)</span>}
+              </Label>
               <Input
                 id="venda"
                 type="number"
@@ -173,6 +262,7 @@ export function CadastroRapidoDialog({
                 value={salePrice}
                 onChange={(e) => setSalePrice(e.target.value)}
                 placeholder="0,00"
+                className={cn(isFromSupplier && salePrice && "border-blue-300 dark:border-blue-700")}
               />
             </div>
           </div>
