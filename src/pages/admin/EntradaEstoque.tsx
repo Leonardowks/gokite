@@ -14,6 +14,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogTitle,
@@ -24,6 +31,7 @@ import {
   Package,
   Check,
   ArrowRight,
+  ArrowDown,
   History,
   AlertCircle,
   Plus,
@@ -41,8 +49,16 @@ import {
   X,
   Truck,
   Smartphone,
+  PackageMinus,
 } from "lucide-react";
-import { useSearchByEan, useConfirmarEntrada, useMovimentacoesRecentes, useVerificarAtualizacaoCusto } from "@/hooks/useReceberMercadoria";
+import { 
+  useSearchByEan, 
+  useConfirmarEntrada, 
+  useMovimentacoesRecentes, 
+  useVerificarAtualizacaoCusto,
+  useConfirmarSaida,
+  useSearchEquipamentoByEan,
+} from "@/hooks/useReceberMercadoria";
 import { useScannerFeedback } from "@/hooks/useScannerFeedback";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { formatDistanceToNow } from "date-fns";
@@ -57,7 +73,18 @@ interface HistoryEntry {
   quantidade: number;
   timestamp: Date;
   fromSupplier?: boolean;
+  tipo: "entrada" | "saida";
 }
+
+type OperationType = "entrada" | "saida";
+
+const MOTIVOS_SAIDA = [
+  { value: "venda", label: "Venda Presencial" },
+  { value: "defeito", label: "Defeito / Avaria" },
+  { value: "emprestimo", label: "Empréstimo" },
+  { value: "perda", label: "Perda / Extravio" },
+  { value: "outro", label: "Outro" },
+];
 
 export default function EntradaEstoque() {
   const navigate = useNavigate();
@@ -80,6 +107,10 @@ export default function EntradaEstoque() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   
+  // Operation type: entrada or saida
+  const [operationType, setOperationType] = useState<OperationType>("entrada");
+  const [motivoSaida, setMotivoSaida] = useState<string>("");
+  
   // Dialog states
   const [cadastroDialogOpen, setCadastroDialogOpen] = useState(false);
   const [vincularDialogOpen, setVincularDialogOpen] = useState(false);
@@ -90,16 +121,29 @@ export default function EntradaEstoque() {
   const [showHistory, setShowHistory] = useState(false);
 
   const activeCode = mode === "scan" ? scannedCode : manualCode;
-  const { data: searchResult, isLoading: isSearching } = useSearchByEan(activeCode);
-  const { mutate: confirmarEntrada, isPending: isConfirming } = useConfirmarEntrada();
+  
+  // Use different search hooks based on operation type
+  const { data: searchResult, isLoading: isSearchingEntrada } = useSearchByEan(
+    operationType === "entrada" ? activeCode : null
+  );
+  const { data: equipamentoSaida, isLoading: isSearchingSaida } = useSearchEquipamentoByEan(
+    operationType === "saida" ? activeCode : null
+  );
+  
+  const isSearching = operationType === "entrada" ? isSearchingEntrada : isSearchingSaida;
+  
+  const { mutate: confirmarEntrada, isPending: isConfirmingEntrada } = useConfirmarEntrada();
+  const { mutate: confirmarSaida, isPending: isConfirmingSaida } = useConfirmarSaida();
+  const isConfirming = operationType === "entrada" ? isConfirmingEntrada : isConfirmingSaida;
+  
   const { data: movimentacoes } = useMovimentacoesRecentes(5);
 
-  // Check for cost updates when equipment is found
+  // Check for cost updates when equipment is found (only for entrada)
   const equipamentoId = searchResult?.source === "equipamento" ? searchResult.equipamento?.id : null;
   const equipamentoEan = searchResult?.equipamento?.ean || activeCode;
   const { data: atualizacaoCusto } = useVerificarAtualizacaoCusto(
-    equipamentoId || null,
-    equipamentoEan || null
+    operationType === "entrada" ? equipamentoId : null,
+    operationType === "entrada" ? equipamentoEan : null
   );
 
   // Auto-expand details when cost update detected
@@ -132,6 +176,7 @@ export default function EntradaEstoque() {
     setPrecoVenda(null);
     setManterPrecoAntigo(false);
     setDetailsOpen(false);
+    setMotivoSaida("");
     setScannerOpen(false);
   }, []);
 
@@ -150,7 +195,7 @@ export default function EntradaEstoque() {
       }, {
         onSuccess: () => {
           if (soundEnabled) feedback('confirm');
-          addToHistory(searchResult.supplierProduct!.product_name, activeCode || "", true);
+          addToHistory(searchResult.supplierProduct!.product_name, activeCode || "", true, "entrada");
           toast.success(`+${quantidade} entrada confirmada`);
           resetState();
         },
@@ -172,7 +217,7 @@ export default function EntradaEstoque() {
       }, {
         onSuccess: () => {
           if (soundEnabled) feedback('confirm');
-          addToHistory(searchResult.equipamento!.nome, activeCode || "", false);
+          addToHistory(searchResult.equipamento!.nome, activeCode || "", false, "entrada");
           toast.success(`+${quantidade} entrada confirmada`);
           resetState();
         },
@@ -184,7 +229,36 @@ export default function EntradaEstoque() {
     }
   };
 
-  const addToHistory = (nome: string, ean: string, fromSupplier: boolean) => {
+  // Handle confirming exit
+  const handleConfirmarSaida = () => {
+    if (!equipamentoSaida) return;
+    
+    // Validate stock
+    if (quantidade > (equipamentoSaida.quantidade_fisica || 0)) {
+      toast.error(`Estoque insuficiente. Disponível: ${equipamentoSaida.quantidade_fisica}`);
+      if (soundEnabled) feedback('error');
+      return;
+    }
+
+    confirmarSaida({
+      equipamentoId: equipamentoSaida.id,
+      quantidade,
+      motivo: motivoSaida,
+      notas,
+    }, {
+      onSuccess: () => {
+        if (soundEnabled) feedback('confirm');
+        addToHistory(equipamentoSaida.nome, activeCode || "", false, "saida");
+        toast.success(`-${quantidade} saída registrada`);
+        resetState();
+      },
+      onError: () => {
+        if (soundEnabled) feedback('error');
+      },
+    });
+  };
+
+  const addToHistory = (nome: string, ean: string, fromSupplier: boolean, tipo: OperationType) => {
     setHistory(prev => [{
       id: `${Date.now()}`,
       nome,
@@ -192,6 +266,7 @@ export default function EntradaEstoque() {
       quantidade,
       timestamp: new Date(),
       fromSupplier,
+      tipo,
     }, ...prev].slice(0, 10));
   };
 
@@ -204,6 +279,7 @@ export default function EntradaEstoque() {
     setManterPrecoAntigo(false);
     setDetailsOpen(false);
     setSupplierData(null);
+    setMotivoSaida("");
     // Auto-reopen scanner on mobile
     if (isMobile) {
       setScannerOpen(true);
@@ -236,7 +312,7 @@ export default function EntradaEstoque() {
 
   const handleCadastroSuccess = () => {
     if (soundEnabled) feedback('confirm');
-    addToHistory(supplierData?.product_name || "Novo produto", activeCode || "", !!supplierData);
+    addToHistory(supplierData?.product_name || "Novo produto", activeCode || "", !!supplierData, "entrada");
     toast.success("Produto cadastrado com sucesso!");
     setCadastroDialogOpen(false);
     resetState();
@@ -269,8 +345,14 @@ export default function EntradaEstoque() {
           </Button>
           
           <div className="flex items-center gap-2">
-            <ScanLine className="h-5 w-5 text-primary" />
-            <span className="text-white font-medium">Entrada de Estoque</span>
+            {operationType === "entrada" ? (
+              <Plus className="h-5 w-5 text-green-500" />
+            ) : (
+              <Minus className="h-5 w-5 text-red-500" />
+            )}
+            <span className="text-white font-medium">
+              {operationType === "entrada" ? "Entrada de Estoque" : "Saída de Estoque"}
+            </span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -298,18 +380,53 @@ export default function EntradaEstoque() {
           </div>
         </div>
 
+        {/* Operation Type Toggle (Mobile) */}
+        <div className="flex gap-2 p-3 bg-black/60 backdrop-blur-sm">
+          <Button
+            variant={operationType === "entrada" ? "default" : "outline"}
+            className={cn(
+              "flex-1 gap-2 h-10",
+              operationType === "entrada" && "bg-green-600 hover:bg-green-700 text-white border-green-600"
+            )}
+            onClick={() => setOperationType("entrada")}
+          >
+            <Plus className="h-4 w-4" />
+            Entrada
+          </Button>
+          <Button
+            variant={operationType === "saida" ? "default" : "outline"}
+            className={cn(
+              "flex-1 gap-2 h-10",
+              operationType === "saida" && "bg-red-600 hover:bg-red-700 text-white border-red-600",
+              operationType !== "saida" && "border-white/20 text-white hover:bg-white/10"
+            )}
+            onClick={() => setOperationType("saida")}
+          >
+            <Minus className="h-4 w-4" />
+            Saída
+          </Button>
+        </div>
+
         {/* History Panel */}
         {showHistory && history.length > 0 && (
           <div className="bg-card/95 backdrop-blur-sm border-b border-border max-h-48 overflow-y-auto">
             <div className="p-3 space-y-2">
-              <p className="text-xs text-muted-foreground font-medium">Últimas entradas</p>
+              <p className="text-xs text-muted-foreground font-medium">Últimas movimentações</p>
               {history.map((entry, idx) => (
                 <div key={`${entry.id}-${idx}`} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2 truncate flex-1">
                     {entry.fromSupplier && <Truck className="h-3 w-3 text-blue-500 flex-shrink-0" />}
                     <span className="truncate">{entry.nome}</span>
                   </div>
-                  <Badge variant="secondary" className="ml-2">+{entry.quantidade}</Badge>
+                  <Badge 
+                    variant="secondary" 
+                    className={cn(
+                      "ml-2",
+                      entry.tipo === "entrada" ? "bg-green-500/20 text-green-600" : "bg-red-500/20 text-red-600"
+                    )}
+                  >
+                    {entry.tipo === "entrada" ? "+" : "-"}{entry.quantidade}
+                  </Badge>
                 </div>
               ))}
             </div>
@@ -346,8 +463,11 @@ export default function EntradaEstoque() {
   return (
     <>
       <PageHeader
-        title="Entrada de Estoque"
-        description="Dê entrada em produtos via câmera ou código manual"
+        title={operationType === "entrada" ? "Entrada de Estoque" : "Saída de Estoque"}
+        description={operationType === "entrada" 
+          ? "Dê entrada em produtos via câmera ou código manual" 
+          : "Registre baixas de produtos do estoque"
+        }
       >
         <div className="flex items-center gap-2">
           <Button
@@ -378,12 +498,44 @@ export default function EntradaEstoque() {
       
       <EstoqueSubmenu className="mb-6" />
 
+      {/* Operation Type Toggle */}
+      <div className="flex gap-2 mb-6">
+        <Button
+          variant={operationType === "entrada" ? "default" : "outline"}
+          className={cn(
+            "flex-1 gap-2 h-12",
+            operationType === "entrada" && "bg-green-600 hover:bg-green-700 text-white"
+          )}
+          onClick={() => {
+            setOperationType("entrada");
+            resetState();
+          }}
+        >
+          <Plus className="h-5 w-5" />
+          Entrada
+        </Button>
+        <Button
+          variant={operationType === "saida" ? "default" : "outline"}
+          className={cn(
+            "flex-1 gap-2 h-12",
+            operationType === "saida" && "bg-red-600 hover:bg-red-700 text-white"
+          )}
+          onClick={() => {
+            setOperationType("saida");
+            resetState();
+          }}
+        >
+          <Minus className="h-5 w-5" />
+          Saída
+        </Button>
+      </div>
+
       {/* Session History */}
       {showHistory && history.length > 0 && (
         <PremiumCard className="p-4 mb-6">
           <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
             <History className="h-4 w-4" />
-            Entradas desta sessão
+            Movimentações desta sessão
           </h3>
           <div className="space-y-2">
             {history.map((entry, idx) => (
@@ -394,7 +546,14 @@ export default function EntradaEstoque() {
                   <span className="text-xs text-muted-foreground font-mono">{entry.ean}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary">+{entry.quantidade}</Badge>
+                  <Badge 
+                    variant="secondary"
+                    className={cn(
+                      entry.tipo === "entrada" ? "bg-green-500/20 text-green-600" : "bg-red-500/20 text-red-600"
+                    )}
+                  >
+                    {entry.tipo === "entrada" ? "+" : "-"}{entry.quantidade}
+                  </Badge>
                   <span className="text-xs text-muted-foreground">
                     {formatDistanceToNow(entry.timestamp, { addSuffix: true, locale: ptBR })}
                   </span>
@@ -431,18 +590,32 @@ export default function EntradaEstoque() {
 
             {mode === "scan" ? (
               <div className="text-center space-y-4">
-                <div className="w-20 h-20 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                  <ScanLine className="h-10 w-10 text-primary" />
+                <div className={cn(
+                  "w-20 h-20 mx-auto rounded-full flex items-center justify-center",
+                  operationType === "entrada" ? "bg-green-500/10" : "bg-red-500/10"
+                )}>
+                  <ScanLine className={cn(
+                    "h-10 w-10",
+                    operationType === "entrada" ? "text-green-600" : "text-red-600"
+                  )} />
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Scanner de Código de Barras</h3>
                   <p className="text-sm text-muted-foreground">
-                    Use a câmera para ler o código EAN/UPC do produto
+                    {operationType === "entrada" 
+                      ? "Escaneie para dar entrada no produto"
+                      : "Escaneie para registrar saída do produto"
+                    }
                   </p>
                 </div>
                 <Button
                   size="lg"
-                  className="w-full gap-2"
+                  className={cn(
+                    "w-full gap-2",
+                    operationType === "entrada" 
+                      ? "bg-green-600 hover:bg-green-700" 
+                      : "bg-red-600 hover:bg-red-700"
+                  )}
                   onClick={() => setScannerOpen(true)}
                 >
                   <Camera className="h-5 w-5" />
@@ -489,9 +662,9 @@ export default function EntradaEstoque() {
                 <p className="text-sm text-muted-foreground">Buscando produto...</p>
               </div>
             </div>
-          ) : searchResult?.found && productData ? (
+          ) : operationType === "entrada" && searchResult?.found && productData ? (
+            /* ENTRADA MODE - Product Found */
             <div className="space-y-6">
-              {/* Product Found Header */}
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
                   <Check className="h-5 w-5 text-green-600" />
@@ -509,189 +682,105 @@ export default function EntradaEstoque() {
                 </div>
               </div>
 
-              {/* Product Details */}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">Categoria:</span>
-                  <p className="font-medium">
-                    {"category" in productData ? productData.category : productData.tipo}
-                  </p>
+                  <p className="font-medium">{"category" in productData ? productData.category : productData.tipo}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Tamanho:</span>
-                  <p className="font-medium">
-                    {("size" in productData ? productData.size : productData.tamanho) || "N/A"}
-                  </p>
-                </div>
-                {"brand" in productData && productData.brand && (
-                  <div>
-                    <span className="text-muted-foreground">Marca:</span>
-                    <p className="font-medium">{productData.brand}</p>
-                  </div>
-                )}
-                <div>
-                  <span className="text-muted-foreground">Preço Custo:</span>
-                  <p className="font-medium">
-                    R$ {(searchResult?.supplierProduct?.cost_price || searchResult?.equipamento?.cost_price || 0).toLocaleString("pt-BR")}
-                  </p>
+                  <p className="font-medium">{("size" in productData ? productData.size : productData.tamanho) || "N/A"}</p>
                 </div>
               </div>
 
-              {/* Cost Update Alert */}
               {searchResult.source === "equipamento" && atualizacaoCusto && (
                 <div className="p-4 rounded-lg border-2 border-yellow-500/50 bg-yellow-500/10">
                   <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <h4 className="font-semibold text-yellow-700 dark:text-yellow-400">
-                          Preço de Custo Atualizado!
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          O fornecedor alterou o preço deste produto
-                        </p>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Custo:</span>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="line-through text-muted-foreground">
-                              R$ {atualizacaoCusto.custoAntigo.toLocaleString("pt-BR")}
-                            </span>
-                            <ArrowRight className="h-3 w-3" />
-                            <span className="font-bold text-foreground">
-                              R$ {atualizacaoCusto.custoNovo.toLocaleString("pt-BR")}
-                            </span>
-                            <Badge 
-                              variant={atualizacaoCusto.percentualVariacao > 0 ? "destructive" : "default"}
-                              className="text-xs"
-                            >
-                              {atualizacaoCusto.percentualVariacao > 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                              {atualizacaoCusto.percentualVariacao > 0 ? "+" : ""}{atualizacaoCusto.percentualVariacao.toFixed(1)}%
-                            </Badge>
-                          </div>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Venda sugerida:</span>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="line-through text-muted-foreground">
-                              R$ {atualizacaoCusto.precoVendaAntigo.toLocaleString("pt-BR")}
-                            </span>
-                            <ArrowRight className="h-3 w-3" />
-                            <span className="font-bold text-foreground">
-                              R$ {atualizacaoCusto.precoVendaNovo.toLocaleString("pt-BR")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-2 border-t border-yellow-500/30">
-                        <Checkbox 
-                          id="manter-preco"
-                          checked={manterPrecoAntigo}
-                          onCheckedChange={(checked) => setManterPrecoAntigo(!!checked)}
-                        />
-                        <label htmlFor="manter-preco" className="text-sm cursor-pointer">
-                          Manter preço de venda antigo (R$ {atualizacaoCusto.precoVendaAntigo.toLocaleString("pt-BR")})
-                        </label>
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <h4 className="font-semibold text-yellow-700 dark:text-yellow-400">Custo Atualizado!</h4>
+                      <p className="text-sm">R$ {atualizacaoCusto.custoAntigo} → R$ {atualizacaoCusto.custoNovo}</p>
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="manter-preco" checked={manterPrecoAntigo} onCheckedChange={(c) => setManterPrecoAntigo(!!c)} />
+                        <label htmlFor="manter-preco" className="text-sm">Manter preço antigo</label>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Quantity */}
               <div>
                 <Label>Quantidade</Label>
                 <div className="flex items-center gap-3 mt-1.5">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setQuantidade(Math.max(1, quantidade - 1))}
-                    disabled={quantidade <= 1}
-                    className="h-12 w-12"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setQuantidade(Math.max(1, quantidade - 1))} disabled={quantidade <= 1} className="h-12 w-12"><Minus className="h-4 w-4" /></Button>
                   <span className="text-2xl font-bold w-12 text-center">{quantidade}</span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setQuantidade(quantidade + 1)}
-                    className="h-12 w-12"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setQuantidade(quantidade + 1)} className="h-12 w-12"><Plus className="h-4 w-4" /></Button>
                 </div>
               </div>
 
-              {/* Collapsible Details */}
               <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
                 <CollapsibleTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-between">
-                    <span className="text-sm">Detalhes adicionais</span>
-                    {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
+                  <Button variant="ghost" className="w-full justify-between"><span className="text-sm">Detalhes</span>{detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="space-y-4 pt-4">
-                  {/* Price Input (for supplier products) */}
-                  {searchResult.source === "supplier" && suggestedPrice && (
-                    <div>
-                      <Label htmlFor="preco-venda">Preço de Venda</Label>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-muted-foreground">R$</span>
-                        <Input
-                          id="preco-venda"
-                          type="number"
-                          value={precoVenda ?? suggestedPrice}
-                          onChange={(e) => setPrecoVenda(Number(e.target.value))}
-                          className="w-32"
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          (sugerido: +40% = R$ {suggestedPrice.toLocaleString("pt-BR")})
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Notes */}
-                  <div>
-                    <Label htmlFor="notas">Observações (opcional)</Label>
-                    <Textarea
-                      id="notas"
-                      value={notas}
-                      onChange={(e) => setNotas(e.target.value)}
-                      placeholder="Nota fiscal, condições do produto..."
-                      rows={2}
-                      className="mt-1.5"
-                    />
-                  </div>
-
-                  {/* Link EAN Button */}
-                  {searchResult.source === "equipamento" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setVincularDialogOpen(true)}
-                      className="gap-2"
-                    >
-                      <Link2 className="h-4 w-4" />
-                      Vincular outro EAN a este produto
-                    </Button>
-                  )}
+                  <div><Label>Observações</Label><Textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Nota fiscal..." rows={2} className="mt-1.5" /></div>
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* Confirm Button */}
-              <Button
-                size="lg"
-                className="w-full gap-2"
-                onClick={handleConfirmarEntrada}
-                disabled={isConfirming}
-              >
-                <ArrowRight className="h-5 w-5" />
+              <Button size="lg" className="w-full gap-2 bg-green-600 hover:bg-green-700" onClick={handleConfirmarEntrada} disabled={isConfirming}>
+                <Plus className="h-5 w-5" />
                 {isConfirming ? "Confirmando..." : `Confirmar Entrada (+${quantidade})`}
+              </Button>
+            </div>
+          ) : operationType === "saida" && equipamentoSaida ? (
+            /* SAÍDA MODE - Product Found */
+            <div className="space-y-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                  <PackageMinus className="h-5 w-5 text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-red-600">Registrar Saída</span>
+                  <h3 className="text-lg font-semibold mt-1">{equipamentoSaida.nome}</h3>
+                </div>
+              </div>
+
+              {/* Stock Highlight */}
+              <div className="p-4 rounded-lg bg-muted/50 text-center">
+                <p className="text-sm text-muted-foreground">Estoque atual</p>
+                <p className="text-4xl font-bold">{equipamentoSaida.quantidade_fisica || 0}</p>
+                {(equipamentoSaida.quantidade_fisica || 0) - quantidade <= 2 && quantidade <= (equipamentoSaida.quantidade_fisica || 0) && (
+                  <Badge variant="destructive" className="mt-2"><AlertTriangle className="h-3 w-3 mr-1" />Estoque ficará baixo!</Badge>
+                )}
+                {quantidade > (equipamentoSaida.quantidade_fisica || 0) && (
+                  <Badge variant="destructive" className="mt-2"><AlertCircle className="h-3 w-3 mr-1" />Estoque insuficiente!</Badge>
+                )}
+              </div>
+
+              <div>
+                <Label>Quantidade a retirar</Label>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <Button variant="outline" size="icon" onClick={() => setQuantidade(Math.max(1, quantidade - 1))} disabled={quantidade <= 1} className="h-12 w-12"><Minus className="h-4 w-4" /></Button>
+                  <span className="text-2xl font-bold w-12 text-center text-red-600">{quantidade}</span>
+                  <Button variant="outline" size="icon" onClick={() => setQuantidade(quantidade + 1)} disabled={quantidade >= (equipamentoSaida.quantidade_fisica || 0)} className="h-12 w-12"><Plus className="h-4 w-4" /></Button>
+                </div>
+              </div>
+
+              <div>
+                <Label>Motivo da saída</Label>
+                <Select value={motivoSaida} onValueChange={setMotivoSaida}>
+                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
+                  <SelectContent>
+                    {MOTIVOS_SAIDA.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div><Label>Observações</Label><Textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Detalhes adicionais..." rows={2} className="mt-1.5" /></div>
+
+              <Button size="lg" className="w-full gap-2 bg-red-600 hover:bg-red-700" onClick={handleConfirmarSaida} disabled={isConfirming || quantidade > (equipamentoSaida.quantidade_fisica || 0)}>
+                <Minus className="h-5 w-5" />
+                {isConfirming ? "Confirmando..." : `Confirmar Saída (-${quantidade})`}
               </Button>
             </div>
           ) : activeCode && !isSearching ? (
@@ -705,16 +794,15 @@ export default function EntradaEstoque() {
                   <h3 className="font-semibold">Produto não encontrado</h3>
                   <p className="text-sm text-muted-foreground mt-1 font-mono">{activeCode}</p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button onClick={handleOpenCadastro} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Cadastrar Novo Produto
-                  </Button>
-                  <Button variant="outline" onClick={() => setVincularDialogOpen(true)} className="gap-2">
-                    <Link2 className="h-4 w-4" />
-                    Vincular a Produto Existente
-                  </Button>
-                </div>
+                {operationType === "entrada" && (
+                  <div className="flex flex-col gap-2">
+                    <Button onClick={handleOpenCadastro} className="gap-2"><Plus className="h-4 w-4" />Cadastrar Novo Produto</Button>
+                    <Button variant="outline" onClick={() => setVincularDialogOpen(true)} className="gap-2"><Link2 className="h-4 w-4" />Vincular a Existente</Button>
+                  </div>
+                )}
+                {operationType === "saida" && (
+                  <p className="text-sm text-muted-foreground">Apenas produtos do estoque podem ter saída registrada.</p>
+                )}
               </div>
             </div>
           ) : (
@@ -722,9 +810,7 @@ export default function EntradaEstoque() {
             <div className="h-full flex items-center justify-center min-h-[200px]">
               <div className="text-center space-y-2">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  Escaneie ou digite um código para começar
-                </p>
+                <p className="text-sm text-muted-foreground">Escaneie ou digite um código para começar</p>
               </div>
             </div>
           )}
@@ -734,32 +820,23 @@ export default function EntradaEstoque() {
       {/* Recent Movements from DB */}
       {movimentacoes && movimentacoes.length > 0 && (
         <PremiumCard className="p-6 mt-6">
-          <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Últimas Movimentações (Sistema)
-          </h3>
+          <h3 className="font-semibold mb-4 flex items-center gap-2"><History className="h-5 w-5" />Últimas Movimentações</h3>
           <div className="space-y-3">
             {movimentacoes.map((mov: any) => (
               <div key={mov.id} className="flex items-center justify-between text-sm py-2 border-b border-border/50 last:border-0">
                 <div className="flex items-center gap-2">
-                  {mov.tipo === "entrada" ? (
-                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center">
-                      <Plus className="h-3 w-3 text-green-600" />
-                    </div>
+                  {mov.tipo?.includes("entrada") ? (
+                    <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center"><Plus className="h-3 w-3 text-green-600" /></div>
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center">
-                      <Minus className="h-3 w-3 text-red-600" />
-                    </div>
+                    <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center"><Minus className="h-3 w-3 text-red-600" /></div>
                   )}
                   <span>{mov.equipamentos?.nome || "Produto"}</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Badge variant={mov.tipo === "entrada" ? "default" : "secondary"}>
-                    {mov.tipo === "entrada" ? "+" : "-"}{mov.quantidade}
+                  <Badge variant={mov.tipo?.includes("entrada") ? "default" : "secondary"} className={mov.tipo?.includes("entrada") ? "bg-green-500/20 text-green-600" : "bg-red-500/20 text-red-600"}>
+                    {mov.tipo?.includes("entrada") ? "+" : "-"}{mov.quantidade}
                   </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(mov.created_at), { addSuffix: true, locale: ptBR })}
-                  </span>
+                  <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(mov.created_at), { addSuffix: true, locale: ptBR })}</span>
                 </div>
               </div>
             ))}

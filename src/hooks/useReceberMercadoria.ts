@@ -419,3 +419,111 @@ export function useVincularEan() {
     },
   });
 }
+
+// ===== SAÍDA DE ESTOQUE =====
+
+interface SaidaData {
+  equipamentoId: string;
+  quantidade: number;
+  motivo?: string;
+  notas?: string;
+}
+
+export function useConfirmarSaida() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: SaidaData) => {
+      // 1. Fetch current stock
+      const { data: equipamento, error: fetchError } = await supabase
+        .from("equipamentos")
+        .select("id, nome, quantidade_fisica")
+        .eq("id", data.equipamentoId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!equipamento) throw new Error("Produto não encontrado");
+
+      // 2. Validate sufficient stock
+      const novaQuantidade = (equipamento.quantidade_fisica || 0) - data.quantidade;
+      if (novaQuantidade < 0) {
+        throw new Error(`Estoque insuficiente. Disponível: ${equipamento.quantidade_fisica}`);
+      }
+
+      // 3. Update quantity
+      const { data: updated, error: updateError } = await supabase
+        .from("equipamentos")
+        .update({ quantidade_fisica: novaQuantidade })
+        .eq("id", data.equipamentoId)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      // 4. Record the exit movement
+      const motivoTexto = data.motivo ? `Motivo: ${data.motivo}` : "Saída manual";
+      const notasCompletas = data.notas 
+        ? `${motivoTexto} | ${data.notas}`
+        : motivoTexto;
+
+      await supabase.from("movimentacoes_estoque").insert({
+        equipamento_id: data.equipamentoId,
+        tipo: "saida_fisica",
+        quantidade: data.quantidade,
+        origem: "scanner",
+        notas: notasCompletas,
+      });
+
+      // 5. Trigger Nuvemshop sync
+      try {
+        await supabase.functions.invoke("sync-inventory-nuvemshop", {
+          body: {
+            action: "sync_single",
+            equipamento_id: data.equipamentoId,
+            trigger: "saida",
+          },
+        });
+      } catch (e) {
+        console.warn("Nuvemshop sync failed, will retry later:", e);
+      }
+
+      return { ...updated, nome: equipamento.nome };
+    },
+    onSuccess: () => {
+      toast.success("Saída registrada com sucesso!");
+      queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["movimentacoes-estoque"] });
+      queryClient.invalidateQueries({ queryKey: ["search-by-ean"] });
+    },
+    onError: (error) => {
+      console.error("Saída error:", error);
+      toast.error(error instanceof Error ? error.message : "Erro ao registrar saída");
+    },
+  });
+}
+
+// Search only in own stock (for exits - no supplier catalog)
+export function useSearchEquipamentoByEan(ean: string | null) {
+  return useQuery({
+    queryKey: ["search-equipamento-by-ean", ean],
+    queryFn: async () => {
+      if (!ean) return null;
+
+      const { data, error } = await supabase
+        .from("equipamentos")
+        .select("id, nome, tipo, tamanho, ean, quantidade_fisica, cost_price, sale_price, source_type")
+        .or(`ean.eq.${ean},supplier_sku.eq.${ean}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error searching equipamento:", error);
+        return null;
+      }
+
+      return data as Equipamento | null;
+    },
+    enabled: !!ean && ean.length >= 3,
+    staleTime: 0,
+  });
+}
