@@ -288,6 +288,7 @@ export type Database = {
           fornecedor: string | null
           frequencia_recorrencia: string | null
           id: string
+          nfe_id: string | null
           notas: string | null
           recorrente: boolean
           status: string
@@ -304,6 +305,7 @@ export type Database = {
           fornecedor?: string | null
           frequencia_recorrencia?: string | null
           id?: string
+          nfe_id?: string | null
           notas?: string | null
           recorrente?: boolean
           status?: string
@@ -320,13 +322,22 @@ export type Database = {
           fornecedor?: string | null
           frequencia_recorrencia?: string | null
           id?: string
+          nfe_id?: string | null
           notas?: string | null
           recorrente?: boolean
           status?: string
           updated_at?: string
           valor?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contas_a_pagar_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes_nfe"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contatos_inteligencia: {
         Row: {
@@ -698,6 +709,54 @@ export type Database = {
         }
         Relationships: []
       }
+      importacoes_nfe: {
+        Row: {
+          chave_acesso: string | null
+          created_at: string | null
+          data_emissao: string | null
+          fornecedor_cnpj: string | null
+          fornecedor_nome: string | null
+          id: string
+          numero_nfe: string
+          qtd_duplicatas: number | null
+          qtd_produtos: number | null
+          status: string | null
+          updated_at: string | null
+          valor_total: number | null
+          xml_content: string | null
+        }
+        Insert: {
+          chave_acesso?: string | null
+          created_at?: string | null
+          data_emissao?: string | null
+          fornecedor_cnpj?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          numero_nfe: string
+          qtd_duplicatas?: number | null
+          qtd_produtos?: number | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+          xml_content?: string | null
+        }
+        Update: {
+          chave_acesso?: string | null
+          created_at?: string | null
+          data_emissao?: string | null
+          fornecedor_cnpj?: string | null
+          fornecedor_nome?: string | null
+          id?: string
+          numero_nfe?: string
+          qtd_duplicatas?: number | null
+          qtd_produtos?: number | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number | null
+          xml_content?: string | null
+        }
+        Relationships: []
+      }
       insights_conversas: {
         Row: {
           contato_id: string | null
@@ -783,6 +842,7 @@ export type Database = {
           created_at: string | null
           equipamento_id: string | null
           id: string
+          nfe_id: string | null
           notas: string | null
           origem: string | null
           quantidade: number
@@ -793,6 +853,7 @@ export type Database = {
           created_at?: string | null
           equipamento_id?: string | null
           id?: string
+          nfe_id?: string | null
           notas?: string | null
           origem?: string | null
           quantidade: number
@@ -803,6 +864,7 @@ export type Database = {
           created_at?: string | null
           equipamento_id?: string | null
           id?: string
+          nfe_id?: string | null
           notas?: string | null
           origem?: string | null
           quantidade?: number
@@ -815,6 +877,13 @@ export type Database = {
             columns: ["equipamento_id"]
             isOneToOne: false
             referencedRelation: "equipamentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_estoque_nfe_id_fkey"
+            columns: ["nfe_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes_nfe"
             referencedColumns: ["id"]
           },
         ]

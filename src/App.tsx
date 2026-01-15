@@ -34,6 +34,8 @@ const ReceberMercadoria = lazy(() => import("./pages/admin/ReceberMercadoria"));
 const PedidosNuvemshop = lazy(() => import("./pages/admin/PedidosNuvemshop"));
 const Catalogo = lazy(() => import("./pages/Catalogo"));
 const Inventario = lazy(() => import("./pages/admin/Inventario"));
+const ScannerMobile = lazy(() => import("./pages/admin/ScannerMobile"));
+const ImportarNFe = lazy(() => import("./pages/admin/ImportarNFe"));
 
 const queryClient = new QueryClient();
 
@@ -75,6 +77,8 @@ const App = () => {
             <Route path="/estoque/usados" element={<Usados />} />
             <Route path="/estoque/receber-mercadoria" element={<ReceberMercadoria />} />
             <Route path="/estoque/inventario" element={<Inventario />} />
+            <Route path="/estoque/scanner" element={<ScannerMobile />} />
+            <Route path="/estoque/importar-nfe" element={<ImportarNFe />} />
             <Route path="/aluguel" element={<Aluguel />} />
             <Route path="/pedidos" element={<PedidosNuvemshop />} />
             <Route path="/ecommerce" element={<Ecommerce />} />

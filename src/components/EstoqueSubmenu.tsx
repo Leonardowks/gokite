@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Store, Cloud, Recycle, ScanLine, Warehouse } from "lucide-react";
+import { Store, Cloud, Recycle, ScanLine, Warehouse, Smartphone, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -67,6 +67,18 @@ export function EstoqueSubmenu({ className }: EstoqueSubmenuProps) {
       pulse: true,
       recentCount: recentEntries,
       description: "Entrada de mercadoria",
+    },
+    { 
+      title: "Scanner", 
+      url: "/estoque/scanner", 
+      icon: Smartphone, 
+      description: "Entrada rápida via câmera",
+    },
+    { 
+      title: "Importar NF-e", 
+      url: "/estoque/importar-nfe", 
+      icon: FileText, 
+      description: "Upload de XML de nota fiscal",
     },
     { 
       title: "Inventário", 
