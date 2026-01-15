@@ -25,6 +25,7 @@ interface Equipamento {
   quantidade_fisica: number;
   quantidade_virtual_safe: number;
   source_type: string | null;
+  status: string | null;
 }
 
 interface SearchResult {
@@ -525,5 +526,84 @@ export function useSearchEquipamentoByEan(ean: string | null) {
     },
     enabled: !!ean && ean.length >= 3,
     staleTime: 0,
+  });
+}
+
+/**
+ * Hook to confirm physical existence of products imported via NF-e with status 'cadastro_pendente'
+ */
+export function useConfirmarExistenciaFisica() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      equipamentoId, 
+      quantidade 
+    }: { 
+      equipamentoId: string; 
+      quantidade: number;
+    }) => {
+      // 1. Get equipment data for return
+      const { data: equipamento, error: fetchError } = await supabase
+        .from("equipamentos")
+        .select("nome")
+        .eq("id", equipamentoId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Update equipment: set stock and activate
+      const { error: updateError } = await supabase
+        .from("equipamentos")
+        .update({ 
+          quantidade_fisica: quantidade,
+          status: "disponivel" 
+        })
+        .eq("id", equipamentoId);
+
+      if (updateError) throw updateError;
+
+      // 3. Register stock movement
+      const { error: movError } = await supabase
+        .from("movimentacoes_estoque")
+        .insert({
+          equipamento_id: equipamentoId,
+          tipo: "entrada_fisica",
+          quantidade: quantidade,
+          origem: "verificacao_fisica",
+          notas: "Confirmação de existência física via Scanner (produto importado de NF-e)",
+        });
+
+      if (movError) {
+        console.error("Error registering movement:", movError);
+        // Don't fail the operation due to log error
+      }
+
+      // 4. Sync with Nuvemshop
+      try {
+        await supabase.functions.invoke("sync-inventory-nuvemshop", {
+          body: { 
+            action: "sync_single", 
+            equipamento_id: equipamentoId,
+            trigger: "verificacao_fisica" 
+          },
+        });
+      } catch (e) {
+        console.warn("Nuvemshop sync failed (non-critical):", e);
+      }
+
+      return { equipamentoId, quantidade, nome: equipamento?.nome || "Produto" };
+    },
+    onSuccess: (result) => {
+      toast.success(`Existência física confirmada! +${result.quantidade} ${result.nome}`);
+      queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
+      queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["search-by-ean"] });
+      queryClient.invalidateQueries({ queryKey: ["search-equipamento-by-ean"] });
+    },
+    onError: (error) => {
+      console.error("Error confirming physical existence:", error);
+      toast.error("Erro ao confirmar existência física");
+    },
   });
 }

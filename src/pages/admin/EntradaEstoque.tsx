@@ -52,6 +52,8 @@ import {
   Smartphone,
   PackageMinus,
   ShoppingCart,
+  FileText,
+  ClipboardCheck,
 } from "lucide-react";
 import { 
   useSearchByEan, 
@@ -60,6 +62,7 @@ import {
   useVerificarAtualizacaoCusto,
   useConfirmarSaida,
   useSearchEquipamentoByEan,
+  useConfirmarExistenciaFisica,
 } from "@/hooks/useReceberMercadoria";
 import { useScannerFeedback } from "@/hooks/useScannerFeedback";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -145,6 +148,7 @@ export default function EntradaEstoque() {
   
   const { mutate: confirmarEntrada, isPending: isConfirmingEntrada } = useConfirmarEntrada();
   const { mutate: confirmarSaida, isPending: isConfirmingSaida } = useConfirmarSaida();
+  const { mutate: confirmarExistenciaFisica, isPending: isConfirmingExistencia } = useConfirmarExistenciaFisica();
   const isConfirming = operationType === "entrada" ? isConfirmingEntrada : isConfirmingSaida;
   
   const { data: movimentacoes } = useMovimentacoesRecentes(5);
@@ -364,6 +368,31 @@ export default function EntradaEstoque() {
   const suggestedPrice = searchResult?.supplierProduct 
     ? Math.round(searchResult.supplierProduct.cost_price * 1.4)
     : null;
+
+  // Detect products imported via NF-e that are pending physical verification
+  const isProdutoPendente = operationType === "entrada" && 
+    searchResult?.source === "equipamento" && 
+    searchResult.equipamento?.quantidade_fisica === 0 &&
+    searchResult.equipamento?.status === "cadastro_pendente";
+
+  // Handler for confirming physical existence of pending products
+  const handleConfirmarExistenciaFisica = () => {
+    if (!searchResult?.equipamento) return;
+    
+    confirmarExistenciaFisica({
+      equipamentoId: searchResult.equipamento.id,
+      quantidade,
+    }, {
+      onSuccess: () => {
+        if (soundEnabled) feedback('confirm');
+        addToHistory(searchResult.equipamento!.nome, activeCode || "", false, "entrada");
+        resetState();
+      },
+      onError: () => {
+        if (soundEnabled) feedback('error');
+      },
+    });
+  };
 
   // Mobile Full-Screen Scanner Mode
   if (scannerOpen && isMobile) {
@@ -701,8 +730,85 @@ export default function EntradaEstoque() {
                 <p className="text-sm text-muted-foreground">Buscando produto...</p>
               </div>
             </div>
+          ) : operationType === "entrada" && isProdutoPendente && searchResult?.equipamento ? (
+            /* ENTRADA MODE - Produto Pendente de Verificação Física (importado via NF-e) */
+            <div className="space-y-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium text-blue-600">Produto Reconhecido (Base XML)</span>
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30">
+                      Pendente Verificação
+                    </Badge>
+                  </div>
+                  <h3 className="text-lg font-semibold mt-1">{searchResult.equipamento.nome}</h3>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-lg border-2 border-blue-500/50 bg-blue-500/5">
+                <div className="flex items-start gap-3">
+                  <ClipboardCheck className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-blue-700 dark:text-blue-400">Verificação Física Necessária</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Este produto foi cadastrado via NF-e sem entrada de estoque. 
+                      Confirme a quantidade física para ativá-lo no sistema.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Categoria:</span>
+                  <p className="font-medium">{searchResult.equipamento.tipo}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Tamanho:</span>
+                  <p className="font-medium">{searchResult.equipamento.tamanho || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Preço de Custo:</span>
+                  <p className="font-medium">
+                    {searchResult.equipamento.cost_price 
+                      ? `R$ ${searchResult.equipamento.cost_price.toFixed(2)}` 
+                      : "N/A"}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Preço de Venda:</span>
+                  <p className="font-medium">
+                    {searchResult.equipamento.sale_price 
+                      ? `R$ ${searchResult.equipamento.sale_price.toFixed(2)}` 
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label>Quantidade Física Encontrada</Label>
+                <div className="flex items-center gap-3 mt-1.5">
+                  <Button variant="outline" size="icon" onClick={() => setQuantidade(Math.max(1, quantidade - 1))} disabled={quantidade <= 1} className="h-12 w-12"><Minus className="h-4 w-4" /></Button>
+                  <span className="text-2xl font-bold w-12 text-center text-blue-600">{quantidade}</span>
+                  <Button variant="outline" size="icon" onClick={() => setQuantidade(quantidade + 1)} className="h-12 w-12"><Plus className="h-4 w-4" /></Button>
+                </div>
+              </div>
+
+              <Button 
+                size="lg" 
+                className="w-full gap-2 bg-blue-600 hover:bg-blue-700" 
+                onClick={handleConfirmarExistenciaFisica} 
+                disabled={isConfirmingExistencia}
+              >
+                <ClipboardCheck className="h-5 w-5" />
+                {isConfirmingExistencia ? "Confirmando..." : `Confirmar Existência Física (+${quantidade})`}
+              </Button>
+            </div>
           ) : operationType === "entrada" && searchResult?.found && productData ? (
-            /* ENTRADA MODE - Product Found */
+            /* ENTRADA MODE - Product Found (normal flow) */
             <div className="space-y-6">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">

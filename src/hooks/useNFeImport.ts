@@ -91,13 +91,15 @@ export function useNFeImport() {
 
   // Process the import
   const importMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ tipoImportacao }: { tipoImportacao: "nota_nova" | "nota_antiga" }) => {
       if (!nfeData) throw new Error("Nenhuma NF-e carregada");
       
-      const productsToImport = productMatches.filter(m => m.status === "found" && m.quantidadeEntrada > 0);
-      const duplicatasToCreate = nfeData.duplicatas;
+      const productsToUpdate = productMatches.filter(m => m.status === "found" && m.quantidadeEntrada > 0);
+      const productsToCreate = productMatches.filter(m => m.status === "not_found");
+      const duplicatasToCreate = tipoImportacao === "nota_nova" ? nfeData.duplicatas : [];
       
-      setProgress({ step: "importing", current: 0, total: productsToImport.length + duplicatasToCreate.length + 1 });
+      const totalOperations = productsToUpdate.length + productsToCreate.length + duplicatasToCreate.length + 1;
+      setProgress({ step: "importing", current: 0, total: totalOperations });
       
       // 1. Create NF-e record
       const { data: nfeRecord, error: nfeError } = await supabase
@@ -109,9 +111,9 @@ export function useNFeImport() {
           fornecedor_nome: nfeData.fornecedor.xNome,
           data_emissao: nfeData.dhEmi ? nfeData.dhEmi.split("T")[0] : null,
           valor_total: nfeData.vNF,
-          qtd_produtos: productsToImport.length,
+          qtd_produtos: productsToUpdate.length + productsToCreate.length,
           qtd_duplicatas: duplicatasToCreate.length,
-          status: "processado",
+          status: tipoImportacao === "nota_antiga" ? "cadastro_apenas" : "processado",
         })
         .select()
         .single();
@@ -119,34 +121,95 @@ export function useNFeImport() {
       if (nfeError) throw nfeError;
       
       setProgress(p => ({ ...p, current: 1 }));
+      let currentProgress = 1;
       
-      // 2. Update stock for matched products
-      for (let i = 0; i < productsToImport.length; i++) {
-        const match = productsToImport[i];
+      // 2. Update stock for matched products (only add stock if nota_nova)
+      for (let i = 0; i < productsToUpdate.length; i++) {
+        const match = productsToUpdate[i];
         if (!match.equipamento) continue;
         
-        const novaQuantidade = (match.equipamento.quantidade_fisica || 0) + match.quantidadeEntrada;
+        if (tipoImportacao === "nota_nova") {
+          const novaQuantidade = (match.equipamento.quantidade_fisica || 0) + match.quantidadeEntrada;
+          
+          // Update equipment quantity
+          await supabase
+            .from("equipamentos")
+            .update({ quantidade_fisica: novaQuantidade })
+            .eq("id", match.equipamento.id);
+          
+          // Register movement
+          await supabase.from("movimentacoes_estoque").insert({
+            equipamento_id: match.equipamento.id,
+            tipo: "entrada",
+            quantidade: match.quantidadeEntrada,
+            origem: "nfe",
+            nfe_id: nfeRecord.id,
+            notas: `NF-e ${nfeData.nNF} - ${nfeData.fornecedor.xNome}`,
+          });
+        }
+        // For nota_antiga, we just skip stock updates - products already exist
         
-        // Update equipment quantity
-        await supabase
-          .from("equipamentos")
-          .update({ quantidade_fisica: novaQuantidade })
-          .eq("id", match.equipamento.id);
-        
-        // Register movement
-        await supabase.from("movimentacoes_estoque").insert({
-          equipamento_id: match.equipamento.id,
-          tipo: "entrada",
-          quantidade: match.quantidadeEntrada,
-          origem: "nfe",
-          nfe_id: nfeRecord.id,
-          notas: `NF-e ${nfeData.nNF} - ${nfeData.fornecedor.xNome}`,
-        });
-        
-        setProgress(p => ({ ...p, current: 1 + i + 1 }));
+        currentProgress++;
+        setProgress(p => ({ ...p, current: currentProgress }));
       }
       
-      // 3. Create accounts payable entries for duplicatas
+      // 3. Create new products that were not found
+      let produtosCriados = 0;
+      for (let i = 0; i < productsToCreate.length; i++) {
+        const match = productsToCreate[i];
+        const produto = match.produto;
+        
+        // Infer tipo from product name/category
+        let tipo = "produto";
+        const nomeLower = produto.xProd.toLowerCase();
+        if (nomeLower.includes("kite") || nomeLower.includes("asa")) tipo = "kite";
+        else if (nomeLower.includes("prancha") || nomeLower.includes("board")) tipo = "prancha";
+        else if (nomeLower.includes("barra") || nomeLower.includes("bar")) tipo = "barra";
+        else if (nomeLower.includes("trapezio") || nomeLower.includes("harness")) tipo = "trapezio";
+        
+        // Create new equipment
+        const { data: novoEquipamento, error: createError } = await supabase
+          .from("equipamentos")
+          .insert({
+            nome: produto.xProd,
+            tipo,
+            ean: produto.cEAN && produto.cEAN !== "SEM GTIN" ? produto.cEAN : null,
+            supplier_sku: produto.cProd,
+            cost_price: produto.vUnCom,
+            sale_price: Math.round(produto.vUnCom * 1.4), // 40% margin
+            // DIFERENÇA PRINCIPAL: estoque depende do tipo de importação
+            quantidade_fisica: tipoImportacao === "nota_nova" ? match.quantidadeEntrada : 0,
+            status: tipoImportacao === "nota_antiga" ? "cadastro_pendente" : "disponivel",
+            source_type: "owned",
+            fiscal_category: "venda_produto",
+            preco_aluguel_dia: 0,
+          })
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error("Erro ao criar equipamento:", createError);
+        } else if (novoEquipamento) {
+          produtosCriados++;
+          
+          // Register movement only if nota_nova (actual stock entry)
+          if (tipoImportacao === "nota_nova") {
+            await supabase.from("movimentacoes_estoque").insert({
+              equipamento_id: novoEquipamento.id,
+              tipo: "entrada",
+              quantidade: match.quantidadeEntrada,
+              origem: "nfe",
+              nfe_id: nfeRecord.id,
+              notas: `Novo produto via NF-e ${nfeData.nNF}`,
+            });
+          }
+        }
+        
+        currentProgress++;
+        setProgress(p => ({ ...p, current: currentProgress }));
+      }
+      
+      // 4. Create accounts payable entries for duplicatas (only for nota_nova)
       for (let i = 0; i < duplicatasToCreate.length; i++) {
         const dup = duplicatasToCreate[i];
         
@@ -162,15 +225,18 @@ export function useNFeImport() {
           notas: `Importado de NF-e. Chave: ${nfeData.chNFe || "N/A"}`,
         });
         
-        setProgress(p => ({ ...p, current: 1 + productsToImport.length + i + 1 }));
+        currentProgress++;
+        setProgress(p => ({ ...p, current: currentProgress }));
       }
       
       setProgress({ step: "done", current: 0, total: 0 });
       
       return {
         nfeId: nfeRecord.id,
-        produtosImportados: productsToImport.length,
+        produtosAtualizados: productsToUpdate.length,
+        produtosCriados,
         duplicatasCriadas: duplicatasToCreate.length,
+        tipoImportacao,
       };
     },
     onSuccess: (result) => {
@@ -178,9 +244,15 @@ export function useNFeImport() {
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
       queryClient.invalidateQueries({ queryKey: ["contas-a-pagar"] });
       
-      toast.success(
-        `NF-e importada! ${result.produtosImportados} produtos atualizados, ${result.duplicatasCriadas} faturas criadas.`
-      );
+      if (result.tipoImportacao === "nota_antiga") {
+        toast.success(
+          `Catálogo atualizado! ${result.produtosCriados} produtos cadastrados. Use o Scanner para confirmar estoque físico.`
+        );
+      } else {
+        toast.success(
+          `NF-e importada! ${result.produtosAtualizados} atualizados, ${result.produtosCriados} criados, ${result.duplicatasCriadas} faturas.`
+        );
+      }
     },
     onError: (error) => {
       console.error("Erro ao importar NF-e:", error);
