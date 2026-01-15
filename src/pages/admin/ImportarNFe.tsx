@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { 
   FileText, Upload, Package, CreditCard, Check, AlertCircle, 
   ArrowLeft, ArrowRight, X, Building2, Calendar, Loader2,
-  CheckCircle2, XCircle, MinusCircle
+  CheckCircle2, XCircle, MinusCircle, Truck, ClipboardList
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { AdminLayout } from "@/components/AdminLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { EstoqueSubmenu } from "@/components/EstoqueSubmenu";
@@ -43,6 +45,7 @@ export default function ImportarNFe() {
 
   const [isDragging, setIsDragging] = useState(false);
   const [currentStep, setCurrentStep] = useState<"upload" | "review" | "confirm">("upload");
+  const [tipoImportacao, setTipoImportacao] = useState<"nota_nova" | "nota_antiga">("nota_nova");
 
   // Handle file upload
   const handleFileUpload = async (file: File) => {
@@ -89,7 +92,7 @@ export default function ImportarNFe() {
 
   // Handle import confirmation
   const handleConfirmImport = () => {
-    importNFe();
+    importNFe({ tipoImportacao });
   };
 
   // Stats
@@ -207,6 +210,72 @@ export default function ImportarNFe() {
     if (currentStep === "review" && nfeData) {
       return (
         <div className="space-y-6">
+          {/* Tipo de Importação */}
+          <PremiumCard className="p-6 border-primary/30">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Tipo de Importação</h3>
+              </div>
+              <RadioGroup 
+                value={tipoImportacao} 
+                onValueChange={(v) => setTipoImportacao(v as "nota_nova" | "nota_antiga")}
+                className="grid gap-4 sm:grid-cols-2"
+              >
+                <label 
+                  htmlFor="nota_nova" 
+                  className={cn(
+                    "flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
+                    tipoImportacao === "nota_nova" 
+                      ? "border-green-500 bg-green-500/10" 
+                      : "border-border hover:border-green-500/50"
+                  )}
+                >
+                  <RadioGroupItem value="nota_nova" id="nota_nova" className="mt-0.5" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Truck className="h-4 w-4 text-green-600" />
+                      <span className="font-medium">Entrada de Mercadoria</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Nota nova - adiciona estoque e cria contas a pagar
+                    </p>
+                  </div>
+                </label>
+                <label 
+                  htmlFor="nota_antiga" 
+                  className={cn(
+                    "flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
+                    tipoImportacao === "nota_antiga" 
+                      ? "border-blue-500 bg-blue-500/10" 
+                      : "border-border hover:border-blue-500/50"
+                  )}
+                >
+                  <RadioGroupItem value="nota_antiga" id="nota_antiga" className="mt-0.5" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <ClipboardList className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium">Apenas Cadastro</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Nota antiga - cadastra produtos sem alterar estoque
+                    </p>
+                  </div>
+                </label>
+              </RadioGroup>
+
+              {tipoImportacao === "nota_antiga" && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                  <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Produtos serão cadastrados com estoque zerado e status "Pendente Verificação". 
+                    Use o Scanner para confirmar a existência física.
+                  </p>
+                </div>
+              )}
+            </div>
+          </PremiumCard>
+
           {/* NF-e Info */}
           <PremiumCard className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
