@@ -39,14 +39,25 @@ export default function MinhaLoja() {
   const [filtroLocalizacao, setFiltroLocalizacao] = useState<string>("todas");
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
   const [busca, setBusca] = useState("");
+  const [syncingId, setSyncingId] = useState<string | null>(null);
 
   // Buscar apenas produtos próprios (owned) - exclui virtual_supplier
   const { data: todosEquipamentos = [], isLoading } = useEquipamentosListagem({});
   const { data: ocupacao } = useEquipamentosOcupacao();
   
   // Hooks de sincronização
-  const { syncSingle, isPending: isSyncingSingle } = useSyncSingleInventory();
+  const { syncSingle } = useSyncSingleInventory();
   const { syncAll, isPending: isSyncingAll } = useSyncAllInventory();
+
+  // Handler de sync individual com rastreamento de ID
+  const handleSyncSingle = async (equipamentoId: string) => {
+    setSyncingId(equipamentoId);
+    try {
+      await syncSingle(equipamentoId, "manual");
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   // Filtrar apenas produtos próprios (não virtuais do fornecedor)
   const equipamentosProprios = todosEquipamentos.filter(
@@ -135,13 +146,24 @@ export default function MinhaLoja() {
           </p>
         </div>
 
-        <Button
-          className="gap-2 min-h-[44px] w-full sm:w-auto"
-          onClick={() => setEquipamentoDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4" />
-          Novo Produto
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            className="gap-2 min-h-[44px]"
+            disabled={isSyncingAll}
+            onClick={() => syncAll("manual")}
+          >
+            <RefreshCw className={`h-4 w-4 ${isSyncingAll ? 'animate-spin' : ''}`} />
+            Sincronizar Nuvemshop
+          </Button>
+          <Button
+            className="gap-2 min-h-[44px]"
+            onClick={() => setEquipamentoDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Novo Produto
+          </Button>
+        </div>
       </div>
 
       {/* Submenu */}
@@ -508,13 +530,13 @@ export default function MinhaLoja() {
                               variant="ghost"
                               size="sm"
                               className="h-6 px-2 text-xs"
-                              disabled={isSyncingSingle}
+                              disabled={syncingId === eq.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                syncSingle(eq.id, "manual");
+                                handleSyncSingle(eq.id);
                               }}
                             >
-                              <RefreshCw className={`h-3 w-3 mr-1 ${isSyncingSingle ? 'animate-spin' : ''}`} />
+                              <RefreshCw className={`h-3 w-3 mr-1 ${syncingId === eq.id ? 'animate-spin' : ''}`} />
                               Sync
                             </Button>
                           </div>

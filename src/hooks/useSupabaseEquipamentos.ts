@@ -17,7 +17,7 @@ export function useEquipamentosListagem(filters?: {
       let query = supabase
         .from('equipamentos')
         // ✅ Select específico - campos necessários para cards/listagem + gestão de estoque + sync Nuvemshop
-        .select('id, nome, tipo, status, localizacao, preco_aluguel_dia, tamanho, ean, source_type, sale_price, cost_price, quantidade_fisica, quantidade_virtual_safe, nuvemshop_product_id, estoque_nuvemshop, ultima_sync_nuvemshop, sync_status')
+        .select('id, nome, tipo, status, localizacao, preco_aluguel_dia, tamanho, ean, source_type, sale_price, cost_price, quantidade_fisica, quantidade_virtual_safe, nuvemshop_product_id, nuvemshop_variant_id, estoque_nuvemshop, ultima_sync_nuvemshop, sync_status, supplier_sku, prazo_entrega_dias')
         .order('nome', { ascending: true });
 
       // Filtros usando índices criados
