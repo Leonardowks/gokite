@@ -597,7 +597,7 @@ export function useConfirmarExistenciaFisica() {
     onSuccess: (result) => {
       toast.success(`Existência física confirmada! +${result.quantidade} ${result.nome}`);
       queryClient.invalidateQueries({ queryKey: ["equipamentos"] });
-      queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["movimentacoes-estoque"] });
       queryClient.invalidateQueries({ queryKey: ["search-by-ean"] });
       queryClient.invalidateQueries({ queryKey: ["search-equipamento-by-ean"] });
     },

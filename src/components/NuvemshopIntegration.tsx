@@ -10,7 +10,6 @@ import {
   RefreshCw, 
   CheckCircle2, 
   XCircle, 
-  AlertCircle,
   ExternalLink,
   Copy,
   ShoppingBag,
